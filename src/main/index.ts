@@ -1,7 +1,7 @@
 import { app, shell, BrowserWindow } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-import icon from '../../resources/icon.png?asset'
+import icon from '../../resources/TransferBox_Icon.png?asset'
 import { setupIpcHandlers, startDriveMonitoring, cleanupIpc } from './ipc'
 import { getLogger } from './logger'
 

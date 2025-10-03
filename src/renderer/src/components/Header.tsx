@@ -5,52 +5,70 @@
 import { Settings, History, FileText } from 'lucide-react'
 import { Button } from './ui/Button'
 import { useUIStore } from '../store'
+import logoImage from '../assets/logo.png'
 
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export function Header() {
   const { toggleSettings, toggleHistory, toggleLogs } = useUIStore()
 
   return (
-    <header className="flex items-center justify-between border-b border-gray-200 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-900">
-      {/* Logo and Title */}
-      <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg">
-          <svg
-            className="h-6 w-6"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-            />
-          </svg>
-        </div>
-        <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white">TransferBox</h1>
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            Professional Media Transfer Utility
-          </p>
-        </div>
-      </div>
+    <header className="relative border-b border-white/20 bg-white/80 px-6 py-4 backdrop-blur-xl dark:border-gray-800/50 dark:bg-gray-900/80">
+      {/* Gradient accent line */}
+      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-brand-500 via-brand-400 to-brand-300" />
 
-      {/* Actions */}
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="sm" onClick={toggleHistory} title="Transfer History">
-          <History className="h-4 w-4" />
-          <span className="ml-2 hidden sm:inline">History</span>
-        </Button>
-        <Button variant="ghost" size="sm" onClick={toggleLogs} title="View Logs">
-          <FileText className="h-4 w-4" />
-          <span className="ml-2 hidden sm:inline">Logs</span>
-        </Button>
-        <Button variant="ghost" size="sm" onClick={toggleSettings} title="Settings">
-          <Settings className="h-4 w-4" />
-          <span className="ml-2 hidden sm:inline">Settings</span>
-        </Button>
+      <div className="flex items-center justify-between">
+        {/* Logo and Title */}
+        <div className="flex items-center gap-4">
+          <div className="relative flex h-12 w-12 items-center justify-center">
+            {/* Animated gradient background */}
+            <div className="absolute inset-0 animate-pulse rounded-xl bg-gradient-to-br from-brand-400 to-brand-600 opacity-20 blur-lg" />
+            <div className="relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl bg-white shadow-xl shadow-brand-500/30 ring-2 ring-brand-400">
+              <img src={logoImage} alt="TransferBox" className="h-10 w-10 object-contain" />
+            </div>
+          </div>
+          <div>
+            <h1 className="bg-gradient-to-r from-brand-600 via-brand-500 to-brand-400 bg-clip-text text-2xl font-black tracking-tight text-transparent dark:from-brand-400 dark:via-brand-300 dark:to-brand-200">
+              TransferBox
+            </h1>
+            <p className="text-xs font-medium text-slate-600 dark:text-slate-400">
+              Professional Media Transfer Tool
+            </p>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={toggleHistory}
+            title="Transfer History"
+            className="hover:bg-brand-50 hover:text-brand-700 dark:hover:bg-brand-950 dark:hover:text-brand-400"
+          >
+            <History className="h-4 w-4" />
+            <span className="ml-2 hidden md:inline">History</span>
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={toggleLogs}
+            title="View Logs"
+            className="hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+          >
+            <FileText className="h-4 w-4" />
+            <span className="ml-2 hidden md:inline">Logs</span>
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={toggleSettings}
+            title="Settings"
+            className="hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+          >
+            <Settings className="h-4 w-4" />
+            <span className="ml-2 hidden md:inline">Settings</span>
+          </Button>
+        </div>
       </div>
     </header>
   )

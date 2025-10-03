@@ -2,7 +2,7 @@
  * Drive Selector Component
  */
 
-import { HardDrive, Loader2, Usb } from 'lucide-react'
+import { HardDrive, Loader2, Usb, Check, Sparkles } from 'lucide-react'
 import { useDriveStore } from '../store'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/Card'
 import { formatBytes, cn } from '../lib/utils'
@@ -17,28 +17,44 @@ export function DriveSelector() {
 
   if (detectedDrives.length === 0) {
     return (
-      <Card>
-        <CardContent className="flex flex-col items-center justify-center py-12">
-          <HardDrive className="h-16 w-16 text-gray-300 dark:text-gray-700" />
-          <p className="mt-4 text-lg font-medium text-gray-900 dark:text-white">
-            No Drives Detected
-          </p>
-          <p className="mt-2 text-center text-sm text-gray-500 dark:text-gray-400">
+      <Card className="border-2 border-dashed border-gray-300 bg-white/50 backdrop-blur-sm dark:border-gray-700 dark:bg-gray-900/50">
+        <CardContent className="flex flex-col items-center justify-center py-16">
+          <div className="relative">
+            <div className="absolute inset-0 animate-ping rounded-full bg-brand-400 opacity-20" />
+            <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-brand-100 to-orange-100 dark:from-brand-900/30 dark:to-orange-900/30">
+              <HardDrive className="h-10 w-10 text-brand-600 dark:text-brand-400" />
+            </div>
+          </div>
+          <p className="mt-6 text-xl font-bold text-gray-900 dark:text-white">No Drives Detected</p>
+          <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
             Insert an SD card or USB drive to begin
           </p>
+          <div className="mt-4 flex items-center gap-2 text-xs text-gray-500">
+            <Sparkles className="h-3 w-3" />
+            <span>Monitoring for new devices...</span>
+          </div>
         </CardContent>
       </Card>
     )
   }
 
   return (
-    <Card>
+    <Card className="border-0 bg-white/70 shadow-xl shadow-brand-500/10 backdrop-blur-sm dark:bg-gray-900/70">
       <CardHeader>
-        <CardTitle>Detected Drives</CardTitle>
-        <CardDescription>Select a drive to scan for media files</CardDescription>
+        <div className="flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-brand-400 to-brand-600 text-white shadow-lg shadow-brand-500/30">
+            <HardDrive className="h-4 w-4" />
+          </div>
+          <div>
+            <CardTitle className="text-lg">Source Drives</CardTitle>
+            <CardDescription className="text-xs">
+              {detectedDrives.length} {detectedDrives.length === 1 ? 'drive' : 'drives'} detected
+            </CardDescription>
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
-        <div className="space-y-2">
+        <div className="space-y-3">
           {detectedDrives.map((drive) => {
             const isSelected = selectedDrive?.device === drive.device
             const isScanningThis = scanInProgress && isSelected
@@ -48,55 +64,81 @@ export function DriveSelector() {
                 key={drive.device}
                 onClick={() => handleSelectDrive(drive)}
                 className={cn(
-                  'w-full rounded-lg border p-4 text-left transition-all',
-                  'hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950',
+                  'group relative w-full overflow-hidden rounded-xl border-2 p-4 text-left transition-all duration-300',
+                  'hover:shadow-lg hover:shadow-brand-500/20',
                   isSelected
-                    ? 'border-blue-500 bg-blue-50 dark:border-blue-500 dark:bg-blue-950'
-                    : 'border-gray-200 dark:border-gray-800'
+                    ? 'border-brand-500 bg-gradient-to-br from-brand-50 to-orange-50 dark:border-brand-400 dark:from-brand-950/50 dark:to-orange-950/50'
+                    : 'border-gray-200 bg-white hover:border-brand-300 dark:border-gray-700 dark:bg-gray-800/50 dark:hover:border-brand-600'
                 )}
               >
+                {/* Selection indicator */}
+                {isSelected && (
+                  <div className="absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full bg-brand-500 text-white shadow-lg">
+                    <Check className="h-4 w-4" strokeWidth={3} />
+                  </div>
+                )}
+
                 <div className="flex items-center gap-4">
                   {/* Icon */}
                   <div
                     className={cn(
-                      'flex h-12 w-12 items-center justify-center rounded-lg',
+                      'relative flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl transition-all',
                       isSelected
-                        ? 'bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-400'
-                        : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                        ? 'bg-gradient-to-br from-brand-500 to-brand-600 text-white shadow-lg shadow-brand-500/30'
+                        : 'bg-gray-100 text-gray-600 group-hover:bg-brand-100 group-hover:text-brand-600 dark:bg-gray-800 dark:text-gray-400'
                     )}
                   >
                     {isScanningThis ? (
-                      <Loader2 className="h-6 w-6 animate-spin" />
+                      <Loader2 className="h-7 w-7 animate-spin" />
                     ) : drive.busType === 'USB' ? (
-                      <Usb className="h-6 w-6" />
+                      <Usb className="h-7 w-7" />
                     ) : (
-                      <HardDrive className="h-6 w-6" />
+                      <HardDrive className="h-7 w-7" />
                     )}
                   </div>
 
                   {/* Info */}
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-semibold text-gray-900 dark:text-white">
-                        {drive.displayName}
-                      </h3>
-                      {isSelected && !isScanningThis && (
-                        <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
-                          Selected
-                        </span>
+                  <div className="min-w-0 flex-1">
+                    <h3
+                      className={cn(
+                        'truncate text-base font-bold',
+                        isSelected
+                          ? 'text-brand-900 dark:text-brand-100'
+                          : 'text-gray-900 dark:text-white'
                       )}
-                      {isScanningThis && (
-                        <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
-                          Scanning...
-                        </span>
+                    >
+                      {drive.displayName}
+                    </h3>
+                    <p
+                      className={cn(
+                        'mt-1 text-sm font-medium',
+                        isSelected
+                          ? 'text-brand-700 dark:text-brand-300'
+                          : 'text-gray-600 dark:text-gray-400'
                       )}
-                    </div>
-                    <p className="mt-0.5 text-sm text-gray-600 dark:text-gray-400">
+                    >
                       {drive.description} • {formatBytes(drive.size)}
                     </p>
-                    <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-500">
+                    <p
+                      className={cn(
+                        'mt-1 truncate text-xs',
+                        isSelected
+                          ? 'text-brand-600 dark:text-brand-400'
+                          : 'text-gray-500 dark:text-gray-500'
+                      )}
+                    >
                       {drive.mountpoints[0] || drive.device}
                     </p>
+                    {isScanningThis && (
+                      <div className="mt-2 flex items-center gap-2">
+                        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-brand-200 dark:bg-brand-900">
+                          <div className="h-full w-1/3 animate-pulse rounded-full bg-gradient-to-r from-brand-500 to-orange-500" />
+                        </div>
+                        <span className="text-xs font-semibold text-brand-600 dark:text-brand-400">
+                          Scanning...
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </button>
