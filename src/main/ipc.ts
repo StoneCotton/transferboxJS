@@ -4,6 +4,7 @@
  */
 
 import { ipcMain, dialog } from 'electron'
+import { stat } from 'fs/promises'
 import { IPC_CHANNELS, PathValidationRequest, TransferStartRequest } from '../shared/types'
 import { validatePath } from './pathValidator'
 import { getConfig, updateConfig, resetConfig } from './configManager'
@@ -128,16 +129,102 @@ export function setupIpcHandlers(): void {
       return { source: sourcePath, dest: destPath }
     })
 
+    // Get all file sizes upfront for accurate overall progress
+    const fileSizes = await Promise.all(
+      transferFiles.map(async (f) => {
+        try {
+          const stats = await stat(f.source)
+          return stats.size
+        } catch {
+          return 0
+        }
+      })
+    )
+
+    // Track overall progress
+    const startTime = Date.now()
+    let completedFiles = 0
+    let failedFiles = 0
+    let currentFileIndex = 0
+    let cumulativeBytesTransferred = 0
+    const totalFiles = transferFiles.length
+    const totalBytes = fileSizes.reduce((sum, size) => sum + size, 0)
+
+    // Track current file state
+    let currentFilePhase: 'transferring' | 'verifying' = 'transferring'
+    let lastProgressTime = Date.now()
+
+    const sendProgress = (fileProgress: {
+      bytesTransferred: number
+      totalBytes: number
+      percentage: number
+      speed: number
+    }) => {
+      const now = Date.now()
+      const elapsedTime = (now - startTime) / 1000 // seconds
+
+      // Calculate overall progress based on all files
+      const bytesCompletedPreviously = fileSizes
+        .slice(0, currentFileIndex)
+        .reduce((sum, size) => sum + size, 0)
+      const overallBytesTransferred = bytesCompletedPreviously + fileProgress.bytesTransferred
+      const overallPercentage = totalBytes > 0 ? (overallBytesTransferred / totalBytes) * 100 : 0
+
+      // Calculate speeds and ETA
+      const averageSpeed = elapsedTime > 0 ? overallBytesTransferred / elapsedTime : 0
+      const remainingBytes = totalBytes - overallBytesTransferred
+      const eta = averageSpeed > 0 ? remainingBytes / averageSpeed : 0
+
+      // Throttle progress updates to every 100ms
+      if (now - lastProgressTime < 100 && fileProgress.percentage < 100) {
+        return
+      }
+      lastProgressTime = now
+
+      // Send structured progress to renderer
+      event.sender.send(IPC_CHANNELS.TRANSFER_PROGRESS, {
+        status: 'transferring',
+        totalFiles,
+        completedFiles,
+        failedFiles,
+        skippedFiles: 0,
+        totalBytes,
+        transferredBytes: overallBytesTransferred,
+        overallPercentage,
+        currentFile: {
+          sourcePath: transferFiles[currentFileIndex]?.source || '',
+          destinationPath: transferFiles[currentFileIndex]?.dest || '',
+          fileName: transferFiles[currentFileIndex]?.source.split('/').pop() || '',
+          fileSize: fileProgress.totalBytes,
+          bytesTransferred: fileProgress.bytesTransferred,
+          percentage: fileProgress.percentage,
+          status: currentFilePhase,
+          startTime
+        },
+        transferSpeed: fileProgress.speed,
+        averageSpeed,
+        eta,
+        elapsedTime,
+        startTime,
+        endTime: null,
+        errorCount: failedFiles
+      })
+    }
+
     // Transfer files with progress updates
     transferEngine
       .transferFiles(transferFiles, {
         verifyChecksum: getConfig().verifyChecksums,
         onProgress: (progress) => {
-          // Send progress to renderer
-          event.sender.send(IPC_CHANNELS.TRANSFER_PROGRESS, {
-            ...progress,
-            status: 'transferring'
-          })
+          currentFilePhase = 'transferring'
+          sendProgress(progress)
+        },
+        onBatchProgress: (completed, total) => {
+          completedFiles = completed
+          currentFileIndex = completed
+          cumulativeBytesTransferred = fileSizes
+            .slice(0, completed)
+            .reduce((sum, size) => sum + size, 0)
         }
       })
       .then((results) => {

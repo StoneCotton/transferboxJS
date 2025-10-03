@@ -4,15 +4,42 @@
 
 import { HardDrive, Loader2, Usb, Check, Sparkles } from 'lucide-react'
 import { useDriveStore } from '../store'
+import { useIpc } from '../hooks/useIpc'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/Card'
 import { formatBytes, cn } from '../lib/utils'
 import type { DriveInfo } from '../../../shared/types'
 
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export function DriveSelector() {
-  const { detectedDrives, selectedDrive, selectDrive, scanInProgress } = useDriveStore()
+  const {
+    detectedDrives,
+    selectedDrive,
+    selectDrive,
+    scanInProgress,
+    setScanInProgress,
+    setScannedFiles,
+    setScanError
+  } = useDriveStore()
+  const ipc = useIpc()
 
-  const handleSelectDrive = (drive: DriveInfo) => {
+  const handleSelectDrive = async (drive: DriveInfo): Promise<void> => {
+    // Select the drive
     selectDrive(drive)
+
+    // Start scanning immediately
+    try {
+      setScanInProgress(true)
+      setScanError(null)
+      const result = await ipc.scanDrive(drive.device)
+      setScannedFiles(result.files)
+      console.log(`Found ${result.files.length} media files on ${drive.displayName}`)
+    } catch (error) {
+      console.error('Failed to scan drive:', error)
+      setScanError(error instanceof Error ? error.message : 'Failed to scan drive')
+      setScannedFiles([])
+    } finally {
+      setScanInProgress(false)
+    }
   }
 
   if (detectedDrives.length === 0) {

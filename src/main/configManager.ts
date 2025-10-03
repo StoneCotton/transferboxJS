@@ -124,7 +124,12 @@ export function resetConfig(): AppConfig {
 export function validateConfig(config: Partial<AppConfig>): void {
   // Validate transferMode
   if (config.transferMode !== undefined) {
-    const validModes: TransferMode[] = ['manual', 'semi-auto', 'autonomous']
+    const validModes: TransferMode[] = [
+      'auto-transfer',
+      'confirm-transfer',
+      'fully-autonomous',
+      'manual'
+    ]
     if (!validModes.includes(config.transferMode)) {
       throw new Error(
         `Invalid transfer mode: ${config.transferMode}. Must be one of: ${validModes.join(', ')}`
@@ -235,7 +240,23 @@ export function setConfigValue<K extends keyof AppConfig>(key: K, value: AppConf
  * Checks if autonomous mode is enabled
  */
 export function isAutonomousMode(): boolean {
-  return getConfig().transferMode === 'autonomous'
+  return getConfig().transferMode === 'fully-autonomous'
+}
+
+/**
+ * Checks if mode requires confirmation
+ */
+export function requiresConfirmation(): boolean {
+  const mode = getConfig().transferMode
+  return mode === 'confirm-transfer' || mode === 'manual'
+}
+
+/**
+ * Checks if mode auto-starts transfers
+ */
+export function autoStartsTransfer(): boolean {
+  const mode = getConfig().transferMode
+  return mode === 'auto-transfer' || mode === 'fully-autonomous'
 }
 
 /**

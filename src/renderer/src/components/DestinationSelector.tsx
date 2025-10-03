@@ -3,8 +3,8 @@
  */
 
 import { FolderOpen, CheckCircle2, AlertCircle, FolderPlus } from 'lucide-react'
-import { useState } from 'react'
-import { useUIStore } from '../store'
+import { useState, useEffect, useRef } from 'react'
+import { useUIStore, useDriveStore, useConfigStore, useTransferStore } from '../store'
 import { useIpc } from '../hooks/useIpc'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/Card'
 import { Button } from './ui/Button'
@@ -12,9 +12,13 @@ import { cn } from '../lib/utils'
 
 export function DestinationSelector() {
   const { selectedDestination, setSelectedDestination, isSelectingDestination } = useUIStore()
+  const { selectedDrive, scannedFiles } = useDriveStore()
+  const { config } = useConfigStore()
+  const { isTransferring, startTransfer } = useTransferStore()
   const ipc = useIpc()
   const [isValidating, setIsValidating] = useState(false)
   const [validationError, setValidationError] = useState<string | null>(null)
+  const hasTriggeredAutoTransfer = useRef(false)
 
   const handleSelectFolder = async () => {
     try {
@@ -41,6 +45,66 @@ export function DestinationSelector() {
       setIsValidating(false)
     }
   }
+
+  // Auto-transfer for Mode 1: when destination is set AND drive/files are ready
+  useEffect(() => {
+    const shouldAutoTransfer =
+      config.transferMode === 'auto-transfer' &&
+      selectedDestination &&
+      selectedDrive &&
+      scannedFiles.length > 0 &&
+      !isTransferring &&
+      !hasTriggeredAutoTransfer.current
+
+    if (shouldAutoTransfer) {
+      hasTriggeredAutoTransfer.current = true
+      console.log('[Mode 1] Auto-starting transfer after destination set')
+
+      const performAutoTransfer = async () => {
+        try {
+          const request = {
+            driveInfo: selectedDrive,
+            sourceRoot: selectedDrive.mountpoints[0] || '',
+            destinationRoot: selectedDestination,
+            files: scannedFiles
+          }
+
+          await ipc.startTransfer(request)
+
+          startTransfer({
+            id: `transfer-${Date.now()}`,
+            driveId: selectedDrive.device,
+            driveName: selectedDrive.displayName,
+            sourceRoot: request.sourceRoot,
+            destinationRoot: selectedDestination,
+            startTime: Date.now(),
+            endTime: null,
+            status: 'transferring',
+            fileCount: scannedFiles.length,
+            totalBytes: 0,
+            files: []
+          })
+        } catch (error) {
+          console.error('Auto-transfer failed:', error)
+        }
+      }
+
+      performAutoTransfer()
+    }
+  }, [
+    config.transferMode,
+    selectedDestination,
+    selectedDrive,
+    scannedFiles,
+    isTransferring,
+    ipc,
+    startTransfer
+  ])
+
+  // Reset auto-transfer flag when drive changes
+  useEffect(() => {
+    hasTriggeredAutoTransfer.current = false
+  }, [selectedDrive?.device])
 
   return (
     <Card className="border-0 bg-white/70 shadow-xl shadow-slate-500/10 backdrop-blur-sm dark:bg-gray-900/70">

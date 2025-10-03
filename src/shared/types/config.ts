@@ -2,7 +2,7 @@
  * Configuration types for TransferBox
  */
 
-export type TransferMode = 'manual' | 'semi-auto' | 'autonomous'
+export type TransferMode = 'auto-transfer' | 'confirm-transfer' | 'fully-autonomous' | 'manual'
 
 export type FolderStructure = 'date-based' | 'device-based' | 'flat' | 'preserve-source'
 
@@ -10,7 +10,11 @@ export type ChecksumAlgorithm = 'xxhash64'
 
 export interface AppConfig {
   // Transfer modes
-  transferMode: TransferMode // 'manual' = Mode 1, 'semi-auto' = Mode 2, 'autonomous' = Mode 3
+  // 'auto-transfer' = Mode 1: Auto-start when drive detected, ask for destination each time
+  // 'confirm-transfer' = Mode 2: After setting destination, require confirmation
+  // 'fully-autonomous' = Mode 3: Pre-configured destination, fully automatic
+  // 'manual' = Mode 4: Manual selection of source and destination
+  transferMode: TransferMode
 
   // Destination settings
   defaultDestination: string | null // Used in autonomous mode
@@ -44,7 +48,7 @@ export interface AppConfig {
 }
 
 export const DEFAULT_CONFIG: AppConfig = {
-  transferMode: 'manual',
+  transferMode: 'auto-transfer', // Default to Mode 1
   defaultDestination: null,
   preserveOriginalNames: true,
   timestampFormat: 'YYYY-MM-DD_HHmmss',

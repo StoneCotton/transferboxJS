@@ -33,14 +33,14 @@ export function TransferProgress() {
         'relative overflow-hidden border-0 shadow-2xl backdrop-blur-sm',
         hasError
           ? 'bg-red-50/90 shadow-red-500/20 dark:bg-red-950/90'
-          : 'bg-gradient-to-br from-blue-50/90 to-indigo-50/90 shadow-blue-500/20 dark:from-blue-950/90 dark:to-indigo-950/90'
+          : 'bg-gradient-to-br from-brand-50/90 to-orange-50/90 shadow-brand-500/20 dark:from-brand-950/90 dark:to-orange-950/90'
       )}
     >
       {/* Animated background gradient */}
       <div
         className={cn(
           'absolute inset-0 opacity-30',
-          !hasError && 'bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400 animate-pulse'
+          !hasError && 'bg-gradient-to-r from-brand-400 via-orange-400 to-brand-400 animate-pulse'
         )}
       />
 
@@ -53,7 +53,7 @@ export function TransferProgress() {
                 hasError
                   ? 'bg-red-500 text-white'
                   : isTransferring
-                    ? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white'
+                    ? 'bg-gradient-to-br from-brand-500 to-orange-600 text-white'
                     : 'bg-gradient-to-br from-green-500 to-emerald-600 text-white'
               )}
             >
@@ -105,13 +105,20 @@ export function TransferProgress() {
           </div>
         ) : (
           <div className="space-y-6">
-            {/* Progress Bar */}
+            {/* Overall Progress Bar */}
             <div>
               <div className="mb-3 flex items-center justify-between">
-                <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                  Overall Progress
-                </span>
-                <span className="text-2xl font-black text-blue-600 dark:text-blue-400">
+                <div>
+                  <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                    Overall Progress
+                  </span>
+                  {progress && (
+                    <p className="mt-1 text-xs font-medium text-gray-600 dark:text-gray-400">
+                      {formatBytes(progress.transferredBytes)} of {formatBytes(progress.totalBytes)}
+                    </p>
+                  )}
+                </div>
+                <span className="text-2xl font-black text-brand-600 dark:text-brand-400">
                   {Math.round(percentage)}%
                 </span>
               </div>
@@ -120,52 +127,93 @@ export function TransferProgress() {
               </div>
             </div>
 
+            {/* Current File Progress Bar */}
+            {progress?.currentFile && (
+              <div className="rounded-xl border-2 border-brand-300 bg-white/90 p-4 dark:border-brand-700 dark:bg-gray-900/90">
+                <div className="mb-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin text-brand-600 dark:text-brand-400" />
+                    <span className="text-xs font-semibold uppercase tracking-wide text-brand-600 dark:text-brand-400">
+                      {progress.currentFile.status === 'verifying'
+                        ? 'Verifying Checksum'
+                        : 'Transferring File'}
+                    </span>
+                  </div>
+                  <span className="text-lg font-black text-brand-900 dark:text-brand-100">
+                    {Math.round(progress.currentFile.percentage || 0)}%
+                  </span>
+                </div>
+                <div className="relative mb-3">
+                  <Progress
+                    value={progress.currentFile.percentage || 0}
+                    size="md"
+                    className={cn(
+                      'h-3',
+                      progress.currentFile.status === 'verifying' && 'animate-pulse'
+                    )}
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <p className="truncate text-sm font-bold text-gray-900 dark:text-white">
+                    {progress.currentFile.fileName}
+                  </p>
+                  <p className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                    {formatBytes(progress.currentFile.bytesTransferred)} /{' '}
+                    {formatBytes(progress.currentFile.fileSize)}
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Stats Grid */}
             {progress && (
               <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
                 {/* Files */}
-                <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-blue-100 to-blue-50 p-4 shadow-lg dark:from-blue-900/30 dark:to-blue-950/30">
+                <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-brand-100 to-brand-50 p-4 shadow-lg dark:from-brand-900/30 dark:to-brand-950/30">
                   <div className="absolute right-2 top-2 opacity-10">
                     <FileCheck className="h-12 w-12" />
                   </div>
                   <div className="relative">
-                    <div className="flex items-center gap-2 text-xs font-semibold text-blue-600 dark:text-blue-400">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-brand-600 dark:text-brand-400">
                       <FileCheck className="h-4 w-4" />
                       <span>Files</span>
                     </div>
-                    <p className="mt-2 text-2xl font-black text-blue-900 dark:text-blue-100">
+                    <p className="mt-2 text-2xl font-black text-brand-900 dark:text-brand-100">
                       {progress.completedFiles}/{progress.totalFiles}
                     </p>
                   </div>
                 </div>
 
                 {/* Size */}
-                <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-indigo-100 to-indigo-50 p-4 shadow-lg dark:from-indigo-900/30 dark:to-indigo-950/30">
+                <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-slate-100 to-slate-50 p-4 shadow-lg dark:from-slate-900/30 dark:to-slate-950/30">
                   <div className="absolute right-2 top-2 opacity-10">
                     <HardDriveDownload className="h-12 w-12" />
                   </div>
                   <div className="relative">
-                    <div className="flex items-center gap-2 text-xs font-semibold text-indigo-600 dark:text-indigo-400">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-400">
                       <HardDriveDownload className="h-4 w-4" />
                       <span>Transferred</span>
                     </div>
-                    <p className="mt-2 text-2xl font-black text-indigo-900 dark:text-indigo-100">
+                    <p className="mt-2 text-lg font-black text-slate-900 dark:text-slate-100">
                       {formatBytes(progress.transferredBytes)}
+                    </p>
+                    <p className="mt-1 text-xs font-medium text-slate-600 dark:text-slate-400">
+                      of {formatBytes(progress.totalBytes)}
                     </p>
                   </div>
                 </div>
 
                 {/* Speed */}
-                <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-purple-100 to-purple-50 p-4 shadow-lg dark:from-purple-900/30 dark:to-purple-950/30">
+                <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-orange-100 to-orange-50 p-4 shadow-lg dark:from-orange-900/30 dark:to-orange-950/30">
                   <div className="absolute right-2 top-2 opacity-10">
                     <Zap className="h-12 w-12" />
                   </div>
                   <div className="relative">
-                    <div className="flex items-center gap-2 text-xs font-semibold text-purple-600 dark:text-purple-400">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-orange-600 dark:text-orange-400">
                       <Zap className="h-4 w-4" />
                       <span>Speed</span>
                     </div>
-                    <p className="mt-2 text-2xl font-black text-purple-900 dark:text-purple-100">
+                    <p className="mt-2 text-2xl font-black text-orange-900 dark:text-orange-100">
                       {formatSpeed(progress.transferSpeed)}
                     </p>
                   </div>
@@ -183,25 +231,6 @@ export function TransferProgress() {
                     </div>
                     <p className="mt-2 text-2xl font-black text-pink-900 dark:text-pink-100">
                       {progress.eta > 0 ? formatTime(progress.eta) : '--'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Current File */}
-            {progress?.currentFile && (
-              <div className="rounded-xl border-2 border-blue-300 bg-white/90 p-4 dark:border-blue-700 dark:bg-gray-900/90">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/50">
-                    <Loader2 className="h-5 w-5 animate-spin text-blue-600 dark:text-blue-400" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-400">
-                      Current File
-                    </p>
-                    <p className="mt-1 truncate text-sm font-bold text-gray-900 dark:text-white">
-                      {progress.currentFile.fileName}
                     </p>
                   </div>
                 </div>

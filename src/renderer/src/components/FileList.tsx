@@ -22,7 +22,7 @@ import { cn } from '../lib/utils'
 function getFileIcon(filePath: string) {
   const ext = filePath.toLowerCase().split('.').pop()
 
-  if (['.mp4', '.mov', '.avi', '.mkv', '.mts', '.m4v'].includes(`.${ext}`)) {
+  if (['.MP4', '.mov', '.avi', '.mkv', '.mts', '.m4v'].includes(`.${ext}`)) {
     return FileVideo
   }
   if (['.mp3', '.wav', '.flac', '.aac', '.m4a'].includes(`.${ext}`)) {

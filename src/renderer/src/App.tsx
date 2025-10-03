@@ -10,6 +10,8 @@ import { FileList } from './components/FileList'
 import { TransferProgress } from './components/TransferProgress'
 import { TransferActions } from './components/TransferActions'
 import { StatusBar } from './components/StatusBar'
+import { SettingsModal } from './components/SettingsModal'
+import { ModeIndicator } from './components/ModeIndicator'
 import { useDriveStore, useUIStore, useTransferStore } from './store'
 import { CheckCircle2, Circle, CircleDot } from 'lucide-react'
 import { cn } from './lib/utils'
@@ -35,6 +37,11 @@ function App() {
       {/* Main Content */}
       <main className="flex-1 overflow-auto p-4 md:p-8">
         <div className="mx-auto max-w-7xl">
+          {/* Mode Indicator */}
+          <div className="mb-6 flex justify-center">
+            <ModeIndicator />
+          </div>
+
           {/* Workflow Steps Indicator */}
           <div className="mb-8 flex items-center justify-center gap-4">
             {/* Step 1 */}
@@ -184,6 +191,9 @@ function App() {
 
       {/* Status Bar */}
       <StatusBar />
+
+      {/* Modals */}
+      <SettingsModal />
     </div>
   )
 }

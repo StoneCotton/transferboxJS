@@ -4,27 +4,45 @@
 
 import { Play, Loader2, Rocket, AlertCircle } from 'lucide-react'
 import { useState } from 'react'
-import { useDriveStore, useTransferStore, useUIStore } from '../store'
+import { useDriveStore, useTransferStore, useUIStore, useConfigStore } from '../store'
 import { useIpc } from '../hooks/useIpc'
 import { Button } from './ui/Button'
 import { Card, CardContent } from './ui/Card'
+import { ConfirmTransferDialog } from './ConfirmTransferDialog'
 import { cn } from '../lib/utils'
 
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export function TransferActions() {
   const { selectedDrive, scannedFiles } = useDriveStore()
   const { isTransferring, startTransfer } = useTransferStore()
   const { selectedDestination } = useUIStore()
+  const { config } = useConfigStore()
   const ipc = useIpc()
   const [isStarting, setIsStarting] = useState(false)
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false)
 
   const canTransfer =
     selectedDrive && scannedFiles.length > 0 && selectedDestination && !isTransferring
 
-  const handleStartTransfer = async () => {
+  const handleStartTransfer = async (): Promise<void> => {
     if (!canTransfer || !selectedDrive || !selectedDestination) return
+
+    // Check if confirmation is required (Mode 2)
+    if (config.transferMode === 'confirm-transfer') {
+      setShowConfirmDialog(true)
+      return
+    }
+
+    // Start transfer directly
+    await performTransfer()
+  }
+
+  const performTransfer = async (): Promise<void> => {
+    if (!selectedDrive || !selectedDestination) return
 
     try {
       setIsStarting(true)
+      setShowConfirmDialog(false)
 
       // Create transfer request
       const request = {
@@ -166,6 +184,16 @@ export function TransferActions() {
           </div>
         </div>
       </CardContent>
+
+      {/* Confirmation Dialog */}
+      <ConfirmTransferDialog
+        isOpen={showConfirmDialog}
+        onConfirm={performTransfer}
+        onCancel={() => setShowConfirmDialog(false)}
+        fileCount={scannedFiles.length}
+        driveName={selectedDrive?.displayName || 'Unknown'}
+        destination={selectedDestination}
+      />
     </Card>
   )
 }
