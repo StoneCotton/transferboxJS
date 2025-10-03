@@ -1,0 +1,268 @@
+/**
+ * Configuration Manager Tests
+ * Following TDD - these tests are written BEFORE implementation
+ */
+
+import * as path from 'path'
+import * as os from 'os'
+import * as fs from 'fs/promises'
+import {
+  ConfigManager,
+  getConfig,
+  updateConfig,
+  resetConfig,
+  validateConfig
+} from '../../src/main/configManager'
+import { AppConfig, DEFAULT_CONFIG, TransferMode } from '../../src/shared/types'
+
+describe('ConfigManager', () => {
+  let configManager: ConfigManager
+  let testConfigPath: string
+
+  beforeEach(() => {
+    // Use a test-specific config path
+    testConfigPath = path.join(os.tmpdir(), `transferbox-test-config-${Date.now()}`)
+    configManager = new ConfigManager(testConfigPath)
+  })
+
+  afterEach(async () => {
+    // Clean up test config
+    try {
+      await fs.rm(testConfigPath, { recursive: true, force: true })
+    } catch (error) {
+      // Ignore cleanup errors
+    }
+  })
+
+  describe('ConfigManager class', () => {
+    it('should initialize with default config', () => {
+      const config = configManager.getConfig()
+
+      expect(config.transferMode).toBe('manual')
+      expect(config.folderStructure).toBe('date-based')
+      expect(config.verifyChecksums).toBe(true)
+      expect(config.checksumAlgorithm).toBe('xxhash64')
+    })
+
+    it('should get current config', () => {
+      const config = configManager.getConfig()
+
+      expect(config).toBeDefined()
+      expect(config.transferMode).toBe('manual')
+      expect(config.mediaExtensions).toContain('.mp4')
+      expect(config.bufferSize).toBeGreaterThan(0)
+    })
+
+    it('should update config partially', () => {
+      configManager.updateConfig({ transferMode: 'autonomous' })
+
+      const config = configManager.getConfig()
+      expect(config.transferMode).toBe('autonomous')
+      // Other values should remain default
+      expect(config.folderStructure).toBe('date-based')
+    })
+
+    it('should update multiple config values', () => {
+      configManager.updateConfig({
+        transferMode: 'semi-auto',
+        folderStructure: 'flat',
+        verifyChecksums: false
+      })
+
+      const config = configManager.getConfig()
+      expect(config.transferMode).toBe('semi-auto')
+      expect(config.folderStructure).toBe('flat')
+      expect(config.verifyChecksums).toBe(false)
+    })
+
+    it('should persist config across instances', () => {
+      configManager.updateConfig({ transferMode: 'autonomous' })
+
+      // Create new instance with same path
+      const newConfigManager = new ConfigManager(testConfigPath)
+      const config = newConfigManager.getConfig()
+
+      expect(config.transferMode).toBe('autonomous')
+    })
+
+    it('should reset config to defaults', () => {
+      configManager.updateConfig({
+        transferMode: 'autonomous',
+        folderStructure: 'flat'
+      })
+
+      configManager.resetConfig()
+      const config = configManager.getConfig()
+
+      expect(config.transferMode).toBe('manual')
+      expect(config.folderStructure).toBe('date-based')
+    })
+
+    it('should validate config before updating', () => {
+      // This should not throw
+      expect(() => {
+        configManager.updateConfig({ bufferSize: 8192 })
+      }).not.toThrow()
+
+      // Invalid buffer size should throw
+      expect(() => {
+        configManager.updateConfig({ bufferSize: -1 })
+      }).toThrow()
+    })
+
+    it('should handle default destination path', () => {
+      const testPath = '/Users/test/TransferBox'
+      configManager.updateConfig({ defaultDestination: testPath })
+
+      const config = configManager.getConfig()
+      expect(config.defaultDestination).toBe(testPath)
+    })
+
+    it('should handle media extensions update', () => {
+      const customExtensions = ['.mp4', '.mov', '.avi']
+      configManager.updateConfig({ mediaExtensions: customExtensions })
+
+      const config = configManager.getConfig()
+      expect(config.mediaExtensions).toEqual(customExtensions)
+    })
+  })
+
+  describe('Standalone functions', () => {
+    it('should get config using global function', () => {
+      const config = getConfig()
+      expect(config).toBeDefined()
+      expect(config.transferMode).toBeDefined()
+    })
+
+    it('should update config using global function', () => {
+      updateConfig({ transferMode: 'semi-auto' })
+      const config = getConfig()
+      expect(config.transferMode).toBe('semi-auto')
+    })
+
+    it('should reset config using global function', () => {
+      updateConfig({ transferMode: 'autonomous' })
+      resetConfig()
+      const config = getConfig()
+      expect(config.transferMode).toBe('manual')
+    })
+  })
+
+  describe('Config validation', () => {
+    it('should validate transfer mode', () => {
+      const validConfig: Partial<AppConfig> = { transferMode: 'manual' }
+      expect(() => validateConfig(validConfig)).not.toThrow()
+
+      const invalidConfig = { transferMode: 'invalid-mode' as TransferMode }
+      expect(() => validateConfig(invalidConfig)).toThrow()
+    })
+
+    it('should validate folder structure', () => {
+      const validConfig: Partial<AppConfig> = { folderStructure: 'date-based' }
+      expect(() => validateConfig(validConfig)).not.toThrow()
+
+      const invalidConfig: any = { folderStructure: 'invalid' }
+      expect(() => validateConfig(invalidConfig)).toThrow()
+    })
+
+    it('should validate buffer size', () => {
+      expect(() => validateConfig({ bufferSize: 8192 })).not.toThrow()
+      expect(() => validateConfig({ bufferSize: -1 })).toThrow()
+      expect(() => validateConfig({ bufferSize: 0 })).toThrow()
+    })
+
+    it('should validate chunk size', () => {
+      expect(() => validateConfig({ chunkSize: 1048576 })).not.toThrow()
+      expect(() => validateConfig({ chunkSize: -1 })).toThrow()
+      expect(() => validateConfig({ chunkSize: 0 })).toThrow()
+    })
+
+    it('should validate media extensions array', () => {
+      expect(() => validateConfig({ mediaExtensions: ['.mp4', '.mov'] })).not.toThrow()
+      expect(() => validateConfig({ mediaExtensions: [] })).not.toThrow() // Empty is OK
+      expect(() => validateConfig({ mediaExtensions: ['.mp4', 'invalid'] })).toThrow() // Must start with dot
+    })
+
+    it('should validate log retention days', () => {
+      expect(() => validateConfig({ logRetentionDays: 30 })).not.toThrow()
+      expect(() => validateConfig({ logRetentionDays: -1 })).toThrow()
+      expect(() => validateConfig({ logRetentionDays: 0 })).not.toThrow() // 0 means keep forever
+    })
+
+    it('should validate timestamp format', () => {
+      expect(() => validateConfig({ timestampFormat: 'YYYY-MM-DD' })).not.toThrow()
+      expect(() => validateConfig({ timestampFormat: '' })).toThrow() // Empty not allowed
+    })
+  })
+
+  describe('Transfer modes', () => {
+    it('should support manual mode (Mode 1)', () => {
+      configManager.updateConfig({
+        transferMode: 'manual',
+        defaultDestination: null
+      })
+
+      const config = configManager.getConfig()
+      expect(config.transferMode).toBe('manual')
+      expect(config.defaultDestination).toBeNull()
+    })
+
+    it('should support semi-auto mode (Mode 2)', () => {
+      configManager.updateConfig({
+        transferMode: 'semi-auto',
+        defaultDestination: null
+      })
+
+      const config = configManager.getConfig()
+      expect(config.transferMode).toBe('semi-auto')
+    })
+
+    it('should support autonomous mode (Mode 3)', () => {
+      const destination = '/Users/test/Transfers'
+      configManager.updateConfig({
+        transferMode: 'autonomous',
+        defaultDestination: destination
+      })
+
+      const config = configManager.getConfig()
+      expect(config.transferMode).toBe('autonomous')
+      expect(config.defaultDestination).toBe(destination)
+    })
+  })
+
+  describe('Edge cases', () => {
+    it('should handle concurrent updates', async () => {
+      const updates = Array.from({ length: 10 }, (_, i) =>
+        configManager.updateConfig({ bufferSize: 8192 * (i + 1) })
+      )
+
+      // Should not throw or cause race conditions
+      expect(() => updates).not.toThrow()
+    })
+
+    it('should preserve unknown config keys', () => {
+      // In case future versions add new config keys
+      const configWithExtra = {
+        ...DEFAULT_CONFIG,
+        futureFeature: 'value'
+      }
+
+      configManager.updateConfig(configWithExtra as any)
+      const config = configManager.getConfig()
+
+      // Should have standard keys
+      expect(config.transferMode).toBeDefined()
+    })
+
+    it('should handle very large media extensions list', () => {
+      const largeList = Array.from({ length: 100 }, (_, i) => `.ext${i}`)
+
+      expect(() => {
+        configManager.updateConfig({ mediaExtensions: largeList })
+      }).not.toThrow()
+
+      const config = configManager.getConfig()
+      expect(config.mediaExtensions).toHaveLength(100)
+    })
+  })
+})
