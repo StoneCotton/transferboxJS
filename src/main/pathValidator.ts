@@ -75,12 +75,10 @@ export async function validatePath(targetPath: string): Promise<PathValidationRe
   }
 
   // Check if path exists
-  let exists = false
   let stats: Stats | null = null
 
   try {
     stats = await fs.stat(normalizedPath)
-    exists = true
 
     // Verify it's a directory
     if (!stats.isDirectory()) {
@@ -107,10 +105,8 @@ export async function validatePath(targetPath: string): Promise<PathValidationRe
   }
 
   // Check if directory is writable
-  let isWritable = false
   try {
     await fs.access(normalizedPath, fs.constants.W_OK)
-    isWritable = true
   } catch (error) {
     return {
       isValid: false,

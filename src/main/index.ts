@@ -1,24 +1,34 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+import { setupIpcHandlers, startDriveMonitoring, cleanupIpc } from './ipc'
+import { getLogger } from './logger'
+
+let mainWindow: BrowserWindow | null = null
 
 function createWindow(): void {
   // Create the browser window.
-  const mainWindow = new BrowserWindow({
-    width: 900,
-    height: 670,
+  mainWindow = new BrowserWindow({
+    width: 1200,
+    height: 800,
     show: false,
     autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
+      sandbox: false,
+      contextIsolation: true,
+      nodeIntegration: false
     }
   })
 
   mainWindow.on('ready-to-show', () => {
-    mainWindow.show()
+    mainWindow?.show()
+  })
+
+  mainWindow.on('closed', () => {
+    mainWindow = null
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
@@ -33,6 +43,14 @@ function createWindow(): void {
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
+
+  // Start drive monitoring after window is ready
+  mainWindow.webContents.on('did-finish-load', () => {
+    if (mainWindow) {
+      startDriveMonitoring(mainWindow)
+      getLogger().info('TransferBox started')
+    }
+  })
 }
 
 // This method will be called when Electron has finished
@@ -40,7 +58,10 @@ function createWindow(): void {
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
   // Set app user model id for windows
-  electronApp.setAppUserModelId('com.electron')
+  electronApp.setAppUserModelId('com.transferbox')
+
+  // Setup IPC handlers
+  setupIpcHandlers()
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.
@@ -48,9 +69,6 @@ app.whenReady().then(() => {
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
   })
-
-  // IPC test
-  ipcMain.on('ping', () => console.log('pong'))
 
   createWindow()
 
@@ -68,6 +86,12 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
   }
+})
+
+// App is quitting - cleanup
+app.on('before-quit', () => {
+  getLogger().info('TransferBox shutting down')
+  cleanupIpc()
 })
 
 // In this file you can include the rest of your app's specific main process

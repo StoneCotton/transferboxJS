@@ -5,7 +5,7 @@
 
 import type { AppConfig } from './config'
 import type { TransferProgress, TransferSession } from './transfer'
-import type { DriveInfo, DriveStats, ScannedMedia } from './drive'
+import type { DriveInfo, ScannedMedia } from './drive'
 
 // IPC Channel names
 export const IPC_CHANNELS = {

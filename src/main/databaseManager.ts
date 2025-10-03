@@ -3,7 +3,7 @@
  * Handles SQLite database operations for transfer history and logging
  */
 
-import Database = require('better-sqlite3')
+import Database from 'better-sqlite3'
 import { app } from 'electron'
 import * as path from 'path'
 import * as fs from 'fs'

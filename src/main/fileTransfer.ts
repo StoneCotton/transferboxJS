@@ -3,7 +3,6 @@
  * Handles file transfers with atomic operations, checksum verification, and progress tracking
  */
 
-import * as fs from 'fs'
 import { createReadStream, createWriteStream } from 'fs'
 import { stat, mkdir, rename, unlink, chmod, access, constants } from 'fs/promises'
 import * as path from 'path'
@@ -251,13 +250,14 @@ export class FileTransferEngine {
 
       this.currentTransfer = { abort }
 
-      readStream.on('data', (chunk: Buffer) => {
+      readStream.on('data', (chunk: string | Buffer) => {
         if (this.stopped) {
           abort()
           return
         }
 
-        bytesTransferred += chunk.length
+        const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
+        bytesTransferred += buf.length
 
         // Report progress
         if (options?.onProgress) {

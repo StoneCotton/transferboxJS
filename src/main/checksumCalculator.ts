@@ -3,7 +3,6 @@
  * Provides fast file checksums using xxHash64 algorithm
  */
 
-import * as fs from 'fs'
 import { createReadStream } from 'fs'
 import { stat } from 'fs/promises'
 import { XXHash64 } from 'xxhash-addon'
@@ -41,9 +40,10 @@ export async function calculateChecksum(
       highWaterMark: bufferSize
     })
 
-    stream.on('data', (chunk: Buffer) => {
-      hasher.update(chunk)
-      bytesProcessed += chunk.length
+    stream.on('data', (chunk: string | Buffer) => {
+      const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
+      hasher.update(buf)
+      bytesProcessed += buf.length
 
       if (options?.onProgress) {
         options.onProgress(bytesProcessed, totalBytes)
