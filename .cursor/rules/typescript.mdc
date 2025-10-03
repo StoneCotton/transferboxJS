@@ -1,0 +1,124 @@
+---
+description: TransferBox Electron Development Rules
+globs:
+alwaysApply: true
+---
+
+You are an expert full-stack developer proficient in TypeScript, React, Electron, and modern UI frameworks (Tailwind CSS, Shadcn UI). Produce optimized, maintainable Electron code following best practices.
+
+### Code Style and Structure
+
+- Write concise, technical TypeScript code with accurate examples.
+- Use functional and declarative programming patterns; avoid classes.
+- Favor iteration and modularization over code duplication.
+- Use descriptive variable names with auxiliary verbs (e.g., `isLoading`, `hasError`).
+- Structure files: exported components, subcomponents, helpers, static content, types.
+- Use lowercase with dashes for directories (e.g., `components/auth-wizard`).
+- Import alias configured to ~/ for renderer code.
+
+### Electron Architecture
+
+- Maintain clear separation between main process and renderer process code.
+- Use IPC (ipcMain/ipcRenderer) for all main-renderer communication.
+- Never use Node.js APIs directly in renderer; expose via preload script with contextBridge.
+- Keep main process focused on system operations (file I/O, native APIs, drive detection).
+- Keep renderer process focused on UI/UX.
+
+### Electron Security
+
+- Always enable contextIsolation in webPreferences.
+- Never enable nodeIntegration in renderer process.
+- Use contextBridge to expose only necessary APIs to renderer.
+- Validate all IPC messages from renderer before processing in main.
+- Sanitize file paths received from renderer before file operations.
+
+### IPC Communication Patterns
+
+- Use typed IPC channels with clear naming (e.g., 'file:transfer:start', 'drive:detect').
+- Implement request-response patterns for synchronous operations.
+- Use event emitters for progress updates and streaming data.
+- Handle IPC errors gracefully with proper error types.
+- Document all IPC channels and their payload types.
+
+### Error Handling and Validation
+
+- Prioritize error handling and edge cases:
+  - Use early returns for error conditions.
+  - Implement guard clauses to handle preconditions and invalid states early.
+  - Use custom error types or error codes for consistent error handling.
+  - Log errors comprehensively for debugging.
+- Validate using Zod for schema validation.
+
+### File Operations Best Practices
+
+- Use Node.js fs/promises for async file operations.
+- Implement atomic file operations (write to temp, then rename).
+- Always verify checksums after file transfers.
+- Handle large files with streaming APIs, not loading entire files into memory.
+- Implement proper cleanup of temporary files (.TBPART).
+- Use proper file locking mechanisms to prevent concurrent access issues.
+
+### Cross-Platform Considerations
+
+- Test path handling on Windows (backslashes) and Unix (forward slashes).
+- Use path.join() and path.resolve() for all path operations.
+- Handle platform-specific drive detection (drive letters vs mount points).
+- Test on all target platforms (Windows, macOS, Linux).
+- Use platform checks (process.platform) for platform-specific logic.
+
+### UI and Styling
+
+- Use Tailwind CSS and Shadcn UI for styling.
+- Design for desktop viewports with consideration for window resizing.
+- Design for common desktop resolutions (1920x1080, 2560x1440).
+- Implement consistent design patterns across the application.
+- Optimize images: use WebP format, include size data, implement lazy loading.
+
+### State Management
+
+- Use Zustand for global state management in renderer.
+- Use electron-store for persisting app settings and configuration.
+- Store user preferences in app.getPath('userData').
+- Implement proper config file validation and migration.
+
+### Performance Optimization
+
+- Offload heavy operations (checksums, file scanning) to worker threads if needed.
+- Debounce frequent IPC messages (progress updates to ~100ms intervals).
+- Use streaming for large file operations.
+- Implement proper memory management for long-running transfers.
+- Profile main process performance for file-intensive operations.
+- Implement dynamic imports for code splitting where appropriate.
+
+### Testing and Documentation
+
+- Write unit tests using Jest and React Testing Library BEFORE implementing changes.
+- Test IPC communication with proper mocking.
+- Test file operations with temporary test directories.
+- Provide clear comments for complex logic.
+- Use JSDoc comments for functions and components.
+- Ensure all tests pass before making followup changes.
+- Always verify code performs as expected after implementation.
+
+### Development Methodology
+
+1. **System 2 Thinking**: Break down requirements into manageable parts.
+2. **Tree of Thoughts**: Evaluate multiple solutions and select optimal approach.
+3. **Iterative Refinement**: Consider improvements, edge cases, and optimizations.
+
+**Process**:
+
+1. **Deep Dive Analysis**: Thoroughly analyze task requirements and constraints.
+2. **Planning**: Develop clear architectural plan (use <PLANNING> tags if needed).
+3. **Test Driven Development**: Write tests for desired outcomes before implementation.
+4. **Implementation**: Implement step-by-step following best practices.
+5. **Review and Optimize**: Review code for optimization opportunities.
+6. **Finalization**: Ensure code is secure, performant, and meets requirements.
+
+**Debugging Process**:
+
+- Always conduct differential diagnosis before bug fixes.
+- Ask "Is this THE issue or just AN issue?" before fixing.
+- Make one major change at a time and test before proceeding.
+- Maintain debugging backlog for non-critical issues found during investigation.
+- Check system architecture document to avoid redundant functionality.
