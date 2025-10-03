@@ -13,28 +13,18 @@ import { useIpc } from './useIpc'
  */
 export function useAppInit() {
   const ipc = useIpc()
-  const {
-    setConfig,
-    setLoading,
-    setError,
-    addDrive,
-    removeDrive,
-    updateProgress,
-    completeTransfer,
-    failTransfer,
-    setHistory
-  } = useStore()
 
   useEffect(() => {
     // Load initial configuration
     const loadConfig = async () => {
-      setLoading(true)
+      const store = useStore.getState()
+      store.setLoading(true)
       try {
         const config = await ipc.getConfig()
-        setConfig(config)
+        store.setConfig(config)
       } catch (error) {
         console.error('Failed to load config:', error)
-        setError(error instanceof Error ? error.message : 'Failed to load configuration')
+        store.setError(error instanceof Error ? error.message : 'Failed to load configuration')
       }
     }
 
@@ -42,7 +32,7 @@ export function useAppInit() {
     const loadHistory = async () => {
       try {
         const history = await ipc.getHistory()
-        setHistory(history)
+        useStore.getState().setHistory(history)
       } catch (error) {
         console.error('Failed to load history:', error)
       }
@@ -55,26 +45,26 @@ export function useAppInit() {
     // Set up event listeners
     const unsubDriveDetected = ipc.onDriveDetected((drive) => {
       console.log('Drive detected:', drive)
-      addDrive(drive)
+      useStore.getState().addDrive(drive)
     })
 
     const unsubDriveRemoved = ipc.onDriveRemoved((device) => {
       console.log('Drive removed:', device)
-      removeDrive(device)
+      useStore.getState().removeDrive(device)
     })
 
     const unsubTransferProgress = ipc.onTransferProgress((progress) => {
-      updateProgress(progress)
+      useStore.getState().updateProgress(progress)
     })
 
     const unsubTransferComplete = ipc.onTransferComplete((data) => {
       console.log('Transfer complete:', data)
-      completeTransfer()
+      useStore.getState().completeTransfer()
     })
 
     const unsubTransferError = ipc.onTransferError((error) => {
       console.error('Transfer error:', error)
-      failTransfer(error)
+      useStore.getState().failTransfer(error)
     })
 
     // Cleanup on unmount
@@ -85,7 +75,8 @@ export function useAppInit() {
       unsubTransferComplete()
       unsubTransferError()
     }
-  }, [ipc]) // Only run once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // Only run once on mount
 
   return null
 }

@@ -31,75 +31,138 @@ export const useStore = create<AppStore>()(
 )
 
 // Convenience selectors
-export const useDriveStore = () =>
-  useStore((state) => ({
-    detectedDrives: state.detectedDrives,
-    selectedDrive: state.selectedDrive,
-    scannedFiles: state.scannedFiles,
-    scanInProgress: state.scanInProgress,
-    scanError: state.scanError,
-    setDetectedDrives: state.setDetectedDrives,
-    addDrive: state.addDrive,
-    removeDrive: state.removeDrive,
-    selectDrive: state.selectDrive,
-    setScannedFiles: state.setScannedFiles,
-    setScanInProgress: state.setScanInProgress,
-    setScanError: state.setScanError,
-    clearScan: state.clearScan
-  }))
+export const useDriveStore = () => {
+  const detectedDrives = useStore((state) => state.detectedDrives)
+  const selectedDrive = useStore((state) => state.selectedDrive)
+  const scannedFiles = useStore((state) => state.scannedFiles)
+  const scanInProgress = useStore((state) => state.scanInProgress)
+  const scanError = useStore((state) => state.scanError)
+  const setDetectedDrives = useStore((state) => state.setDetectedDrives)
+  const addDrive = useStore((state) => state.addDrive)
+  const removeDrive = useStore((state) => state.removeDrive)
+  const selectDrive = useStore((state) => state.selectDrive)
+  const setScannedFiles = useStore((state) => state.setScannedFiles)
+  const setScanInProgress = useStore((state) => state.setScanInProgress)
+  const setScanError = useStore((state) => state.setScanError)
+  const clearScan = useStore((state) => state.clearScan)
 
-export const useTransferStore = () =>
-  useStore((state) => ({
-    currentSession: state.currentSession,
-    progress: state.progress,
-    isTransferring: state.isTransferring,
-    error: state.error,
-    history: state.history,
-    startTransfer: state.startTransfer,
-    updateProgress: state.updateProgress,
-    completeTransfer: state.completeTransfer,
-    failTransfer: state.failTransfer,
-    cancelTransfer: state.cancelTransfer,
-    clearError: state.clearError,
-    setHistory: state.setHistory,
-    addToHistory: state.addToHistory
-  }))
+  return {
+    detectedDrives,
+    selectedDrive,
+    scannedFiles,
+    scanInProgress,
+    scanError,
+    setDetectedDrives,
+    addDrive,
+    removeDrive,
+    selectDrive,
+    setScannedFiles,
+    setScanInProgress,
+    setScanError,
+    clearScan
+  }
+}
 
-export const useConfigStore = () =>
-  useStore((state) => ({
-    config: state.config,
-    isLoading: state.isLoading,
-    error: state.error,
-    setConfig: state.setConfig,
-    updateConfig: state.updateConfig,
-    setLoading: state.setLoading,
-    setError: state.setError
-  }))
+export const useTransferStore = () => {
+  const currentSession = useStore((state) => state.currentSession)
+  const progress = useStore((state) => state.progress)
+  const isTransferring = useStore((state) => state.isTransferring)
+  const error = useStore((state) => state.error)
+  const history = useStore((state) => state.history)
+  const startTransfer = useStore((state) => state.startTransfer)
+  const updateProgress = useStore((state) => state.updateProgress)
+  const completeTransfer = useStore((state) => state.completeTransfer)
+  const failTransfer = useStore((state) => state.failTransfer)
+  const cancelTransfer = useStore((state) => state.cancelTransfer)
+  const clearError = useStore((state) => state.clearError)
+  const setHistory = useStore((state) => state.setHistory)
+  const addToHistory = useStore((state) => state.addToHistory)
 
-export const useLogStore = () =>
-  useStore((state) => ({
-    logs: state.logs,
-    filter: state.filter,
-    level: state.level,
-    setLogs: state.setLogs,
-    addLog: state.addLog,
-    setFilter: state.setFilter,
-    setLevel: state.setLevel,
-    clearLogs: state.clearLogs,
-    getFilteredLogs: state.getFilteredLogs
-  }))
+  return {
+    currentSession,
+    progress,
+    isTransferring,
+    error,
+    history,
+    startTransfer,
+    updateProgress,
+    completeTransfer,
+    failTransfer,
+    cancelTransfer,
+    clearError,
+    setHistory,
+    addToHistory
+  }
+}
 
-export const useUIStore = () =>
-  useStore((state) => ({
-    selectedDestination: state.selectedDestination,
-    isSelectingDestination: state.isSelectingDestination,
-    showSettings: state.showSettings,
-    showLogs: state.showLogs,
-    showHistory: state.showHistory,
-    setSelectedDestination: state.setSelectedDestination,
-    setIsSelectingDestination: state.setIsSelectingDestination,
-    toggleSettings: state.toggleSettings,
-    toggleLogs: state.toggleLogs,
-    toggleHistory: state.toggleHistory,
-    closeAllModals: state.closeAllModals
-  }))
+export const useConfigStore = () => {
+  const config = useStore((state) => state.config)
+  const isLoading = useStore((state) => state.isLoading)
+  const error = useStore((state) => state.error)
+  const setConfig = useStore((state) => state.setConfig)
+  const updateConfig = useStore((state) => state.updateConfig)
+  const setLoading = useStore((state) => state.setLoading)
+  const setError = useStore((state) => state.setError)
+
+  return {
+    config,
+    isLoading,
+    error,
+    setConfig,
+    updateConfig,
+    setLoading,
+    setError
+  }
+}
+
+export const useLogStore = () => {
+  const logs = useStore((state) => state.logs)
+  const filter = useStore((state) => state.filter)
+  const level = useStore((state) => state.level)
+  const setLogs = useStore((state) => state.setLogs)
+  const addLog = useStore((state) => state.addLog)
+  const setFilter = useStore((state) => state.setFilter)
+  const setLevel = useStore((state) => state.setLevel)
+  const clearLogs = useStore((state) => state.clearLogs)
+  const getFilteredLogs = useStore((state) => state.getFilteredLogs)
+
+  return {
+    logs,
+    filter,
+    level,
+    setLogs,
+    addLog,
+    setFilter,
+    setLevel,
+    clearLogs,
+    getFilteredLogs
+  }
+}
+
+export const useUIStore = () => {
+  const selectedDestination = useStore((state) => state.selectedDestination)
+  const isSelectingDestination = useStore((state) => state.isSelectingDestination)
+  const showSettings = useStore((state) => state.showSettings)
+  const showLogs = useStore((state) => state.showLogs)
+  const showHistory = useStore((state) => state.showHistory)
+  const setSelectedDestination = useStore((state) => state.setSelectedDestination)
+  const setIsSelectingDestination = useStore((state) => state.setIsSelectingDestination)
+  const toggleSettings = useStore((state) => state.toggleSettings)
+  const toggleLogs = useStore((state) => state.toggleLogs)
+  const toggleHistory = useStore((state) => state.toggleHistory)
+  const closeAllModals = useStore((state) => state.closeAllModals)
+
+  return {
+    selectedDestination,
+    isSelectingDestination,
+    showSettings,
+    showLogs,
+    showHistory,
+    setSelectedDestination,
+    setIsSelectingDestination,
+    toggleSettings,
+    toggleLogs,
+    toggleHistory,
+    closeAllModals
+  }
+}

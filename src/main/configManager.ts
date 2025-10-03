@@ -3,7 +3,7 @@
  * Handles application configuration using electron-store
  */
 
-import ElectronStore from 'electron-store'
+import Store from 'electron-store'
 import {
   AppConfig,
   DEFAULT_CONFIG,
@@ -20,7 +20,9 @@ export class ConfigManager {
   private store: any // Using any to work around electron-store typing issues
 
   constructor(configPath?: string) {
-    this.store = new ElectronStore<AppConfig>({
+    // Handle both CJS and ESM module formats
+    const ElectronStore = (Store as any).default || Store
+    this.store = new ElectronStore({
       name: 'transferbox-config',
       cwd: configPath,
       defaults: DEFAULT_CONFIG
