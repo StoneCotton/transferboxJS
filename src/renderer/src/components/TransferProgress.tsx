@@ -239,7 +239,7 @@ export function TransferProgress() {
                       <span>Files</span>
                     </div>
                     <p className="mt-2 text-2xl font-black text-brand-900 dark:text-brand-100">
-                      {progress.completedFiles}/{progress.totalFiles}
+                      {progress.completedFilesCount}/{progress.totalFiles}
                     </p>
                   </div>
                 </div>

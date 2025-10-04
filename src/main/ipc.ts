@@ -158,79 +158,35 @@ export function setupIpcHandlers(): void {
 
     // Track overall progress
     const startTime = Date.now()
-    let completedFiles = 0
-    let failedFiles = 0
     let currentFileIndex = 0
-    let cumulativeBytesTransferred = 0
     const totalFiles = transferFiles.length
     const totalBytes = fileSizes.reduce((sum, size) => sum + size, 0)
 
     // Track current file state
     let currentFilePhase: 'transferring' | 'verifying' = 'transferring'
-    let lastProgressTime = Date.now()
-    let checksumStartTime = Date.now()
-    let lastChecksumBytes = 0
 
-    const sendProgress = (fileProgress: {
-      bytesTransferred: number
-      totalBytes: number
-      percentage: number
-      speed: number
-    }) => {
-      const now = Date.now()
-      const elapsedTime = (now - startTime) / 1000 // seconds
+    // Add all files to database initially as pending
+    transferFiles.forEach((file, index) => {
+      const fileName = file.source.split('/').pop() || 'file'
+      const fileSize = fileSizes[index]
 
-      // Calculate overall progress based on all files
-      const bytesCompletedPreviously = fileSizes
-        .slice(0, currentFileIndex)
-        .reduce((sum, size) => sum + size, 0)
-      const overallBytesTransferred = bytesCompletedPreviously + fileProgress.bytesTransferred
-      const overallPercentage = totalBytes > 0 ? (overallBytesTransferred / totalBytes) * 100 : 0
-
-      // Calculate speeds and ETA
-      const averageSpeed = elapsedTime > 0 ? overallBytesTransferred / elapsedTime : 0
-      const remainingBytes = totalBytes - overallBytesTransferred
-      const eta = averageSpeed > 0 ? remainingBytes / averageSpeed : 0
-
-      // Throttle progress updates to every 500ms for better performance
-      if (now - lastProgressTime < 500 && fileProgress.percentage < 100) {
-        return
-      }
-      lastProgressTime = now
-
-      // Files in progress count: current file index + 1 when working on it
-      const filesInProgress =
-        currentFileIndex < totalFiles ? currentFileIndex + 1 : currentFileIndex
-
-      // Send structured progress to renderer
-      event.sender.send(IPC_CHANNELS.TRANSFER_PROGRESS, {
-        status: 'transferring',
-        totalFiles,
-        completedFiles: filesInProgress,
-        failedFiles,
-        skippedFiles: 0,
-        totalBytes,
-        transferredBytes: overallBytesTransferred,
-        overallPercentage,
-        currentFile: {
-          sourcePath: transferFiles[currentFileIndex]?.source || '',
-          destinationPath: transferFiles[currentFileIndex]?.dest || '',
-          fileName: transferFiles[currentFileIndex]?.source.split('/').pop() || '',
-          fileSize: fileProgress.totalBytes,
-          bytesTransferred: fileProgress.bytesTransferred,
-          percentage: fileProgress.percentage,
-          status: currentFilePhase,
-          startTime
-        },
-        transferSpeed: fileProgress.speed,
-        averageSpeed,
-        eta,
-        elapsedTime,
-        startTime,
-        endTime: null,
-        errorCount: failedFiles
+      db.addFileToSession(sessionId, {
+        sourcePath: file.source,
+        destinationPath: file.dest,
+        fileName,
+        fileSize,
+        bytesTransferred: 0,
+        percentage: 0,
+        status: 'pending',
+        startTime: Date.now()
       })
-    }
+    })
+
+    // Track completed file results for real-time database updates
+    const completedFileResults = new Map<
+      number,
+      { success: boolean; checksum?: string; error?: string }
+    >()
 
     // Transfer files with progress updates
     transferEngine
@@ -255,8 +211,19 @@ export function setupIpcHandlers(): void {
           const eta = averageSpeed > 0 ? remainingBytes / averageSpeed : 0
 
           // Convert activeFiles from the enhanced progress to the format expected by the UI
+          const enhancedProgress = progress as {
+            activeFiles?: Array<{
+              index: number
+              fileName: string
+              fileSize: number
+              bytesTransferred: number
+              percentage: number
+              speed: number
+              status: string
+            }>
+          }
           const activeFiles =
-            (progress as any).activeFiles?.map((file: any) => ({
+            enhancedProgress.activeFiles?.map((file) => ({
               sourcePath: transferFiles[file.index]?.source || '',
               destinationPath: transferFiles[file.index]?.dest || '',
               fileName: file.fileName,
@@ -268,17 +235,22 @@ export function setupIpcHandlers(): void {
               startTime: file.status === 'transferring' ? Date.now() : null
             })) || []
 
+          // Get completed files from database
+          const completedFiles = db.getFilesByStatus(sessionId, 'complete')
+          const failedFilesList = db.getFilesByStatus(sessionId, 'error')
+
           // Send enhanced progress with individual file information
           event.sender.send(IPC_CHANNELS.TRANSFER_PROGRESS, {
             status: 'transferring',
             totalFiles,
-            completedFiles: currentFileIndex,
-            failedFiles,
+            completedFilesCount: currentFileIndex,
+            failedFiles: failedFilesList.length,
             skippedFiles: 0,
             totalBytes,
             transferredBytes: overallBytesTransferred,
             overallPercentage,
             activeFiles, // Array of currently active files with individual progress
+            completedFiles: [...completedFiles, ...failedFilesList],
             currentFile: {
               sourcePath: transferFiles[currentFileIndex]?.source || '',
               destinationPath: transferFiles[currentFileIndex]?.dest || '',
@@ -295,81 +267,95 @@ export function setupIpcHandlers(): void {
             elapsedTime,
             startTime,
             endTime: null,
-            errorCount: failedFiles
+            errorCount: failedFilesList.length
           })
         },
-        onChecksumProgress: (phase, bytesProcessed, totalBytes) => {
-          // This is now aggregated checksum progress from multiple parallel transfers
-          const now = Date.now()
+        onChecksumProgress: () => {
+          // Simple checksum progress - just update phase
+          currentFilePhase = 'verifying'
+        },
+        onBatchProgress: (completed) => {
+          currentFileIndex = completed
+        },
+        onFileComplete: (fileIndex, result) => {
+          // NEW: Real-time database update when each file completes
+          const file = transferFiles[fileIndex]
+          const status = result.success ? 'complete' : 'error'
+          const checksum = result.success ? result.sourceChecksum : undefined
 
-          // Initialize checksum tracking on first call or phase change
-          if (currentFilePhase !== 'verifying') {
-            checksumStartTime = now
-            lastChecksumBytes = 0
-            currentFilePhase = 'verifying'
-          }
+          // Track this completion
+          completedFileResults.set(fileIndex, {
+            success: result.success,
+            checksum,
+            error: result.error
+          })
 
-          // Calculate checksum speed based on time delta since last update
-          const timeDelta = (now - lastProgressTime) / 1000 // seconds
-          const bytesDelta = bytesProcessed - lastChecksumBytes
-          const checksumSpeed = timeDelta > 0 ? bytesDelta / timeDelta : 0
+          // Update database immediately
+          db.updateFileStatus(sessionId, file.source, {
+            status,
+            checksum,
+            bytesTransferred: result.bytesTransferred,
+            percentage: 100,
+            endTime: Date.now(),
+            error: result.success ? undefined : result.error
+          })
 
-          lastChecksumBytes = bytesProcessed
+          // Trigger a progress update to refresh the UI with new completedFiles
+          const completedFiles = db.getFilesByStatus(sessionId, 'complete')
+          const failedFilesList = db.getFilesByStatus(sessionId, 'error')
 
-          // Calculate overall progress for checksum phase
           const bytesCompletedPreviously = fileSizes
-            .slice(0, currentFileIndex)
+            .slice(0, fileIndex + 1)
             .reduce((sum, size) => sum + size, 0)
-          const overallBytesTransferred = bytesCompletedPreviously + bytesProcessed
+          const overallBytesTransferred = bytesCompletedPreviously
           const overallPercentage =
             totalBytes > 0 ? (overallBytesTransferred / totalBytes) * 100 : 0
 
-          // Calculate speeds and ETA
-          const elapsedTime = (now - startTime) / 1000 // seconds
+          const elapsedTime = (Date.now() - startTime) / 1000
           const averageSpeed = elapsedTime > 0 ? overallBytesTransferred / elapsedTime : 0
           const remainingBytes = totalBytes - overallBytesTransferred
           const eta = averageSpeed > 0 ? remainingBytes / averageSpeed : 0
 
-          // Send aggregated checksum progress
           event.sender.send(IPC_CHANNELS.TRANSFER_PROGRESS, {
             status: 'transferring',
             totalFiles,
-            completedFiles: currentFileIndex,
-            failedFiles,
+            completedFilesCount: completedFileResults.size,
+            failedFiles: failedFilesList.length,
             skippedFiles: 0,
             totalBytes,
             transferredBytes: overallBytesTransferred,
             overallPercentage,
-            currentFile: {
-              sourcePath: transferFiles[currentFileIndex]?.source || '',
-              destinationPath: transferFiles[currentFileIndex]?.dest || '',
-              fileName: transferFiles[currentFileIndex]?.source.split('/').pop() || '',
-              fileSize: totalBytes,
-              bytesTransferred: bytesProcessed,
-              percentage: totalBytes > 0 ? (bytesProcessed / totalBytes) * 100 : 0,
-              status: currentFilePhase,
-              startTime
-            },
-            transferSpeed: checksumSpeed,
+            activeFiles: [],
+            completedFiles: [...completedFiles, ...failedFilesList],
+            currentFile: null,
+            transferSpeed: 0,
             averageSpeed,
             eta,
             elapsedTime,
             startTime,
             endTime: null,
-            errorCount: failedFiles
+            errorCount: failedFilesList.length
           })
-        },
-        onBatchProgress: (completed, total) => {
-          completedFiles = completed
-          currentFileIndex = completed
-          cumulativeBytesTransferred = fileSizes
-            .slice(0, completed)
-            .reduce((sum, size) => sum + size, 0)
         }
       })
       .then((results) => {
         const completedCount = results.filter((r) => r.success).length
         const failedCount = results.filter((r) => !r.success).length
+
+        // Update individual file statuses in database
+        results.forEach((result) => {
+          const status = result.success ? 'complete' : 'error'
+          const checksum = result.success ? result.sourceChecksum : undefined
+
+          db.updateFileStatus(sessionId, result.sourcePath, {
+            status,
+            checksum,
+            bytesTransferred: result.bytesTransferred,
+            percentage: 100,
+            endTime: Date.now(),
+            error: result.success ? undefined : result.error
+          })
+        })
 
         // Update session
         db.updateTransferSession(sessionId, {
@@ -411,6 +397,31 @@ export function setupIpcHandlers(): void {
             }
           })
         }
+
+        // Send final progress update with all completed files
+        const completedFiles = db.getFilesByStatus(sessionId, 'complete')
+        const failedFiles = db.getFilesByStatus(sessionId, 'error')
+
+        event.sender.send(IPC_CHANNELS.TRANSFER_PROGRESS, {
+          status: failedCount > 0 ? 'error' : 'complete',
+          totalFiles,
+          completedFilesCount: completedCount,
+          failedFiles: failedCount,
+          skippedFiles: 0,
+          totalBytes,
+          transferredBytes: totalBytes,
+          overallPercentage: 100,
+          currentFile: null,
+          activeFiles: [],
+          completedFiles: [...completedFiles, ...failedFiles],
+          transferSpeed: 0,
+          averageSpeed: 0,
+          eta: 0,
+          elapsedTime: (Date.now() - startTime) / 1000,
+          startTime,
+          endTime: Date.now(),
+          errorCount: failedCount
+        })
 
         // Send completion event
         event.sender.send(IPC_CHANNELS.TRANSFER_COMPLETE, {
@@ -467,7 +478,7 @@ export function setupIpcHandlers(): void {
 
   // System handlers
   ipcMain.handle(IPC_CHANNELS.SYSTEM_SHUTDOWN, async () => {
-    const { app } = require('electron')
+    const { app } = await import('electron')
     app.quit()
   })
 }

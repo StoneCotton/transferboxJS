@@ -31,7 +31,7 @@ export interface TransferProgress {
   // Overall progress
   status: TransferStatus
   totalFiles: number
-  completedFiles: number
+  completedFilesCount: number
   failedFiles: number
   skippedFiles: number
   totalBytes: number
@@ -43,6 +43,9 @@ export interface TransferProgress {
 
   // Active files being transferred in parallel
   activeFiles: FileTransferInfo[]
+
+  // Completed files with their final status and checksums
+  completedFiles: FileTransferInfo[]
 
   // Statistics
   transferSpeed: number // Bytes per second
@@ -77,7 +80,7 @@ export interface TransferSession {
 export const INITIAL_TRANSFER_PROGRESS: TransferProgress = {
   status: 'idle',
   totalFiles: 0,
-  completedFiles: 0,
+  completedFilesCount: 0,
   failedFiles: 0,
   skippedFiles: 0,
   totalBytes: 0,
@@ -85,6 +88,7 @@ export const INITIAL_TRANSFER_PROGRESS: TransferProgress = {
   overallPercentage: 0,
   currentFile: null,
   activeFiles: [],
+  completedFiles: [],
   transferSpeed: 0,
   averageSpeed: 0,
   eta: 0,

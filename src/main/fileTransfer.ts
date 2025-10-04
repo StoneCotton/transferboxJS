@@ -27,6 +27,7 @@ export interface TransferOptions {
     bytesProcessed: number,
     totalBytes: number
   ) => void
+  onFileComplete?: (fileIndex: number, result: TransferResult) => void // Called when each file completes
   _testCorruptDestination?: boolean // For testing only
 }
 
@@ -250,7 +251,7 @@ export class FileTransferEngine {
           reportAggregatedProgress()
         },
         onChecksumProgress: options?.onChecksumProgress
-          ? (phase, bytesProcessed, totalBytes) => {
+          ? (_phase, bytesProcessed, totalBytes) => {
               const progress: TransferProgress = {
                 bytesTransferred: bytesProcessed,
                 totalBytes,
@@ -270,6 +271,11 @@ export class FileTransferEngine {
 
           if (options?.onBatchProgress) {
             options.onBatchProgress(completed, files.length)
+          }
+
+          // NEW: Call onFileComplete callback with the result
+          if (options?.onFileComplete) {
+            options.onFileComplete(fileIndex, result)
           }
 
           return result
@@ -292,6 +298,11 @@ export class FileTransferEngine {
 
           if (options?.onBatchProgress) {
             options.onBatchProgress(completed, files.length)
+          }
+
+          // NEW: Call onFileComplete callback with the error result
+          if (options?.onFileComplete) {
+            options.onFileComplete(fileIndex, errorResult)
           }
 
           if (!options?.continueOnError) {

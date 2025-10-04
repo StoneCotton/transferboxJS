@@ -186,6 +186,45 @@ describe('FileTransferEngine', () => {
   })
 
   describe('Batch Transfer', () => {
+    it('should call onFileComplete for each file', async () => {
+      const files = [
+        { source: path.join(sourceDir, 'file1.txt'), dest: path.join(destDir, 'file1.txt') },
+        { source: path.join(sourceDir, 'file2.txt'), dest: path.join(destDir, 'file2.txt') },
+        { source: path.join(sourceDir, 'file3.txt'), dest: path.join(destDir, 'file3.txt') }
+      ]
+
+      // Create source files
+      for (const file of files) {
+        await fs.writeFile(file.source, `Content of ${path.basename(file.source)}`)
+      }
+
+      const completions: Array<{ fileIndex: number; result: TransferResult }> = []
+
+      const options: TransferOptions = {
+        onFileComplete: (fileIndex, result) => {
+          completions.push({ fileIndex, result })
+        }
+      }
+
+      await engine.transferFiles(files, options)
+
+      // Verify all files completed
+      expect(completions).toHaveLength(3)
+
+      // Verify each completion
+      completions.forEach((completion) => {
+        expect(completion.result.success).toBe(true)
+        expect(completion.result.bytesTransferred).toBeGreaterThan(0)
+        expect(completion.fileIndex).toBeGreaterThanOrEqual(0)
+        expect(completion.fileIndex).toBeLessThan(3)
+      })
+
+      // Verify all files exist at destination
+      for (const file of files) {
+        await expect(fs.access(file.dest)).resolves.toBeUndefined()
+      }
+    })
+
     it('should transfer multiple files', async () => {
       const files = [
         { source: path.join(sourceDir, 'file1.txt'), dest: path.join(destDir, 'file1.txt') },

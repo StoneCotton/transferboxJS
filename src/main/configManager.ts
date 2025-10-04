@@ -78,7 +78,7 @@ export class ConfigManager {
   /**
    * Gets the underlying store instance
    */
-  getStore(): ElectronStore<AppConfig> {
+  getStore(): Store<AppConfig> {
     return this.store
   }
 }
