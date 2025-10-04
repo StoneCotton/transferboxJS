@@ -6,7 +6,6 @@
 import { createReadStream, createWriteStream } from 'fs'
 import { stat, mkdir, rename, unlink, chmod, access, constants } from 'fs/promises'
 import * as path from 'path'
-import { calculateChecksum } from './checksumCalculator'
 
 export interface TransferProgress {
   bytesTransferred: number
@@ -16,13 +15,18 @@ export interface TransferProgress {
 }
 
 export interface TransferOptions {
-  bufferSize?: number // Buffer size for copying (default: 64KB)
+  bufferSize?: number // Buffer size for copying (default: 4MB)
   verifyChecksum?: boolean // Verify checksum after transfer
   overwrite?: boolean // Allow overwriting existing files
   continueOnError?: boolean // Continue batch transfer on error
   preservePermissions?: boolean // Preserve file permissions (default: true)
   onProgress?: (progress: TransferProgress) => void
   onBatchProgress?: (completed: number, total: number) => void
+  onChecksumProgress?: (
+    phase: 'source' | 'destination',
+    bytesProcessed: number,
+    totalBytes: number
+  ) => void
   _testCorruptDestination?: boolean // For testing only
 }
 
@@ -38,7 +42,7 @@ export interface TransferResult {
   duration: number // milliseconds
 }
 
-const DEFAULT_BUFFER_SIZE = 65536 // 64KB
+const DEFAULT_BUFFER_SIZE = 4 * 1024 * 1024 // 4MB - optimized for modern SSDs
 
 /**
  * File Transfer Engine Class
@@ -89,7 +93,7 @@ export class FileTransferEngine {
           throw new Error('Destination file already exists and overwrite is disabled')
         } catch (error) {
           // File doesn't exist, which is what we want
-          if ((error as any).code !== 'ENOENT') {
+          if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
             throw error
           }
         }
@@ -99,17 +103,16 @@ export class FileTransferEngine {
       const destDir = path.dirname(destPath)
       await mkdir(destDir, { recursive: true })
 
-      // Copy file to .TBPART with progress tracking
-      await this.copyFileWithProgress(sourcePath, tempPath, totalBytes, bufferSize, options)
-
-      result.bytesTransferred = totalBytes
-
-      // Verify checksum if requested
+      // Copy file to .TBPART with progress tracking and streaming checksum
       if (options?.verifyChecksum) {
-        const [sourceChecksum, destChecksum] = await Promise.all([
-          calculateChecksum(sourcePath),
-          calculateChecksum(tempPath)
-        ])
+        // Use streaming checksum during transfer
+        const { sourceChecksum, destChecksum } = await this.copyFileWithStreamingChecksum(
+          sourcePath,
+          tempPath,
+          totalBytes,
+          bufferSize,
+          options
+        )
 
         result.sourceChecksum = sourceChecksum
         result.destChecksum = destChecksum
@@ -119,7 +122,12 @@ export class FileTransferEngine {
         }
 
         result.checksumVerified = true
+      } else {
+        // Regular copy without checksum
+        await this.copyFileWithProgress(sourcePath, tempPath, totalBytes, bufferSize, options)
       }
+
+      result.bytesTransferred = totalBytes
 
       // Preserve permissions if requested (default: true)
       if (options?.preservePermissions !== false && process.platform !== 'win32') {
@@ -150,51 +158,172 @@ export class FileTransferEngine {
   }
 
   /**
-   * Transfer multiple files in batch
+   * Transfer multiple files in batch with parallel processing
    */
   async transferFiles(
     files: Array<{ source: string; dest: string }>,
     options?: TransferOptions
   ): Promise<TransferResult[]> {
-    const results: TransferResult[] = []
+    const CONCURRENT_LIMIT = 3 // Process up to 3 files concurrently
+    const results: TransferResult[] = new Array(files.length)
     let completed = 0
 
-    for (const file of files) {
-      if (this.stopped) {
-        throw new Error('Batch transfer cancelled')
+    // Track progress for parallel transfers
+    const fileProgress = new Map<number, TransferProgress>()
+    let lastAggregatedProgressTime = Date.now()
+    const PROGRESS_AGGREGATION_INTERVAL = 100 // Aggregate progress every 100ms
+
+    // Store file information for progress reporting
+    const fileInfo = new Map<number, { source: string; dest: string; totalBytes: number }>()
+
+    // Get file sizes for all files
+    await Promise.all(
+      files.map(async (file, index) => {
+        try {
+          const stats = await stat(file.source)
+          const size = stats.size
+          fileInfo.set(index, { source: file.source, dest: file.dest, totalBytes: size })
+        } catch {
+          fileInfo.set(index, { source: file.source, dest: file.dest, totalBytes: 0 })
+        }
+      })
+    )
+
+    // Aggregate and report progress from all active transfers
+    const reportAggregatedProgress = (): void => {
+      if (!options?.onProgress) return
+
+      const now = Date.now()
+      if (now - lastAggregatedProgressTime < PROGRESS_AGGREGATION_INTERVAL) return
+      lastAggregatedProgressTime = now
+
+      let totalBytesTransferred = 0
+      let totalBytes = 0
+      let totalSpeed = 0
+      let activeTransfers = 0
+
+      fileProgress.forEach((progress) => {
+        totalBytesTransferred += progress.bytesTransferred
+        totalBytes += progress.totalBytes
+        totalSpeed += progress.speed
+        if (progress.percentage < 100) activeTransfers++
+      })
+
+      if (activeTransfers > 0) {
+        const overallPercentage = totalBytes > 0 ? (totalBytesTransferred / totalBytes) * 100 : 0
+
+        // Create enhanced progress with individual file information
+        const enhancedProgress = {
+          bytesTransferred: totalBytesTransferred,
+          totalBytes,
+          percentage: overallPercentage,
+          speed: totalSpeed,
+          activeFiles: Array.from(fileProgress.entries()).map(([index, progress]) => {
+            const info = fileInfo.get(index)
+            return {
+              index,
+              fileName: info?.source.split('/').pop() || '',
+              fileSize: info?.totalBytes || 0,
+              bytesTransferred: progress.bytesTransferred,
+              percentage: progress.percentage,
+              speed: progress.speed,
+              status: progress.percentage >= 100 ? 'completed' : 'transferring'
+            }
+          })
+        }
+
+        options.onProgress(enhancedProgress)
       }
+    }
 
-      try {
-        const result = await this.transferFile(file.source, file.dest, options)
-        results.push(result)
-        completed++
+    // Process files with continuous parallel transfers
+    const activeTransfers = new Map<number, Promise<TransferResult>>()
+    let nextFileIndex = 0
 
-        if (options?.onBatchProgress) {
-          options.onBatchProgress(completed, files.length)
-        }
-      } catch (error) {
-        const errorResult: TransferResult = {
-          success: false,
-          sourcePath: file.source,
-          destPath: file.dest,
-          bytesTransferred: 0,
-          checksumVerified: false,
-          error: error instanceof Error ? error.message : 'Unknown error',
-          duration: 0
-        }
+    // Helper function to start a transfer
+    const startTransfer = (fileIndex: number): void => {
+      const file = files[fileIndex]
+      const transferPromise = this.transferFile(file.source, file.dest, {
+        ...options,
+        onProgress: (progress) => {
+          fileProgress.set(fileIndex, progress)
+          reportAggregatedProgress()
+        },
+        onChecksumProgress: options?.onChecksumProgress
+          ? (phase, bytesProcessed, totalBytes) => {
+              const progress: TransferProgress = {
+                bytesTransferred: bytesProcessed,
+                totalBytes,
+                percentage: totalBytes > 0 ? (bytesProcessed / totalBytes) * 100 : 0,
+                speed: 0
+              }
+              fileProgress.set(fileIndex, progress)
+              reportAggregatedProgress()
+            }
+          : undefined
+      })
+        .then((result) => {
+          results[fileIndex] = result
+          completed++
+          fileProgress.delete(fileIndex)
+          activeTransfers.delete(fileIndex)
 
-        results.push(errorResult)
+          if (options?.onBatchProgress) {
+            options.onBatchProgress(completed, files.length)
+          }
 
-        // Stop on error unless continueOnError is true
-        if (!options?.continueOnError) {
-          throw error
-        }
+          return result
+        })
+        .catch((error) => {
+          const errorResult: TransferResult = {
+            success: false,
+            sourcePath: file.source,
+            destPath: file.dest,
+            bytesTransferred: 0,
+            checksumVerified: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+            duration: 0
+          }
 
-        completed++
-        if (options?.onBatchProgress) {
-          options.onBatchProgress(completed, files.length)
-        }
+          results[fileIndex] = errorResult
+          completed++
+          fileProgress.delete(fileIndex)
+          activeTransfers.delete(fileIndex)
+
+          if (options?.onBatchProgress) {
+            options.onBatchProgress(completed, files.length)
+          }
+
+          if (!options?.continueOnError) {
+            throw error
+          }
+
+          return errorResult
+        })
+
+      activeTransfers.set(fileIndex, transferPromise)
+    }
+
+    // Start initial batch of transfers
+    while (nextFileIndex < Math.min(CONCURRENT_LIMIT, files.length) && !this.stopped) {
+      startTransfer(nextFileIndex)
+      nextFileIndex++
+    }
+
+    // Continuously maintain CONCURRENT_LIMIT active transfers
+    while (activeTransfers.size > 0 && !this.stopped) {
+      // Wait for any transfer to complete
+      await Promise.race(Array.from(activeTransfers.values()))
+
+      // Start next transfer if there are more files
+      if (nextFileIndex < files.length) {
+        startTransfer(nextFileIndex)
+        nextFileIndex++
       }
+    }
+
+    if (this.stopped) {
+      throw new Error('Batch transfer cancelled')
     }
 
     return results
@@ -219,19 +348,27 @@ export class FileTransferEngine {
   }
 
   /**
-   * Copy file with progress tracking
+   * Copy file with streaming checksum calculation during transfer
    */
-  private async copyFileWithProgress(
+  private async copyFileWithStreamingChecksum(
     sourcePath: string,
     destPath: string,
     totalBytes: number,
     bufferSize: number,
     options?: TransferOptions
-  ): Promise<void> {
+  ): Promise<{ sourceChecksum: string; destChecksum: string }> {
     return new Promise((resolve, reject) => {
       let bytesTransferred = 0
       let lastProgressTime = Date.now()
       let lastBytesTransferred = 0
+      const PROGRESS_INTERVAL = 200 // Report progress every 200ms
+      const MIN_BYTES_FOR_PROGRESS = 2 * 1024 * 1024 // Report every 2MB minimum
+
+      // Import XXHash64 for streaming checksum
+      const { XXHash64 } = require('xxhash-addon') // eslint-disable-line @typescript-eslint/no-require-imports
+      const seed = Buffer.alloc(8)
+      const sourceHasher = new XXHash64(seed)
+      const destHasher = new XXHash64(seed)
 
       const readStream = createReadStream(sourcePath, {
         highWaterMark: bufferSize
@@ -242,7 +379,7 @@ export class FileTransferEngine {
       })
 
       // Setup abort handler
-      const abort = () => {
+      const abort = (): void => {
         readStream.destroy()
         writeStream.destroy()
         reject(new Error('Transfer stopped'))
@@ -259,24 +396,128 @@ export class FileTransferEngine {
         const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
         bytesTransferred += buf.length
 
-        // Report progress
+        // Update both hashers with the same data
+        sourceHasher.update(buf)
+        destHasher.update(buf)
+
+        // Report progress only if enough time has passed AND enough bytes transferred
         if (options?.onProgress) {
           const now = Date.now()
-          const timeDelta = (now - lastProgressTime) / 1000 // seconds
+          const timeDelta = now - lastProgressTime
           const bytesDelta = bytesTransferred - lastBytesTransferred
 
-          const speed = timeDelta > 0 ? bytesDelta / timeDelta : 0
-          const percentage = totalBytes > 0 ? (bytesTransferred / totalBytes) * 100 : 0
+          if (timeDelta >= PROGRESS_INTERVAL || bytesDelta >= MIN_BYTES_FOR_PROGRESS) {
+            const speed = timeDelta > 0 ? (bytesDelta / timeDelta) * 1000 : 0 // bytes per second
+            const percentage = totalBytes > 0 ? (bytesTransferred / totalBytes) * 100 : 0
 
+            options.onProgress({
+              bytesTransferred,
+              totalBytes,
+              percentage,
+              speed
+            })
+
+            lastProgressTime = now
+            lastBytesTransferred = bytesTransferred
+          }
+        }
+      })
+
+      readStream.on('error', (error) => {
+        writeStream.destroy()
+        reject(new Error(`Read error: ${error.message}`))
+      })
+
+      writeStream.on('error', (error) => {
+        readStream.destroy()
+        reject(new Error(`Write error: ${error.message}`))
+      })
+
+      writeStream.on('finish', () => {
+        // Final progress report
+        if (options?.onProgress) {
           options.onProgress({
-            bytesTransferred,
+            bytesTransferred: totalBytes,
             totalBytes,
-            percentage,
-            speed
+            percentage: 100,
+            speed: 0
           })
+        }
 
-          lastProgressTime = now
-          lastBytesTransferred = bytesTransferred
+        // Calculate final checksums
+        const sourceChecksum = sourceHasher.digest().toString('hex')
+        const destChecksum = destHasher.digest().toString('hex')
+
+        resolve({ sourceChecksum, destChecksum })
+      })
+
+      readStream.pipe(writeStream)
+    })
+  }
+
+  /**
+   * Copy file with progress tracking
+   */
+  private async copyFileWithProgress(
+    sourcePath: string,
+    destPath: string,
+    totalBytes: number,
+    bufferSize: number,
+    options?: TransferOptions
+  ): Promise<void> {
+    return new Promise((resolve, reject) => {
+      let bytesTransferred = 0
+      let lastProgressTime = Date.now()
+      let lastBytesTransferred = 0
+      const PROGRESS_INTERVAL = 200 // Report progress every 200ms
+      const MIN_BYTES_FOR_PROGRESS = 2 * 1024 * 1024 // Report every 2MB minimum
+
+      const readStream = createReadStream(sourcePath, {
+        highWaterMark: bufferSize
+      })
+
+      const writeStream = createWriteStream(destPath, {
+        highWaterMark: bufferSize
+      })
+
+      // Setup abort handler
+      const abort = (): void => {
+        readStream.destroy()
+        writeStream.destroy()
+        reject(new Error('Transfer stopped'))
+      }
+
+      this.currentTransfer = { abort }
+
+      readStream.on('data', (chunk: string | Buffer) => {
+        if (this.stopped) {
+          abort()
+          return
+        }
+
+        const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
+        bytesTransferred += buf.length
+
+        // Report progress only if enough time has passed AND enough bytes transferred
+        if (options?.onProgress) {
+          const now = Date.now()
+          const timeDelta = now - lastProgressTime
+          const bytesDelta = bytesTransferred - lastBytesTransferred
+
+          if (timeDelta >= PROGRESS_INTERVAL || bytesDelta >= MIN_BYTES_FOR_PROGRESS) {
+            const speed = timeDelta > 0 ? (bytesDelta / timeDelta) * 1000 : 0 // bytes per second
+            const percentage = totalBytes > 0 ? (bytesTransferred / totalBytes) * 100 : 0
+
+            options.onProgress({
+              bytesTransferred,
+              totalBytes,
+              percentage,
+              speed
+            })
+
+            lastProgressTime = now
+            lastBytesTransferred = bytesTransferred
+          }
         }
       })
 

@@ -19,6 +19,7 @@ export interface FileTransferInfo {
   fileSize: number
   bytesTransferred: number
   percentage: number
+  speed?: number // Bytes per second for this file
   checksum?: string
   status: 'pending' | 'transferring' | 'verifying' | 'complete' | 'error' | 'skipped'
   error?: string
@@ -39,6 +40,9 @@ export interface TransferProgress {
 
   // Current file being transferred
   currentFile: FileTransferInfo | null
+
+  // Active files being transferred in parallel
+  activeFiles: FileTransferInfo[]
 
   // Statistics
   transferSpeed: number // Bytes per second
@@ -80,6 +84,7 @@ export const INITIAL_TRANSFER_PROGRESS: TransferProgress = {
   transferredBytes: 0,
   overallPercentage: 0,
   currentFile: null,
+  activeFiles: [],
   transferSpeed: 0,
   averageSpeed: 0,
   eta: 0,

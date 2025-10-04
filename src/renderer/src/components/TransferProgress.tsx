@@ -127,43 +127,103 @@ export function TransferProgress() {
               </div>
             </div>
 
-            {/* Current File Progress Bar */}
-            {progress?.currentFile && (
-              <div className="rounded-xl border-2 border-brand-300 bg-white/90 p-4 dark:border-brand-700 dark:bg-gray-900/90">
-                <div className="mb-3 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin text-brand-600 dark:text-brand-400" />
-                    <span className="text-xs font-semibold uppercase tracking-wide text-brand-600 dark:text-brand-400">
-                      {progress.currentFile.status === 'verifying'
-                        ? 'Verifying Checksum'
-                        : 'Transferring File'}
-                    </span>
+            {/* Active Files Progress Bars */}
+            {progress?.activeFiles && progress.activeFiles.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                  Active Transfers ({progress.activeFiles.length})
+                </h3>
+                {progress.activeFiles.map((file, index) => (
+                  <div
+                    key={`${file.sourcePath}-${index}`}
+                    className="rounded-xl border-2 border-brand-300 bg-white/90 p-4 dark:border-brand-700 dark:bg-gray-900/90"
+                  >
+                    <div className="mb-3 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {file.status === 'transferring' ? (
+                          <Loader2 className="h-4 w-4 animate-spin text-brand-600 dark:text-brand-400" />
+                        ) : file.status === 'verifying' ? (
+                          <FileCheck className="h-4 w-4 animate-pulse text-orange-600 dark:text-orange-400" />
+                        ) : (
+                          <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
+                        )}
+                        <span className="text-xs font-semibold uppercase tracking-wide text-brand-600 dark:text-brand-400">
+                          {file.status === 'verifying'
+                            ? 'Verifying Checksum'
+                            : file.status === 'transferring'
+                              ? 'Transferring File'
+                              : 'Completed'}
+                        </span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-lg font-black text-brand-900 dark:text-brand-100">
+                          {Math.round(file.percentage || 0)}%
+                        </span>
+                        {file.speed && file.speed > 0 && (
+                          <p className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                            {formatSpeed(file.speed)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="relative mb-3">
+                      <Progress
+                        value={file.percentage || 0}
+                        size="md"
+                        className={cn('h-3', file.status === 'verifying' && 'animate-pulse')}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <p className="truncate text-sm font-bold text-gray-900 dark:text-white">
+                        {file.fileName}
+                      </p>
+                      <p className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                        {formatBytes(file.bytesTransferred)} / {formatBytes(file.fileSize)}
+                      </p>
+                    </div>
                   </div>
-                  <span className="text-lg font-black text-brand-900 dark:text-brand-100">
-                    {Math.round(progress.currentFile.percentage || 0)}%
-                  </span>
-                </div>
-                <div className="relative mb-3">
-                  <Progress
-                    value={progress.currentFile.percentage || 0}
-                    size="md"
-                    className={cn(
-                      'h-3',
-                      progress.currentFile.status === 'verifying' && 'animate-pulse'
-                    )}
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <p className="truncate text-sm font-bold text-gray-900 dark:text-white">
-                    {progress.currentFile.fileName}
-                  </p>
-                  <p className="text-xs font-medium text-gray-600 dark:text-gray-400">
-                    {formatBytes(progress.currentFile.bytesTransferred)} /{' '}
-                    {formatBytes(progress.currentFile.fileSize)}
-                  </p>
-                </div>
+                ))}
               </div>
             )}
+
+            {/* Fallback: Current File Progress Bar (for backward compatibility) */}
+            {progress?.currentFile &&
+              (!progress.activeFiles || progress.activeFiles.length === 0) && (
+                <div className="rounded-xl border-2 border-brand-300 bg-white/90 p-4 dark:border-brand-700 dark:bg-gray-900/90">
+                  <div className="mb-3 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin text-brand-600 dark:text-brand-400" />
+                      <span className="text-xs font-semibold uppercase tracking-wide text-brand-600 dark:text-brand-400">
+                        {progress.currentFile.status === 'verifying'
+                          ? 'Verifying Checksum'
+                          : 'Transferring File'}
+                      </span>
+                    </div>
+                    <span className="text-lg font-black text-brand-900 dark:text-brand-100">
+                      {Math.round(progress.currentFile.percentage || 0)}%
+                    </span>
+                  </div>
+                  <div className="relative mb-3">
+                    <Progress
+                      value={progress.currentFile.percentage || 0}
+                      size="md"
+                      className={cn(
+                        'h-3',
+                        progress.currentFile.status === 'verifying' && 'animate-pulse'
+                      )}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <p className="truncate text-sm font-bold text-gray-900 dark:text-white">
+                      {progress.currentFile.fileName}
+                    </p>
+                    <p className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                      {formatBytes(progress.currentFile.bytesTransferred)} /{' '}
+                      {formatBytes(progress.currentFile.fileSize)}
+                    </p>
+                  </div>
+                </div>
+              )}
 
             {/* Stats Grid */}
             {progress && (

@@ -6,9 +6,13 @@
 import * as drivelist from 'drivelist'
 import { readdir, stat } from 'fs/promises'
 import * as path from 'path'
+import { exec } from 'child_process'
+import { promisify } from 'util'
 import { DriveInfo, DriveStats, ScannedMedia } from '../shared/types'
 import { getConfig } from './configManager'
 import { checkDiskSpace } from './pathValidator'
+
+const execAsync = promisify(exec)
 
 export interface DriveMonitorOptions {
   pollingInterval?: number // Milliseconds between checks (default: 2000)
@@ -147,6 +151,49 @@ export class DriveMonitor {
   }
 
   /**
+   * Safely unmount a drive
+   */
+  async unmountDrive(device: string): Promise<boolean> {
+    try {
+      // Find the drive to get its mount points
+      const drives = await this.listRemovableDrives()
+      const drive = drives.find((d) => d.device === device)
+
+      if (!drive || drive.mountpoints.length === 0) {
+        throw new Error('Drive not found or not mounted')
+      }
+
+      const mountPoint = drive.mountpoints[0]
+
+      // Platform-specific unmount commands
+      let unmountCommand: string
+
+      switch (process.platform) {
+        case 'darwin': // macOS
+          unmountCommand = `diskutil unmount "${mountPoint}"`
+          break
+        case 'linux':
+          unmountCommand = `umount "${mountPoint}"`
+          break
+        case 'win32':
+          // Windows doesn't have a direct unmount command for removable drives
+          // The drive will be ejected when the user removes it
+          return true
+        default:
+          throw new Error(`Unsupported platform: ${process.platform}`)
+      }
+
+      // Execute unmount command
+      await execAsync(unmountCommand)
+
+      return true
+    } catch (error) {
+      console.error('Failed to unmount drive:', error)
+      return false
+    }
+  }
+
+  /**
    * Check for drive changes
    */
   private async checkForChanges(): Promise<void> {
@@ -266,4 +313,12 @@ export async function scanDriveForMedia(
 export async function getDriveStats(mountPoint: string): Promise<DriveStats> {
   const monitor = new DriveMonitor()
   return monitor.getDriveStats(mountPoint)
+}
+
+/**
+ * Unmount a drive (convenience function)
+ */
+export async function unmountDrive(device: string): Promise<boolean> {
+  const monitor = new DriveMonitor()
+  return monitor.unmountDrive(device)
 }

@@ -8,11 +8,11 @@ import { stat } from 'fs/promises'
 import { XXHash64 } from 'xxhash-addon'
 
 export interface ChecksumOptions {
-  bufferSize?: number // Buffer size for reading files (default: 64KB)
+  bufferSize?: number // Buffer size for reading files (default: 4MB)
   onProgress?: (bytesProcessed: number, totalBytes: number) => void
 }
 
-const DEFAULT_BUFFER_SIZE = 65536 // 64KB
+const DEFAULT_BUFFER_SIZE = 4 * 1024 * 1024 // 4MB - optimized for modern SSDs
 
 /**
  * Calculate xxHash64 checksum for a file
