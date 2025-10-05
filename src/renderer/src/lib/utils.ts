@@ -40,6 +40,44 @@ export function formatTime(seconds: number | undefined | null): string {
 }
 
 /**
+ * Format duration with hours, minutes, and seconds
+ */
+export function formatDuration(seconds: number | undefined | null): string {
+  if (!seconds || seconds <= 0 || isNaN(seconds)) return '--'
+
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
+  const secs = Math.round(seconds % 60)
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m ${secs}s`
+  } else if (minutes > 0) {
+    return `${minutes}m ${secs}s`
+  } else {
+    return `${secs}s`
+  }
+}
+
+/**
+ * Format remaining time with hours, minutes, and seconds
+ */
+export function formatRemainingTime(seconds: number | undefined | null): string {
+  if (!seconds || seconds <= 0 || isNaN(seconds)) return '--'
+
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
+  const secs = Math.round(seconds % 60)
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m ${secs}s`
+  } else if (minutes > 0) {
+    return `${minutes}m ${secs}s`
+  } else {
+    return `${secs}s`
+  }
+}
+
+/**
  * Format transfer speed
  */
 export function formatSpeed(bytesPerSecond: number | undefined | null): string {

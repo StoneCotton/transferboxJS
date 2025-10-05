@@ -105,6 +105,9 @@ export class DriveMonitor {
     const config = getConfig()
     const mediaExtensions = config.mediaExtensions.map((ext) => ext.toLowerCase())
 
+    console.log('[DriveMonitor] Scanning path:', drivePath)
+    console.log('[DriveMonitor] Media extensions:', mediaExtensions)
+
     const files: string[] = []
     let totalSize = 0
 
@@ -246,21 +249,25 @@ export class DriveMonitor {
         try {
           if (entry.isDirectory()) {
             // Recursively scan subdirectory
+            console.log('[DriveMonitor] Scanning subdirectory:', fullPath)
             await this.scanDirectory(fullPath, files, mediaExtensions)
           } else if (entry.isFile()) {
             // Check if file has media extension
             const ext = path.extname(entry.name).toLowerCase()
             if (mediaExtensions.includes(ext)) {
+              console.log('[DriveMonitor] Found media file:', entry.name, 'ext:', ext)
               files.push(fullPath)
             }
           }
         } catch (error) {
           // Skip files/directories that can't be accessed
+          console.warn('[DriveMonitor] Could not access:', fullPath, error)
           continue
         }
       }
     } catch (error) {
       // Skip directories that can't be accessed
+      console.warn('[DriveMonitor] Could not read directory:', dirPath, error)
       return
     }
   }

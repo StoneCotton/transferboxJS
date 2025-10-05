@@ -88,6 +88,7 @@ export class DatabaseManager {
         error TEXT,
         start_time INTEGER,
         end_time INTEGER,
+        duration REAL,
         FOREIGN KEY (session_id) REFERENCES transfer_sessions(id) ON DELETE CASCADE
       );
 
@@ -321,8 +322,8 @@ export class DatabaseManager {
       INSERT INTO transfer_files (
         session_id, source_path, destination_path, file_name,
         file_size, bytes_transferred, percentage, status,
-        checksum, error, start_time, end_time
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        checksum, error, start_time, end_time, duration
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
 
     stmt.run(
@@ -337,7 +338,8 @@ export class DatabaseManager {
       file.checksum || null,
       file.error || null,
       file.startTime || null,
-      file.endTime || null
+      file.endTime || null,
+      file.duration || null
     )
   }
 
@@ -380,6 +382,10 @@ export class DatabaseManager {
       fields.push('end_time = ?')
       values.push(updates.endTime)
     }
+    if (updates.duration !== undefined) {
+      fields.push('duration = ?')
+      values.push(updates.duration)
+    }
 
     if (fields.length === 0) {
       return
@@ -417,7 +423,8 @@ export class DatabaseManager {
       checksum: file.checksum,
       error: file.error,
       startTime: file.start_time,
-      endTime: file.end_time
+      endTime: file.end_time,
+      duration: file.duration
     }))
   }
 

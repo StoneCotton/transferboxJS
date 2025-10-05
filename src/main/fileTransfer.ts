@@ -177,6 +177,9 @@ export class FileTransferEngine {
     // Store file information for progress reporting
     const fileInfo = new Map<number, { source: string; dest: string; totalBytes: number }>()
 
+    // Track file start times for duration calculation
+    const fileStartTimes = new Map<number, number>()
+
     // Get file sizes for all files
     await Promise.all(
       files.map(async (file, index) => {
@@ -221,6 +224,12 @@ export class FileTransferEngine {
           speed: totalSpeed,
           activeFiles: Array.from(fileProgress.entries()).map(([index, progress]) => {
             const info = fileInfo.get(index)
+            const startTime = fileStartTimes.get(index)
+            const currentTime = Date.now()
+            const elapsedTime = startTime ? (currentTime - startTime) / 1000 : 0 // seconds
+            const remainingBytes = (info?.totalBytes || 0) - progress.bytesTransferred
+            const remainingTime = progress.speed > 0 ? remainingBytes / progress.speed : 0 // seconds
+
             return {
               index,
               fileName: info?.source.split('/').pop() || '',
@@ -228,7 +237,10 @@ export class FileTransferEngine {
               bytesTransferred: progress.bytesTransferred,
               percentage: progress.percentage,
               speed: progress.speed,
-              status: progress.percentage >= 100 ? 'completed' : 'transferring'
+              status: progress.percentage >= 100 ? 'completed' : 'transferring',
+              startTime,
+              duration: elapsedTime,
+              remainingTime
             }
           })
         }
@@ -244,6 +256,9 @@ export class FileTransferEngine {
     // Helper function to start a transfer
     const startTransfer = (fileIndex: number): void => {
       const file = files[fileIndex]
+      const startTime = Date.now()
+      fileStartTimes.set(fileIndex, startTime)
+
       const transferPromise = this.transferFile(file.source, file.dest, {
         ...options,
         onProgress: (progress) => {
@@ -264,10 +279,22 @@ export class FileTransferEngine {
           : undefined
       })
         .then((result) => {
-          results[fileIndex] = result
+          // Calculate final duration for this file
+          const startTime = fileStartTimes.get(fileIndex)
+          const endTime = Date.now()
+          const duration = startTime ? (endTime - startTime) / 1000 : 0 // seconds
+
+          // Update result with duration
+          const resultWithDuration = {
+            ...result,
+            duration: duration * 1000 // Convert to milliseconds for consistency
+          }
+
+          results[fileIndex] = resultWithDuration
           completed++
           fileProgress.delete(fileIndex)
           activeTransfers.delete(fileIndex)
+          fileStartTimes.delete(fileIndex) // Clean up start time tracking
 
           if (options?.onBatchProgress) {
             options.onBatchProgress(completed, files.length)
@@ -275,12 +302,17 @@ export class FileTransferEngine {
 
           // NEW: Call onFileComplete callback with the result
           if (options?.onFileComplete) {
-            options.onFileComplete(fileIndex, result)
+            options.onFileComplete(fileIndex, resultWithDuration)
           }
 
-          return result
+          return resultWithDuration
         })
         .catch((error) => {
+          // Calculate duration even for failed transfers
+          const startTime = fileStartTimes.get(fileIndex)
+          const endTime = Date.now()
+          const duration = startTime ? (endTime - startTime) / 1000 : 0 // seconds
+
           const errorResult: TransferResult = {
             success: false,
             sourcePath: file.source,
@@ -288,13 +320,14 @@ export class FileTransferEngine {
             bytesTransferred: 0,
             checksumVerified: false,
             error: error instanceof Error ? error.message : 'Unknown error',
-            duration: 0
+            duration: duration * 1000 // Convert to milliseconds for consistency
           }
 
           results[fileIndex] = errorResult
           completed++
           fileProgress.delete(fileIndex)
           activeTransfers.delete(fileIndex)
+          fileStartTimes.delete(fileIndex) // Clean up start time tracking
 
           if (options?.onBatchProgress) {
             options.onBatchProgress(completed, files.length)

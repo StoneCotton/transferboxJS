@@ -15,7 +15,14 @@ import { useTransferStore } from '../store'
 import { Card, CardHeader, CardTitle, CardContent } from './ui/Card'
 import { Progress } from './ui/Progress'
 import { Button } from './ui/Button'
-import { formatBytes, formatSpeed, formatTime, cn } from '../lib/utils'
+import {
+  formatBytes,
+  formatSpeed,
+  formatTime,
+  formatDuration,
+  formatRemainingTime,
+  cn
+} from '../lib/utils'
 
 export function TransferProgress() {
   const { isTransferring, progress, error, cancelTransfer } = useTransferStore()
@@ -105,6 +112,94 @@ export function TransferProgress() {
           </div>
         ) : (
           <div className="space-y-6">
+            {/* Stats Grid */}
+            {progress && (
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
+                {/* Files */}
+                <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-brand-100 to-brand-50 p-4 shadow-lg dark:from-brand-900/30 dark:to-brand-950/30">
+                  <div className="absolute right-2 top-2 opacity-10">
+                    <FileCheck className="h-12 w-12" />
+                  </div>
+                  <div className="relative">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-brand-600 dark:text-brand-400">
+                      <FileCheck className="h-4 w-4" />
+                      <span>Files</span>
+                    </div>
+                    <p className="mt-2 text-2xl font-black text-brand-900 dark:text-brand-100">
+                      {progress.completedFilesCount}/{progress.totalFiles}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Size */}
+                <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-slate-100 to-slate-50 p-4 shadow-lg dark:from-slate-900/30 dark:to-slate-950/30">
+                  <div className="absolute right-2 top-2 opacity-10">
+                    <HardDriveDownload className="h-12 w-12" />
+                  </div>
+                  <div className="relative">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-400">
+                      <HardDriveDownload className="h-4 w-4" />
+                      <span>Transferred</span>
+                    </div>
+                    <p className="mt-2 text-lg font-black text-slate-900 dark:text-slate-100">
+                      {formatBytes(progress.transferredBytes)}
+                    </p>
+                    <p className="mt-1 text-xs font-medium text-slate-600 dark:text-slate-400">
+                      of {formatBytes(progress.totalBytes)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Speed */}
+                <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-orange-100 to-orange-50 p-4 shadow-lg dark:from-orange-900/30 dark:to-orange-950/30">
+                  <div className="absolute right-2 top-2 opacity-10">
+                    <Zap className="h-12 w-12" />
+                  </div>
+                  <div className="relative">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-orange-600 dark:text-orange-400">
+                      <Zap className="h-4 w-4" />
+                      <span>Speed</span>
+                    </div>
+                    <p className="mt-2 text-2xl font-black text-orange-900 dark:text-orange-100">
+                      {formatSpeed(progress.transferSpeed)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Elapsed Time */}
+                <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-purple-100 to-purple-50 p-4 shadow-lg dark:from-purple-900/30 dark:to-purple-950/30">
+                  <div className="absolute right-2 top-2 opacity-10">
+                    <Clock className="h-12 w-12" />
+                  </div>
+                  <div className="relative">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-purple-600 dark:text-purple-400">
+                      <Clock className="h-4 w-4" />
+                      <span>Elapsed Time</span>
+                    </div>
+                    <p className="mt-2 text-2xl font-black text-purple-900 dark:text-purple-100">
+                      {formatTime(progress.elapsedTime)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* ETA */}
+                <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-pink-100 to-pink-50 p-4 shadow-lg dark:from-pink-900/30 dark:to-pink-950/30">
+                  <div className="absolute right-2 top-2 opacity-10">
+                    <Clock className="h-12 w-12" />
+                  </div>
+                  <div className="relative">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-pink-600 dark:text-pink-400">
+                      <Clock className="h-4 w-4" />
+                      <span>Remaining</span>
+                    </div>
+                    <p className="mt-2 text-2xl font-black text-pink-900 dark:text-pink-100">
+                      {progress.eta > 0 ? formatTime(progress.eta) : '--'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Overall Progress Bar */}
             <div>
               <div className="mb-3 flex items-center justify-between">
@@ -181,6 +276,24 @@ export function TransferProgress() {
                         {formatBytes(file.bytesTransferred)} / {formatBytes(file.fileSize)}
                       </p>
                     </div>
+
+                    {/* Per-file duration and remaining time */}
+                    <div className="mt-2 flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-4">
+                        {file.duration !== undefined && file.duration > 0 && (
+                          <div className="flex items-center gap-1 text-gray-600 dark:text-gray-400">
+                            <Clock className="h-3 w-3" />
+                            <span>Elapsed: {formatDuration(file.duration)}</span>
+                          </div>
+                        )}
+                        {file.remainingTime !== undefined && file.remainingTime > 0 && (
+                          <div className="flex items-center gap-1 text-orange-600 dark:text-orange-400">
+                            <Clock className="h-3 w-3" />
+                            <span>Remaining: {formatRemainingTime(file.remainingTime)}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -224,78 +337,6 @@ export function TransferProgress() {
                   </div>
                 </div>
               )}
-
-            {/* Stats Grid */}
-            {progress && (
-              <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-                {/* Files */}
-                <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-brand-100 to-brand-50 p-4 shadow-lg dark:from-brand-900/30 dark:to-brand-950/30">
-                  <div className="absolute right-2 top-2 opacity-10">
-                    <FileCheck className="h-12 w-12" />
-                  </div>
-                  <div className="relative">
-                    <div className="flex items-center gap-2 text-xs font-semibold text-brand-600 dark:text-brand-400">
-                      <FileCheck className="h-4 w-4" />
-                      <span>Files</span>
-                    </div>
-                    <p className="mt-2 text-2xl font-black text-brand-900 dark:text-brand-100">
-                      {progress.completedFilesCount}/{progress.totalFiles}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Size */}
-                <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-slate-100 to-slate-50 p-4 shadow-lg dark:from-slate-900/30 dark:to-slate-950/30">
-                  <div className="absolute right-2 top-2 opacity-10">
-                    <HardDriveDownload className="h-12 w-12" />
-                  </div>
-                  <div className="relative">
-                    <div className="flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-400">
-                      <HardDriveDownload className="h-4 w-4" />
-                      <span>Transferred</span>
-                    </div>
-                    <p className="mt-2 text-lg font-black text-slate-900 dark:text-slate-100">
-                      {formatBytes(progress.transferredBytes)}
-                    </p>
-                    <p className="mt-1 text-xs font-medium text-slate-600 dark:text-slate-400">
-                      of {formatBytes(progress.totalBytes)}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Speed */}
-                <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-orange-100 to-orange-50 p-4 shadow-lg dark:from-orange-900/30 dark:to-orange-950/30">
-                  <div className="absolute right-2 top-2 opacity-10">
-                    <Zap className="h-12 w-12" />
-                  </div>
-                  <div className="relative">
-                    <div className="flex items-center gap-2 text-xs font-semibold text-orange-600 dark:text-orange-400">
-                      <Zap className="h-4 w-4" />
-                      <span>Speed</span>
-                    </div>
-                    <p className="mt-2 text-2xl font-black text-orange-900 dark:text-orange-100">
-                      {formatSpeed(progress.transferSpeed)}
-                    </p>
-                  </div>
-                </div>
-
-                {/* ETA */}
-                <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-pink-100 to-pink-50 p-4 shadow-lg dark:from-pink-900/30 dark:to-pink-950/30">
-                  <div className="absolute right-2 top-2 opacity-10">
-                    <Clock className="h-12 w-12" />
-                  </div>
-                  <div className="relative">
-                    <div className="flex items-center gap-2 text-xs font-semibold text-pink-600 dark:text-pink-400">
-                      <Clock className="h-4 w-4" />
-                      <span>Remaining</span>
-                    </div>
-                    <p className="mt-2 text-2xl font-black text-pink-900 dark:text-pink-100">
-                      {progress.eta > 0 ? formatTime(progress.eta) : '--'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         )}
       </CardContent>

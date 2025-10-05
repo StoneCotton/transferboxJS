@@ -73,7 +73,10 @@ export function setupIpcHandlers(): void {
       throw new Error('Drive not found or not mounted')
     }
 
+    const config = getConfig()
+    console.log('[IPC] Scanning drive with mediaExtensions:', config.mediaExtensions)
     const result = await driveMonitor.scanForMedia(drive.mountpoints[0])
+    console.log('[IPC] Scan complete. Found files:', result.fileCount)
 
     return {
       driveInfo: drive,
@@ -210,6 +213,9 @@ export function setupIpcHandlers(): void {
           const remainingBytes = totalBytes - overallBytesTransferred
           const eta = averageSpeed > 0 ? remainingBytes / averageSpeed : 0
 
+          // Calculate total estimated duration
+          const totalDuration = averageSpeed > 0 ? totalBytes / averageSpeed : 0
+
           // Convert activeFiles from the enhanced progress to the format expected by the UI
           const enhancedProgress = progress as {
             activeFiles?: Array<{
@@ -220,6 +226,9 @@ export function setupIpcHandlers(): void {
               percentage: number
               speed: number
               status: string
+              startTime?: number
+              duration?: number
+              remainingTime?: number
             }>
           }
           const activeFiles =
@@ -232,7 +241,9 @@ export function setupIpcHandlers(): void {
               percentage: file.percentage,
               speed: file.speed,
               status: file.status,
-              startTime: file.status === 'transferring' ? Date.now() : null
+              startTime: file.startTime,
+              duration: file.duration,
+              remainingTime: file.remainingTime
             })) || []
 
           // Get completed files from database
@@ -265,6 +276,7 @@ export function setupIpcHandlers(): void {
             averageSpeed,
             eta,
             elapsedTime,
+            totalDuration,
             startTime,
             endTime: null,
             errorCount: failedFilesList.length
@@ -297,6 +309,7 @@ export function setupIpcHandlers(): void {
             bytesTransferred: result.bytesTransferred,
             percentage: 100,
             endTime: Date.now(),
+            duration: result.duration / 1000, // Convert from milliseconds to seconds
             error: result.success ? undefined : result.error
           })
 

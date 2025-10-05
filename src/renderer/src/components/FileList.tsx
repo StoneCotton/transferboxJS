@@ -19,20 +19,54 @@ import {
 import { useMemo, useState, type ReactElement } from 'react'
 import { useDriveStore, useTransferStore } from '../store'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/Card'
-import { cn } from '../lib/utils'
+import { cn, formatDuration } from '../lib/utils'
 
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 function getFileIcon(filePath: string) {
   const ext = filePath.toLowerCase().split('.').pop()
 
-  if (['.MP4', '.mov', '.avi', '.mkv', '.mts', '.m4v'].includes(`.${ext}`)) {
+  if (
+    [
+      '.mp4',
+      '.mov',
+      '.avi',
+      '.mkv',
+      '.mts',
+      '.m2ts',
+      '.m4v',
+      '.mpg',
+      '.mpeg',
+      '.crm',
+      '.mxf',
+      '.webm',
+      '.braw',
+      '.r3d'
+    ].includes(`.${ext}`)
+  ) {
     return FileVideo
   }
   if (['.mp3', '.wav', '.flac', '.aac', '.m4a'].includes(`.${ext}`)) {
     return FileAudio
   }
-  if (['.jpg', '.jpeg', '.png', '.raw', '.cr2', '.nef', '.arw', '.dng'].includes(`.${ext}`)) {
+  if (
+    [
+      '.jpg',
+      '.jpeg',
+      '.png',
+      '.raw',
+      '.cr2',
+      '.cr3',
+      '.nef',
+      '.arw',
+      '.dng',
+      '.heic',
+      '.heif'
+    ].includes(`.${ext}`)
+  ) {
     return FileImage
+  }
+  if (['.xml'].includes(`.${ext}`)) {
+    return FileType
   }
   return File
 }
@@ -40,14 +74,48 @@ function getFileIcon(filePath: string) {
 function getFileType(filePath: string): 'video' | 'audio' | 'image' | 'other' {
   const ext = filePath.toLowerCase().split('.').pop()
 
-  if (['.mp4', '.mov', '.avi', '.mkv', '.mts', '.m4v'].includes(`.${ext}`)) {
+  if (
+    [
+      '.mp4',
+      '.mov',
+      '.avi',
+      '.mkv',
+      '.mts',
+      '.m2ts',
+      '.m4v',
+      '.mpg',
+      '.mpeg',
+      '.crm',
+      '.mxf',
+      '.webm',
+      '.braw',
+      '.r3d'
+    ].includes(`.${ext}`)
+  ) {
     return 'video'
   }
   if (['.mp3', '.wav', '.flac', '.aac', '.m4a'].includes(`.${ext}`)) {
     return 'audio'
   }
-  if (['.jpg', '.jpeg', '.png', '.raw', '.cr2', '.nef', '.arw', '.dng'].includes(`.${ext}`)) {
+  if (
+    [
+      '.jpg',
+      '.jpeg',
+      '.png',
+      '.raw',
+      '.cr2',
+      '.cr3',
+      '.nef',
+      '.arw',
+      '.dng',
+      '.heic',
+      '.heif'
+    ].includes(`.${ext}`)
+  ) {
     return 'image'
+  }
+  if (['.xml'].includes(`.${ext}`)) {
+    return 'other'
   }
   return 'other'
 }
@@ -143,6 +211,42 @@ function getFileChecksum(filePath: string, progress: unknown): string | null {
     const activeFile = progressObj.activeFiles.find((file) => file.sourcePath === filePath)
     if (activeFile?.checksum) {
       return activeFile.checksum
+    }
+  }
+
+  return null
+}
+
+// Helper function to get file elapsed time
+function getFileElapsedTime(filePath: string, progress: unknown): number | null {
+  if (!progress || typeof progress !== 'object' || progress === null) {
+    return null
+  }
+
+  const progressObj = progress as {
+    activeFiles?: Array<{ sourcePath: string; duration?: number }>
+    currentFile?: { sourcePath: string; duration?: number }
+    completedFiles?: Array<{ sourcePath: string; duration?: number }>
+  }
+
+  // Check if file is currently being transferred
+  if (progressObj.currentFile && progressObj.currentFile.sourcePath === filePath) {
+    return progressObj.currentFile.duration || null
+  }
+
+  // Check if file is in active files (parallel transfers)
+  if (progressObj.activeFiles) {
+    const activeFile = progressObj.activeFiles.find((file) => file.sourcePath === filePath)
+    if (activeFile?.duration) {
+      return activeFile.duration
+    }
+  }
+
+  // Check if file is in completed files
+  if (progressObj.completedFiles) {
+    const completedFile = progressObj.completedFiles.find((file) => file.sourcePath === filePath)
+    if (completedFile?.duration) {
+      return completedFile.duration
     }
   }
 
@@ -292,6 +396,7 @@ export function FileList() {
             const fileType = getFileType(file)
             const status = getFileTransferStatus(file, progress)
             const checksum = getFileChecksum(file, progress)
+            const elapsedTime = getFileElapsedTime(file, progress)
 
             // Status icon and colors
             const getStatusIcon = (): ReactElement => {
@@ -364,6 +469,16 @@ export function FileList() {
                     </span>
                     {getStatusIcon()}
                   </div>
+
+                  {/* Elapsed time for completed files */}
+                  {elapsedTime !== null && status === 'complete' && (
+                    <div className="mt-1 flex items-center gap-2">
+                      <Clock className="h-3 w-3 text-gray-500 dark:text-gray-400" />
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        Completed in: {formatDuration(elapsedTime)}
+                      </span>
+                    </div>
+                  )}
 
                   {/* Checksum for completed files */}
                   {status === 'complete' && checksum && (

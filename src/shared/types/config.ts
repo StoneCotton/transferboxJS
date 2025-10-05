@@ -54,6 +54,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   timestampFormat: 'YYYY-MM-DD_HHmmss',
   folderStructure: 'date-based',
   mediaExtensions: [
+    // Video formats
     '.mp4',
     '.mov',
     '.avi',
@@ -61,23 +62,37 @@ export const DEFAULT_CONFIG: AppConfig = {
     '.m4v',
     '.mpg',
     '.mpeg',
+    '.mts', // AVCHD
+    '.m2ts', // AVCHD
+    '.mxf', // Professional video (Sony, Canon, Panasonic)
+    '.crm', // Canon Raw Lite
+    '.braw', // Blackmagic RAW
+    '.r3d', // RED RAW
+    '.webm',
+    // Image formats
     '.jpg',
     '.jpeg',
     '.png',
     '.raw',
-    '.cr2',
-    '.nef',
-    '.arw',
-    '.dng',
+    '.cr2', // Canon RAW
+    '.cr3', // Canon RAW (newer)
+    '.nef', // Nikon RAW
+    '.arw', // Sony RAW
+    '.dng', // Adobe Digital Negative
+    '.heic', // High Efficiency Image Format
+    '.heif',
+    // Audio formats
     '.wav',
     '.mp3',
     '.aac',
     '.flac',
-    '.m4a'
+    '.m4a',
+    // Metadata/sidecar files
+    '.xml' // Camera metadata, Adobe sidecar files
   ],
   checksumAlgorithm: 'xxhash64',
   verifyChecksums: true,
-  bufferSize: 65536, // 64KB
+  bufferSize: 4194304, // 4MB - optimized for modern SSDs
   chunkSize: 1048576, // 1MB for progress updates
   enableLogging: true,
   generateMHL: false,

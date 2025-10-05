@@ -25,6 +25,8 @@ export interface FileTransferInfo {
   error?: string
   startTime?: number
   endTime?: number
+  duration?: number // Total time taken for this file in seconds
+  remainingTime?: number // Estimated time remaining for this file in seconds
 }
 
 export interface TransferProgress {
@@ -52,6 +54,7 @@ export interface TransferProgress {
   averageSpeed: number // Average speed since start
   eta: number // Estimated time remaining in seconds
   elapsedTime: number // Time elapsed in seconds
+  totalDuration?: number // Total estimated duration in seconds
 
   // Timestamps
   startTime: number | null

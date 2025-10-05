@@ -27,6 +27,27 @@ export class ConfigManager {
       cwd: configPath,
       defaults: DEFAULT_CONFIG
     })
+
+    // Migrate config to ensure new extensions are added
+    this.migrateConfig()
+  }
+
+  /**
+   * Migrate config to ensure new default extensions are added
+   */
+  private migrateConfig(): void {
+    const currentConfig = this.getConfig()
+    const currentExtensions = new Set(currentConfig.mediaExtensions.map((ext) => ext.toLowerCase()))
+    const defaultExtensions = DEFAULT_CONFIG.mediaExtensions.map((ext) => ext.toLowerCase())
+
+    // Find extensions in defaults that aren't in current config
+    const missingExtensions = defaultExtensions.filter((ext) => !currentExtensions.has(ext))
+
+    if (missingExtensions.length > 0) {
+      console.log('[ConfigManager] Adding missing extensions:', missingExtensions)
+      const updatedExtensions = [...currentConfig.mediaExtensions, ...missingExtensions]
+      this.store.set('mediaExtensions', updatedExtensions)
+    }
   }
 
   /**

@@ -25,30 +25,46 @@ export const createConfigSlice: StateCreator<ConfigSlice> = (set) => ({
     timestampFormat: 'YYYY-MM-DD_HHmmss',
     folderStructure: 'flat',
     mediaExtensions: [
-      '.jpg',
-      '.jpeg',
-      '.png',
-      '.raw',
-      '.cr2',
-      '.nef',
-      '.arw',
-      '.dng',
+      // Video formats
       '.mp4',
       '.mov',
       '.avi',
       '.mkv',
-      '.mts',
       '.m4v',
-      '.mp3',
+      '.mpg',
+      '.mpeg',
+      '.mts', // AVCHD
+      '.m2ts', // AVCHD
+      '.mxf', // Professional video
+      '.crm', // Canon Raw Lite
+      '.braw', // Blackmagic RAW
+      '.r3d', // RED RAW
+      '.webm',
+      // Image formats
+      '.jpg',
+      '.jpeg',
+      '.png',
+      '.raw',
+      '.cr2', // Canon RAW
+      '.cr3', // Canon RAW (newer)
+      '.nef', // Nikon RAW
+      '.arw', // Sony RAW
+      '.dng', // Adobe Digital Negative
+      '.heic',
+      '.heif',
+      // Audio formats
       '.wav',
-      '.flac',
+      '.mp3',
       '.aac',
-      '.m4a'
+      '.flac',
+      '.m4a',
+      // Metadata/sidecar files
+      '.xml' // Camera metadata
     ],
     checksumAlgorithm: 'xxhash64' as const,
     verifyChecksums: true,
-    bufferSize: 65536,
-    chunkSize: 4096,
+    bufferSize: 4194304, // 4MB - optimized for modern SSDs
+    chunkSize: 1048576, // 1MB for progress updates
     enableLogging: true,
     generateMHL: false,
     showDetailedProgress: true,
