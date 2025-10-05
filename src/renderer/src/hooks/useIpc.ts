@@ -51,6 +51,7 @@ export interface IpcApi {
   onTransferProgress: (callback: (progress: any) => void) => () => void
   onTransferComplete: (callback: (data: any) => void) => () => void
   onTransferError: (callback: (error: string) => void) => () => void
+  onLogEntry: (callback: (entry: LogEntry) => void) => () => void
 }
 
 /**
@@ -144,6 +145,10 @@ export function useIpc(): IpcApi {
     return window.api.onTransferError(callback)
   }, [])
 
+  const onLogEntry = useCallback((callback: (entry: LogEntry) => void) => {
+    return window.api.onLogEntry(callback)
+  }, [])
+
   return {
     getConfig,
     updateConfig,
@@ -164,6 +169,7 @@ export function useIpc(): IpcApi {
     onDriveRemoved,
     onTransferProgress,
     onTransferComplete,
-    onTransferError
+    onTransferError,
+    onLogEntry
   }
 }

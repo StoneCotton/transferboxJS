@@ -56,6 +56,11 @@ const api = {
     const listener = (_event: any, error: string) => callback(error)
     ipcRenderer.on(IPC_CHANNELS.TRANSFER_ERROR, listener)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.TRANSFER_ERROR, listener)
+  },
+  onLogEntry: (callback: (entry: any) => void) => {
+    const listener = (_event: any, entry: any) => callback(entry)
+    ipcRenderer.on(IPC_CHANNELS.LOG_ENTRY, listener)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.LOG_ENTRY, listener)
   }
 }
 

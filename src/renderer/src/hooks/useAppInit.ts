@@ -142,6 +142,10 @@ export function useAppInit() {
       useStore.getState().failTransfer(error)
     })
 
+    const unsubLogEntry = ipc.onLogEntry((entry) => {
+      useStore.getState().addLog(entry)
+    })
+
     // Cleanup on unmount
     return () => {
       unsubDriveDetected()
@@ -149,6 +153,7 @@ export function useAppInit() {
       unsubTransferProgress()
       unsubTransferComplete()
       unsubTransferError()
+      unsubLogEntry()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []) // Only run once on mount

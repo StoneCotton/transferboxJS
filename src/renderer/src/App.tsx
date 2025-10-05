@@ -12,6 +12,8 @@ import { TransferActions } from './components/TransferActions'
 import { StatusBar } from './components/StatusBar'
 import { SettingsModal } from './components/SettingsModal'
 import { ModeIndicator } from './components/ModeIndicator'
+import { LogViewer } from './components/LogViewer'
+import { HistoryViewer } from './components/HistoryViewer'
 import { useDriveStore, useUIStore, useTransferStore } from './store'
 import { CheckCircle2, Circle, CircleDot } from 'lucide-react'
 import { cn } from './lib/utils'
@@ -21,7 +23,7 @@ function App() {
   useAppInit()
 
   const { selectedDrive, scannedFiles } = useDriveStore()
-  const { selectedDestination } = useUIStore()
+  const { selectedDestination, showLogs, showHistory, closeAllModals } = useUIStore()
   const { isTransferring, progress } = useTransferStore()
 
   // Calculate step completion
@@ -194,6 +196,10 @@ function App() {
 
       {/* Modals */}
       <SettingsModal />
+      
+      {/* Logs and History Viewers */}
+      {showLogs && <LogViewer onClose={() => closeAllModals()} />}
+      {showHistory && <HistoryViewer onClose={() => closeAllModals()} />}
     </div>
   )
 }
