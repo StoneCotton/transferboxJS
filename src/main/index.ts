@@ -15,6 +15,7 @@ function createWindow(): void {
     show: false,
     autoHideMenuBar: true,
     icon: icon,
+    title: 'TransferBox',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
@@ -47,6 +48,8 @@ function createWindow(): void {
   // Start drive monitoring after window is ready
   mainWindow.webContents.on('did-finish-load', () => {
     if (mainWindow) {
+      // Explicitly set the window title to ensure it's displayed correctly
+      mainWindow.setTitle('TransferBox')
       startDriveMonitoring(mainWindow)
       getLogger().info('TransferBox started')
     }

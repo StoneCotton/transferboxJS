@@ -21,7 +21,7 @@ export function Header() {
         <div className="flex items-center gap-4">
           <div className="relative flex h-12 w-12 items-center justify-center">
             {/* Animated gradient background */}
-            <div className="absolute inset-0 animate-pulse rounded-xl bg-gradient-to-br from-brand-400 to-brand-600 opacity-20 blur-lg" />
+            <div className="absolute inset-0 animate-pulse rounded-xl bg-gradient-to-br from-brand-400 to-brand-600 opacity-20 blur-sm" />
             <div className="relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl bg-white shadow-xl shadow-brand-500/30 ring-2 ring-brand-400">
               <img src={logoImage} alt="TransferBox" className="h-10 w-10 object-contain" />
             </div>
@@ -31,7 +31,7 @@ export function Header() {
               TransferBox
             </h1>
             <p className="text-xs font-medium text-slate-600 dark:text-slate-400">
-              Professional Media Transfer Tool
+              Professional Media Transfer Tool | v2.0.0
             </p>
           </div>
         </div>

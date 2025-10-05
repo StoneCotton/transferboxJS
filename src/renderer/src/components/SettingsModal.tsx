@@ -3,7 +3,7 @@
  * Configure transfer modes and other settings
  */
 
-import { Save, CheckCircle2, FolderOpen } from 'lucide-react'
+import { Save, CheckCircle2, FolderOpen, Plus, X } from 'lucide-react'
 import { useState } from 'react'
 import type { TransferMode, AppConfig } from '../../../shared/types'
 import { Modal } from './ui/Modal'
@@ -23,6 +23,28 @@ export function SettingsModal() {
     config.defaultDestination
   )
   const [verifyChecksums, setVerifyChecksums] = useState(config.verifyChecksums)
+  
+  // File naming settings
+  const [addTimestampToFilename, setAddTimestampToFilename] = useState(config.addTimestampToFilename)
+  const [keepOriginalFilename, setKeepOriginalFilename] = useState(config.keepOriginalFilename)
+  const [filenameTemplate, setFilenameTemplate] = useState(config.filenameTemplate)
+  const [timestampFormat, setTimestampFormat] = useState(config.timestampFormat)
+  
+  // Directory structure settings
+  const [createDateBasedFolders, setCreateDateBasedFolders] = useState(config.createDateBasedFolders)
+  const [dateFolderFormat, setDateFolderFormat] = useState(config.dateFolderFormat)
+  const [createDeviceBasedFolders, setCreateDeviceBasedFolders] = useState(config.createDeviceBasedFolders)
+  const [deviceFolderTemplate, setDeviceFolderTemplate] = useState(config.deviceFolderTemplate)
+  const [keepFolderStructure, setKeepFolderStructure] = useState(config.keepFolderStructure)
+  
+  // Media file filtering
+  const [transferOnlyMediaFiles, setTransferOnlyMediaFiles] = useState(config.transferOnlyMediaFiles)
+  const [mediaExtensions, setMediaExtensions] = useState<string[]>(config.mediaExtensions)
+  const [newExtension, setNewExtension] = useState('')
+  
+  // Checksum settings
+  const [generateMHLChecksumFiles, setGenerateMHLChecksumFiles] = useState(config.generateMHLChecksumFiles)
+  
   const [isSaving, setIsSaving] = useState(false)
 
   const handleSelectDestination = async (): Promise<void> => {
@@ -32,13 +54,51 @@ export function SettingsModal() {
     }
   }
 
+  const handleAddExtension = (): void => {
+    if (newExtension.trim() && !mediaExtensions.includes(newExtension.toLowerCase())) {
+      const extension = newExtension.startsWith('.') ? newExtension.toLowerCase() : `.${newExtension.toLowerCase()}`
+      setMediaExtensions([...mediaExtensions, extension])
+      setNewExtension('')
+    }
+  }
+
+  const handleRemoveExtension = (extension: string): void => {
+    setMediaExtensions(mediaExtensions.filter(ext => ext !== extension))
+  }
+
+  const handleKeyPress = (e: React.KeyboardEvent): void => {
+    if (e.key === 'Enter') {
+      handleAddExtension()
+    }
+  }
+
   const handleSave = async (): Promise<void> => {
     setIsSaving(true)
     try {
       const updates: Partial<AppConfig> = {
         transferMode,
         defaultDestination,
-        verifyChecksums
+        verifyChecksums,
+        
+        // File naming settings
+        addTimestampToFilename,
+        keepOriginalFilename,
+        filenameTemplate,
+        timestampFormat,
+        
+        // Directory structure settings
+        createDateBasedFolders,
+        dateFolderFormat,
+        createDeviceBasedFolders,
+        deviceFolderTemplate,
+        keepFolderStructure,
+        
+        // Media file filtering
+        transferOnlyMediaFiles,
+        mediaExtensions,
+        
+        // Checksum settings
+        generateMHLChecksumFiles
       }
 
       const updatedConfig = await ipc.updateConfig(updates)
@@ -46,7 +106,7 @@ export function SettingsModal() {
       toggleSettings()
     } catch (error) {
       console.error('Failed to save settings:', error)
-      alert('Failed to save settings')
+      alert(`Failed to save settings: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {
       setIsSaving(false)
     }
@@ -85,8 +145,9 @@ export function SettingsModal() {
   ]
 
   return (
-    <Modal isOpen={showSettings} onClose={toggleSettings} title="Settings" size="lg">
-      <div className="space-y-6">
+    <Modal isOpen={showSettings} onClose={toggleSettings} title="Settings" size="xl">
+      <div className="max-h-[80vh] overflow-y-auto">
+        <div className="space-y-8">
         {/* Transfer Modes */}
         <div>
           <h3 className="mb-3 text-lg font-semibold text-gray-900 dark:text-white">
@@ -170,11 +231,233 @@ export function SettingsModal() {
           </div>
         )}
 
-        {/* Checksum Verification */}
+          {/* File Naming Settings */}
+          <div>
+            <h3 className="mb-3 text-lg font-semibold text-gray-900 dark:text-white">
+              File Naming
+            </h3>
+            <div className="space-y-4">
+              <label className="flex items-center gap-3 rounded-lg border-2 border-gray-200 bg-white p-4 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800/50">
+                <input
+                  type="checkbox"
+                  checked={addTimestampToFilename}
+                  onChange={(e) => setAddTimestampToFilename(e.target.checked)}
+                  className="h-5 w-5 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
+                />
+                <div>
+                  <p className="font-medium text-gray-900 dark:text-white">Add Timestamp to Filename</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Automatically add a timestamp to file names to prevent duplicates and track when files were ingested
+                  </p>
+                </div>
+              </label>
+
+              {addTimestampToFilename && (
+                <div className="ml-8 space-y-4 animate-in fade-in slide-in-from-top-4 duration-300">
+                  <label className="flex items-center gap-3 rounded-lg border-2 border-gray-200 bg-white p-4 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800/50">
+                    <input
+                      type="checkbox"
+                      checked={keepOriginalFilename}
+                      onChange={(e) => setKeepOriginalFilename(e.target.checked)}
+                      className="h-5 w-5 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
+                    />
+                    <div>
+                      <p className="font-medium text-gray-900 dark:text-white">Keep Original Filename</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        Preserve the original filename when adding timestamps
+                      </p>
+                    </div>
+                  </label>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-900 dark:text-white">
+                      Filename Template
+                    </label>
+                    <input
+                      type="text"
+                      value={filenameTemplate}
+                      onChange={(e) => setFilenameTemplate(e.target.value)}
+                      placeholder="{original}_{timestamp}"
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-brand-500 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                    />
+                    <p className="text-xs text-gray-600 dark:text-gray-400">
+                      Use {'{original}'} for original name and {'{timestamp}'} for timestamp
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-900 dark:text-white">
+                      Timestamp Format
+                    </label>
+                    <input
+                      type="text"
+                      value={timestampFormat}
+                      onChange={(e) => setTimestampFormat(e.target.value)}
+                      placeholder="%Y%m%d_%H%M%S"
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-brand-500 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                    />
+                    <p className="text-xs text-gray-600 dark:text-gray-400">
+                      Format: %Y (year), %m (month), %d (day), %H (hour), %M (minute), %S (second)
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Directory Structure Settings */}
+          <div>
+            <h3 className="mb-3 text-lg font-semibold text-gray-900 dark:text-white">
+              Directory Structure
+            </h3>
+            <div className="space-y-4">
+              <label className="flex items-center gap-3 rounded-lg border-2 border-gray-200 bg-white p-4 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800/50">
+                <input
+                  type="checkbox"
+                  checked={keepFolderStructure}
+                  onChange={(e) => setKeepFolderStructure(e.target.checked)}
+                  className="h-5 w-5 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
+                />
+                <div>
+                  <p className="font-medium text-gray-900 dark:text-white">Keep Folder Structure</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Maintain the original folder structure from the source drive
+                  </p>
+                </div>
+              </label>
+
+              <label className="flex items-center gap-3 rounded-lg border-2 border-gray-200 bg-white p-4 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800/50">
+                <input
+                  type="checkbox"
+                  checked={createDateBasedFolders}
+                  onChange={(e) => setCreateDateBasedFolders(e.target.checked)}
+                  className="h-5 w-5 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
+                />
+                <div>
+                  <p className="font-medium text-gray-900 dark:text-white">Create Date-Based Folders</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Organize files into folders based on their creation date
+                  </p>
+                </div>
+              </label>
+
+              {createDateBasedFolders && (
+                <div className="ml-8 space-y-2 animate-in fade-in slide-in-from-top-4 duration-300">
+                  <label className="block text-sm font-medium text-gray-900 dark:text-white">
+                    Date Folder Format
+                  </label>
+                  <input
+                    type="text"
+                    value={dateFolderFormat}
+                    onChange={(e) => setDateFolderFormat(e.target.value)}
+                    placeholder="%Y/%m/%d"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-brand-500 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  />
+                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                    Example: %Y/%m/%d creates YYYY/MM/DD folder structure
+                  </p>
+                </div>
+              )}
+
+              <label className="flex items-center gap-3 rounded-lg border-2 border-gray-200 bg-white p-4 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800/50">
+                <input
+                  type="checkbox"
+                  checked={createDeviceBasedFolders}
+                  onChange={(e) => setCreateDeviceBasedFolders(e.target.checked)}
+                  className="h-5 w-5 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
+                />
+                <div>
+                  <p className="font-medium text-gray-900 dark:text-white">Create Device-Based Folders</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Create separate folders for each source device or drive
+                  </p>
+                </div>
+              </label>
+
+              {createDeviceBasedFolders && (
+                <div className="ml-8 space-y-2 animate-in fade-in slide-in-from-top-4 duration-300">
+                  <label className="block text-sm font-medium text-gray-900 dark:text-white">
+                    Device Folder Template
+                  </label>
+                  <input
+                    type="text"
+                    value={deviceFolderTemplate}
+                    onChange={(e) => setDeviceFolderTemplate(e.target.value)}
+                    placeholder="{device_name}"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-brand-500 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  />
+                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                    Use {'{device_name}'} for the device name
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Media File Filtering */}
+          <div>
+            <h3 className="mb-3 text-lg font-semibold text-gray-900 dark:text-white">
+              Media File Filtering
+            </h3>
+            <div className="space-y-4">
+              <label className="flex items-center gap-3 rounded-lg border-2 border-gray-200 bg-white p-4 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800/50">
+                <input
+                  type="checkbox"
+                  checked={transferOnlyMediaFiles}
+                  onChange={(e) => setTransferOnlyMediaFiles(e.target.checked)}
+                  className="h-5 w-5 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
+                />
+                <div>
+                  <p className="font-medium text-gray-900 dark:text-white">Transfer Only Media Files</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Only transfer files with media extensions, ignoring other file types
+                  </p>
+                </div>
+              </label>
+
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-gray-900 dark:text-white">
+                  Media File Extensions
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newExtension}
+                    onChange={(e) => setNewExtension(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    placeholder="e.g., .mp4, .mov"
+                    className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-brand-500 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  />
+                  <Button onClick={handleAddExtension} size="sm">
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {mediaExtensions.map((ext) => (
+                    <span
+                      key={ext}
+                      className="inline-flex items-center gap-1 rounded-full bg-brand-100 px-3 py-1 text-sm text-brand-800 dark:bg-brand-900 dark:text-brand-200"
+                    >
+                      {ext}
+                      <button
+                        onClick={() => handleRemoveExtension(ext)}
+                        className="ml-1 hover:text-brand-600 dark:hover:text-brand-400"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Transfer Options */}
         <div>
           <h3 className="mb-3 text-lg font-semibold text-gray-900 dark:text-white">
             Transfer Options
           </h3>
+            <div className="space-y-4">
           <label className="flex items-center gap-3 rounded-lg border-2 border-gray-200 bg-white p-4 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800/50">
             <input
               type="checkbox"
@@ -189,6 +472,22 @@ export function SettingsModal() {
               </p>
             </div>
           </label>
+
+              <label className="flex items-center gap-3 rounded-lg border-2 border-gray-200 bg-white p-4 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800/50">
+                <input
+                  type="checkbox"
+                  checked={generateMHLChecksumFiles}
+                  onChange={(e) => setGenerateMHLChecksumFiles(e.target.checked)}
+                  className="h-5 w-5 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
+                />
+                <div>
+                  <p className="font-medium text-gray-900 dark:text-white">Generate MHL Checksum Files</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Create Media Hash List (MHL) files for data integrity verification
+                  </p>
+                </div>
+              </label>
+            </div>
         </div>
 
         {/* Actions */}
@@ -210,6 +509,7 @@ export function SettingsModal() {
               </>
             )}
           </Button>
+          </div>
         </div>
       </div>
     </Modal>

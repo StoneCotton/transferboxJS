@@ -251,7 +251,7 @@ export function LogViewer({ onClose }: LogViewerProps) {
           {isLoading ? (
             <div className="flex items-center justify-center h-full">
               <div className="flex flex-col items-center gap-4">
-                <Progress className="w-64" />
+                <Progress value={0} className="w-64" />
                 <p className="text-gray-500 dark:text-gray-400">Loading logs...</p>
               </div>
             </div>

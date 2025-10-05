@@ -19,19 +19,29 @@ export interface AppConfig {
   // Destination settings
   defaultDestination: string | null // Used in autonomous mode
 
-  // File naming
-  preserveOriginalNames: boolean
-  timestampFormat: string // e.g., 'YYYY-MM-DD_HHmmss'
+  // File naming settings
+  addTimestampToFilename: boolean // Add timestamp to file names to prevent duplicates
+  keepOriginalFilename: boolean // Preserve original filename when adding timestamps (requires addTimestampToFilename)
+  filenameTemplate: string // Template for renaming files. Use {original} for original name and {timestamp} for timestamp
+  timestampFormat: string // Format for timestamps in filenames (e.g., %Y%m%d_%H%M%S for YYYYMMDD_HHMMSS)
+  preserveOriginalNames: boolean // Legacy setting - kept for backward compatibility
 
-  // Folder structure
-  folderStructure: FolderStructure
+  // Directory structure settings
+  createDateBasedFolders: boolean // Organize files into folders based on their creation date
+  dateFolderFormat: string // Format for date-based folder names (e.g., %Y/%m/%d for YYYY/MM/DD)
+  createDeviceBasedFolders: boolean // Create separate folders for each source device or drive
+  deviceFolderTemplate: string // Template for device folder names. Use {device_name} for the device name
+  folderStructure: FolderStructure // Legacy setting - kept for backward compatibility
+  keepFolderStructure: boolean // Maintain the original folder structure from the source drive
 
   // Media file filtering
-  mediaExtensions: string[] // e.g., ['.mp4', '.mov', '.jpg', '.raw', '.dng']
+  transferOnlyMediaFiles: boolean // Only transfer files with media extensions, ignoring other file types
+  mediaExtensions: string[] // List of file extensions considered as media files (e.g., .mp4, .mov, .wav)
 
   // Checksum settings
   checksumAlgorithm: ChecksumAlgorithm
   verifyChecksums: boolean
+  generateMHLChecksumFiles: boolean // Create Media Hash List (MHL) files for data integrity verification
 
   // Performance settings
   bufferSize: number // In bytes, default 64KB
@@ -39,7 +49,7 @@ export interface AppConfig {
 
   // Logging
   enableLogging: boolean
-  generateMHL: boolean // Generate MHL manifest files
+  generateMHL: boolean // Legacy setting - kept for backward compatibility
 
   // UI preferences
   showDetailedProgress: boolean
@@ -50,9 +60,24 @@ export interface AppConfig {
 export const DEFAULT_CONFIG: AppConfig = {
   transferMode: 'auto-transfer', // Default to Mode 1
   defaultDestination: null,
-  preserveOriginalNames: true,
-  timestampFormat: 'YYYY-MM-DD_HHmmss',
-  folderStructure: 'date-based',
+  
+  // File naming settings
+  addTimestampToFilename: false,
+  keepOriginalFilename: true,
+  filenameTemplate: '{original}_{timestamp}',
+  timestampFormat: '%Y%m%d_%H%M%S', // YYYYMMDD_HHMMSS format
+  preserveOriginalNames: true, // Legacy setting
+  
+  // Directory structure settings
+  createDateBasedFolders: false,
+  dateFolderFormat: '%Y/%m/%d', // YYYY/MM/DD format
+  createDeviceBasedFolders: false,
+  deviceFolderTemplate: '{device_name}',
+  folderStructure: 'preserve-source', // Legacy setting
+  keepFolderStructure: true,
+  
+  // Media file filtering
+  transferOnlyMediaFiles: false,
   mediaExtensions: [
     // Video formats
     '.mp4',
@@ -90,12 +115,21 @@ export const DEFAULT_CONFIG: AppConfig = {
     // Metadata/sidecar files
     '.xml' // Camera metadata, Adobe sidecar files
   ],
+  
+  // Checksum settings
   checksumAlgorithm: 'xxhash64',
   verifyChecksums: true,
+  generateMHLChecksumFiles: false,
+  
+  // Performance settings
   bufferSize: 4194304, // 4MB - optimized for modern SSDs
   chunkSize: 1048576, // 1MB for progress updates
+  
+  // Logging
   enableLogging: true,
-  generateMHL: false,
+  generateMHL: false, // Legacy setting
+  
+  // UI preferences
   showDetailedProgress: true,
   autoCleanupLogs: false,
   logRetentionDays: 30

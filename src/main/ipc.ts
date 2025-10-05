@@ -12,10 +12,12 @@ import { DriveMonitor } from './driveMonitor'
 import { FileTransferEngine } from './fileTransfer'
 import { getDatabaseManager } from './databaseManager'
 import { getLogger } from './logger'
+import { createPathProcessor, type PathProcessor } from './pathProcessor'
 
 // Global instances
 let driveMonitor: DriveMonitor | null = null
 let transferEngine: FileTransferEngine | null = null
+let pathProcessor: PathProcessor | null = null
 
 /**
  * Setup all IPC handlers
@@ -114,8 +116,15 @@ export function setupIpcHandlers(): void {
       transferEngine.reset()
     }
 
+    // Initialize path processor with current config
+    const config = getConfig()
+    pathProcessor = createPathProcessor(config)
+
     const db = getDatabaseManager()
     const logger = getLogger()
+
+    // Filter files based on media extensions if enabled
+    const filteredFiles = request.files.filter(file => pathProcessor!.shouldTransferFile(file))
 
     // Create transfer session
     const sessionId = db.createTransferSession({
@@ -126,7 +135,7 @@ export function setupIpcHandlers(): void {
       startTime: Date.now(),
       endTime: null,
       status: 'transferring',
-      fileCount: request.files.length,
+      fileCount: filteredFiles.length,
       totalBytes: 0,
       files: []
     })
@@ -138,14 +147,25 @@ export function setupIpcHandlers(): void {
       request.destinationRoot
     )
 
-    // Start transfer in background
-    const transferFiles = request.files.map((sourcePath) => {
-      // Calculate destination path
-      const fileName = sourcePath.split('/').pop() || 'file'
-      const destPath = `${request.destinationRoot}/${fileName}`
-
-      return { source: sourcePath, dest: destPath }
-    })
+    // Process file paths using configuration
+    const transferFiles = await Promise.all(
+      filteredFiles.map(async (sourcePath) => {
+        try {
+          const processedPath = await pathProcessor!.processFilePath(
+            sourcePath,
+            request.destinationRoot,
+            request.driveInfo.displayName
+          )
+          return { source: sourcePath, dest: processedPath.destinationPath }
+        } catch (error) {
+          console.error(`Failed to process path for ${sourcePath}:`, error)
+          // Fallback to simple filename if processing fails
+          const fileName = sourcePath.split('/').pop() || 'file'
+          const destPath = `${request.destinationRoot}/${fileName}`
+          return { source: sourcePath, dest: destPath }
+        }
+      })
+    )
 
     // Get all file sizes upfront for accurate overall progress
     const fileSizes = await Promise.all(

@@ -75,10 +75,23 @@ export class ConfigManager {
       ...updates
     }
 
+    // Additional validation that requires access to the full config
+    this.validateConfigDependencies(newConfig)
+
     // Save to store - set the entire store object
     this.store.store = newConfig
 
     return newConfig
+  }
+
+  /**
+   * Validates configuration dependencies that require access to the full config
+   */
+  private validateConfigDependencies(config: AppConfig): void {
+    // Validate keepOriginalFilename dependency on addTimestampToFilename
+    if (config.keepOriginalFilename === true && config.addTimestampToFilename === false) {
+      throw new Error('Keep Original Filename requires Add Timestamp to Filename to be enabled')
+    }
   }
 
   /**
@@ -233,6 +246,39 @@ export function validateConfig(config: Partial<AppConfig>): void {
     if (config.timestampFormat.trim() === '') {
       throw new Error('Timestamp format cannot be empty')
     }
+  }
+
+  // Validate filenameTemplate
+  if (config.filenameTemplate !== undefined) {
+    if (config.filenameTemplate.trim() === '') {
+      throw new Error('Filename template cannot be empty')
+    }
+    // Check for required placeholders
+    if (!config.filenameTemplate.includes('{original}') && !config.filenameTemplate.includes('{timestamp}')) {
+      throw new Error('Filename template must contain at least {original} or {timestamp}')
+    }
+  }
+
+  // Validate dateFolderFormat
+  if (config.dateFolderFormat !== undefined) {
+    if (config.dateFolderFormat.trim() === '') {
+      throw new Error('Date folder format cannot be empty')
+    }
+  }
+
+  // Validate deviceFolderTemplate
+  if (config.deviceFolderTemplate !== undefined) {
+    if (config.deviceFolderTemplate.trim() === '') {
+      throw new Error('Device folder template cannot be empty')
+    }
+    if (!config.deviceFolderTemplate.includes('{device_name}')) {
+      throw new Error('Device folder template must contain {device_name}')
+    }
+  }
+
+  // Validate keepOriginalFilename dependency
+  if (config.keepOriginalFilename !== undefined && config.keepOriginalFilename === true) {
+    // This will be checked in the updateConfig method since we need access to the full config
   }
 
   // Validate defaultDestination path format if provided
