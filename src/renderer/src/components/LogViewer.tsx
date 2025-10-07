@@ -6,22 +6,13 @@
 import { useEffect, useState } from 'react'
 import { useLogStore } from '../store'
 import { useIpc } from '../hooks/useIpc'
-import { LogEntry } from '../../../shared/types'
 import { LogFilters } from './LogFilters'
 import { LogEntry as LogEntryComponent } from './LogEntry'
 import { Button } from './ui/Button'
 import { Card } from './ui/Card'
 import { Progress } from './ui/Progress'
-import { 
-  Download, 
-  Trash2, 
-  RefreshCw, 
-  AlertCircle, 
-  Info, 
-  AlertTriangle, 
-  Bug,
-  X
-} from 'lucide-react'
+import { ConfirmDialog } from './ui/ConfirmDialog'
+import { Download, Trash2, RefreshCw, AlertCircle, Info, AlertTriangle, Bug, X } from 'lucide-react'
 import { cn } from '../lib/utils'
 
 interface LogViewerProps {
@@ -29,11 +20,14 @@ interface LogViewerProps {
 }
 
 export function LogViewer({ onClose }: LogViewerProps) {
-  const { logs, filter, level, setLogs, addLog, setFilter, setLevel, clearLogs, getFilteredLogs } = useLogStore()
+  const { logs, filter, level, setLogs, addLog, setFilter, setLevel, clearLogs, getFilteredLogs } =
+    useLogStore()
   const { getRecentLogs, clearLogs: clearLogsIpc } = useIpc()
   const [isLoading, setIsLoading] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [autoRefresh, setAutoRefresh] = useState(true)
+  const [showClearConfirm, setShowClearConfirm] = useState(false)
+  const [isClearing, setIsClearing] = useState(false)
 
   // Load initial logs
   useEffect(() => {
@@ -82,11 +76,11 @@ export function LogViewer({ onClose }: LogViewerProps) {
       setIsRefreshing(true)
       const recentLogs = await getRecentLogs(100)
       // Only add new logs to avoid duplicates
-      const existingTimestamps = new Set(logs.map(log => log.timestamp))
-      const newLogs = recentLogs.filter(log => !existingTimestamps.has(log.timestamp))
-      
+      const existingTimestamps = new Set(logs.map((log) => log.timestamp))
+      const newLogs = recentLogs.filter((log) => !existingTimestamps.has(log.timestamp))
+
       if (newLogs.length > 0) {
-        newLogs.forEach(log => addLog(log))
+        newLogs.forEach((log) => addLog(log))
       }
     } catch (error) {
       console.error('Failed to refresh logs:', error)
@@ -97,19 +91,26 @@ export function LogViewer({ onClose }: LogViewerProps) {
 
   const handleClearLogs = async () => {
     try {
+      setIsClearing(true)
       await clearLogsIpc()
       clearLogs()
+      setShowClearConfirm(false)
     } catch (error) {
       console.error('Failed to clear logs:', error)
+    } finally {
+      setIsClearing(false)
     }
   }
 
   const handleExportLogs = () => {
     const filteredLogs = getFilteredLogs()
     const logText = filteredLogs
-      .map(log => `[${new Date(log.timestamp).toISOString()}] ${log.level.toUpperCase()}: ${log.message}`)
+      .map(
+        (log) =>
+          `[${new Date(log.timestamp).toISOString()}] ${log.level.toUpperCase()}: ${log.message}`
+      )
       .join('\n')
-    
+
     const blob = new Blob([logText], { type: 'text/plain' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -123,10 +124,10 @@ export function LogViewer({ onClose }: LogViewerProps) {
 
   const filteredLogs = getFilteredLogs()
   const logCounts = {
-    debug: logs.filter(log => log.level === 'debug').length,
-    info: logs.filter(log => log.level === 'info').length,
-    warn: logs.filter(log => log.level === 'warn').length,
-    error: logs.filter(log => log.level === 'error').length
+    debug: logs.filter((log) => log.level === 'debug').length,
+    info: logs.filter((log) => log.level === 'info').length,
+    warn: logs.filter((log) => log.level === 'warn').length,
+    error: logs.filter((log) => log.level === 'error').length
   }
 
   const getLevelIcon = (level: string) => {
@@ -145,7 +146,7 @@ export function LogViewer({ onClose }: LogViewerProps) {
   }
 
   return (
-    <div 
+    <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
       onClick={(e) => {
         if (e.target === e.currentTarget) {
@@ -159,9 +160,7 @@ export function LogViewer({ onClose }: LogViewerProps) {
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
               {getLevelIcon('info')}
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                Application Logs
-              </h2>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Application Logs</h2>
             </div>
             <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
               <span>Total: {logs.length}</span>
@@ -190,7 +189,8 @@ export function LogViewer({ onClose }: LogViewerProps) {
               onClick={() => setAutoRefresh(!autoRefresh)}
               className={cn(
                 'flex items-center gap-2',
-                autoRefresh && 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800'
+                autoRefresh &&
+                  'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800'
               )}
             >
               <RefreshCw className={cn('h-4 w-4', autoRefresh && 'animate-spin')} />
@@ -218,7 +218,7 @@ export function LogViewer({ onClose }: LogViewerProps) {
             <Button
               variant="outline"
               size="sm"
-              onClick={handleClearLogs}
+              onClick={() => setShowClearConfirm(true)}
               className="flex items-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/20"
             >
               <Trash2 className="h-4 w-4" />
@@ -275,6 +275,19 @@ export function LogViewer({ onClose }: LogViewerProps) {
           )}
         </div>
       </Card>
+
+      {/* Clear Logs Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showClearConfirm}
+        onClose={() => setShowClearConfirm(false)}
+        onConfirm={handleClearLogs}
+        title="Clear Application Logs"
+        message={`Are you sure you want to clear all application logs? This will permanently delete ${logs.length} log entr${logs.length !== 1 ? 'ies' : 'y'} and cannot be undone.`}
+        confirmText="Clear Logs"
+        cancelText="Cancel"
+        variant="danger"
+        isLoading={isClearing}
+      />
     </div>
   )
 }

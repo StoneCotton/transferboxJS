@@ -11,7 +11,7 @@ import {
   FileCheck,
   HardDriveDownload
 } from 'lucide-react'
-import { useTransferStore } from '../store'
+import { useTransferStore, useConfigStore } from '../store'
 import { Card, CardHeader, CardTitle, CardContent } from './ui/Card'
 import { Progress } from './ui/Progress'
 import { Button } from './ui/Button'
@@ -26,6 +26,7 @@ import {
 
 export function TransferProgress() {
   const { isTransferring, progress, error, cancelTransfer } = useTransferStore()
+  const { config } = useConfigStore()
 
   if (!isTransferring && !error) {
     return null
@@ -142,10 +143,10 @@ export function TransferProgress() {
                       <span>Transferred</span>
                     </div>
                     <p className="mt-2 text-lg font-black text-slate-900 dark:text-slate-100">
-                      {formatBytes(progress.transferredBytes)}
+                      {formatBytes(progress.transferredBytes, config.unitSystem)}
                     </p>
                     <p className="mt-1 text-xs font-medium text-slate-600 dark:text-slate-400">
-                      of {formatBytes(progress.totalBytes)}
+                      of {formatBytes(progress.totalBytes, config.unitSystem)}
                     </p>
                   </div>
                 </div>
@@ -209,7 +210,8 @@ export function TransferProgress() {
                   </span>
                   {progress && (
                     <p className="mt-1 text-xs font-medium text-gray-600 dark:text-gray-400">
-                      {formatBytes(progress.transferredBytes)} of {formatBytes(progress.totalBytes)}
+                      {formatBytes(progress.transferredBytes, config?.unitSystem || 'decimal')} of{' '}
+                      {formatBytes(progress.totalBytes, config?.unitSystem || 'decimal')}
                     </p>
                   )}
                 </div>
@@ -273,7 +275,8 @@ export function TransferProgress() {
                         {file.fileName}
                       </p>
                       <p className="text-xs font-medium text-gray-600 dark:text-gray-400">
-                        {formatBytes(file.bytesTransferred)} / {formatBytes(file.fileSize)}
+                        {formatBytes(file.bytesTransferred, config?.unitSystem || 'decimal')} /{' '}
+                        {formatBytes(file.fileSize, config?.unitSystem || 'decimal')}
                       </p>
                     </div>
 
@@ -331,8 +334,8 @@ export function TransferProgress() {
                       {progress.currentFile.fileName}
                     </p>
                     <p className="text-xs font-medium text-gray-600 dark:text-gray-400">
-                      {formatBytes(progress.currentFile.bytesTransferred)} /{' '}
-                      {formatBytes(progress.currentFile.fileSize)}
+                      {formatBytes(progress.currentFile.bytesTransferred, config.unitSystem)} /{' '}
+                      {formatBytes(progress.currentFile.fileSize, config.unitSystem)}
                     </p>
                   </div>
                 </div>

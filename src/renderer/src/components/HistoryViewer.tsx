@@ -4,21 +4,21 @@
  */
 
 import { useEffect, useState } from 'react'
-import { useTransferStore } from '../store'
+import { useTransferStore, useConfigStore } from '../store'
 import { useIpc } from '../hooks/useIpc'
-import { TransferSession } from '../../../shared/types'
 import { HistoryFilters } from './HistoryFilters'
 import { HistorySession } from './HistorySession'
 import { Button } from './ui/Button'
 import { Card } from './ui/Card'
 import { Progress } from './ui/Progress'
-import { 
-  Download, 
-  Trash2, 
-  RefreshCw, 
-  History, 
-  CheckCircle, 
-  XCircle, 
+import { ConfirmDialog } from './ui/ConfirmDialog'
+import {
+  Download,
+  Trash2,
+  RefreshCw,
+  History,
+  CheckCircle,
+  XCircle,
   AlertTriangle,
   Clock,
   X
@@ -31,12 +31,15 @@ interface HistoryViewerProps {
 
 export function HistoryViewer({ onClose }: HistoryViewerProps) {
   const { history, setHistory } = useTransferStore()
+  const { config } = useConfigStore()
   const { getHistory, clearHistory: clearHistoryIpc } = useIpc()
   const [isLoading, setIsLoading] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [filter, setFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [dateFilter, setDateFilter] = useState('all')
+  const [showClearConfirm, setShowClearConfirm] = useState(false)
+  const [isClearing, setIsClearing] = useState(false)
 
   // Load initial history
   useEffect(() => {
@@ -81,17 +84,21 @@ export function HistoryViewer({ onClose }: HistoryViewerProps) {
 
   const handleClearHistory = async () => {
     try {
+      setIsClearing(true)
       await clearHistoryIpc()
       setHistory([])
+      setShowClearConfirm(false)
     } catch (error) {
       console.error('Failed to clear history:', error)
+    } finally {
+      setIsClearing(false)
     }
   }
 
   const handleExportHistory = () => {
     const filteredHistory = getFilteredHistory()
     const historyText = filteredHistory
-      .map(session => {
+      .map((session) => {
         const startTime = new Date(session.startTime).toISOString()
         const endTime = session.endTime ? new Date(session.endTime).toISOString() : 'N/A'
         return `Session: ${session.id}
@@ -107,7 +114,7 @@ ${session.errorMessage ? `Error: ${session.errorMessage}` : ''}
 ---`
       })
       .join('\n')
-    
+
     const blob = new Blob([historyText], { type: 'text/plain' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -124,7 +131,7 @@ ${session.errorMessage ? `Error: ${session.errorMessage}` : ''}
 
     // Filter by status
     if (statusFilter !== 'all') {
-      filtered = filtered.filter(session => session.status === statusFilter)
+      filtered = filtered.filter((session) => session.status === statusFilter)
     }
 
     // Filter by date
@@ -134,7 +141,7 @@ ${session.errorMessage ? `Error: ${session.errorMessage}` : ''}
       const oneWeek = 7 * oneDay
       const oneMonth = 30 * oneDay
 
-      filtered = filtered.filter(session => {
+      filtered = filtered.filter((session) => {
         const sessionTime = session.startTime
         switch (dateFilter) {
           case 'today':
@@ -152,11 +159,12 @@ ${session.errorMessage ? `Error: ${session.errorMessage}` : ''}
     // Filter by search term
     if (filter) {
       const searchTerm = filter.toLowerCase()
-      filtered = filtered.filter(session =>
-        session.driveName.toLowerCase().includes(searchTerm) ||
-        session.sourceRoot.toLowerCase().includes(searchTerm) ||
-        session.destinationRoot.toLowerCase().includes(searchTerm) ||
-        session.id.toLowerCase().includes(searchTerm)
+      filtered = filtered.filter(
+        (session) =>
+          session.driveName.toLowerCase().includes(searchTerm) ||
+          session.sourceRoot.toLowerCase().includes(searchTerm) ||
+          session.destinationRoot.toLowerCase().includes(searchTerm) ||
+          session.id.toLowerCase().includes(searchTerm)
       )
     }
 
@@ -165,48 +173,25 @@ ${session.errorMessage ? `Error: ${session.errorMessage}` : ''}
 
   const formatBytes = (bytes: number) => {
     if (bytes === 0) return '0 B'
-    const k = 1024
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
+    // Use config.unitSystem if available, otherwise default to decimal
+    const unitSystem = config?.unitSystem || 'decimal'
+    const k = unitSystem === 'binary' ? 1024 : 1000
+    const sizes =
+      unitSystem === 'binary' ? ['B', 'KiB', 'MiB', 'GiB', 'TiB'] : ['B', 'KB', 'MB', 'GB', 'TB']
     const i = Math.floor(Math.log(bytes) / Math.log(k))
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
   }
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'complete':
-        return <CheckCircle className="h-4 w-4 text-green-500" />
-      case 'error':
-        return <XCircle className="h-4 w-4 text-red-500" />
-      case 'cancelled':
-        return <AlertTriangle className="h-4 w-4 text-yellow-500" />
-      default:
-        return <Clock className="h-4 w-4 text-gray-500" />
-    }
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'complete':
-        return 'text-green-600 dark:text-green-400'
-      case 'error':
-        return 'text-red-600 dark:text-red-400'
-      case 'cancelled':
-        return 'text-yellow-600 dark:text-yellow-400'
-      default:
-        return 'text-gray-600 dark:text-gray-400'
-    }
-  }
-
   const filteredHistory = getFilteredHistory()
   const statusCounts = {
-    complete: history.filter(session => session.status === 'complete').length,
-    error: history.filter(session => session.status === 'error').length,
-    cancelled: history.filter(session => session.status === 'cancelled').length,
-    running: history.filter(session => session.status === 'running').length
+    complete: history.filter((session) => session.status === 'complete').length,
+    error: history.filter((session) => session.status === 'error').length,
+    cancelled: history.filter((session) => session.status === 'cancelled').length,
+    running: history.filter((session) => session.status === 'transferring').length
   }
 
   return (
-    <div 
+    <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
       onClick={(e) => {
         if (e.target === e.currentTarget) {
@@ -220,9 +205,7 @@ ${session.errorMessage ? `Error: ${session.errorMessage}` : ''}
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
               <History className="h-5 w-5 text-brand-500" />
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                Transfer History
-              </h2>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Transfer History</h2>
             </div>
             <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
               <span>Total: {history.length}</span>
@@ -267,7 +250,7 @@ ${session.errorMessage ? `Error: ${session.errorMessage}` : ''}
             <Button
               variant="outline"
               size="sm"
-              onClick={handleClearHistory}
+              onClick={() => setShowClearConfirm(true)}
               className="flex items-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/20"
             >
               <Trash2 className="h-4 w-4" />
@@ -311,7 +294,9 @@ ${session.errorMessage ? `Error: ${session.errorMessage}` : ''}
               <div className="text-center">
                 <History className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <p className="text-gray-500 dark:text-gray-400">
-                  {history.length === 0 ? 'No transfer history available' : 'No transfers match your filters'}
+                  {history.length === 0
+                    ? 'No transfer history available'
+                    : 'No transfers match your filters'}
                 </p>
               </div>
             </div>
@@ -326,6 +311,19 @@ ${session.errorMessage ? `Error: ${session.errorMessage}` : ''}
           )}
         </div>
       </Card>
+
+      {/* Clear History Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showClearConfirm}
+        onClose={() => setShowClearConfirm(false)}
+        onConfirm={handleClearHistory}
+        title="Clear Transfer History"
+        message={`Are you sure you want to clear all transfer history? This will permanently delete ${history.length} transfer session${history.length !== 1 ? 's' : ''} and cannot be undone.`}
+        confirmText="Clear History"
+        cancelText="Cancel"
+        variant="danger"
+        isLoading={isClearing}
+      />
     </div>
   )
 }

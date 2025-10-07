@@ -10,9 +10,9 @@ import { cn } from '../lib/utils'
 
 interface LogFiltersProps {
   filter: string
-  level: string
+  level: 'debug' | 'info' | 'warn' | 'error' | 'all'
   onFilterChange: (filter: string) => void
-  onLevelChange: (level: string) => void
+  onLevelChange: (level: 'debug' | 'info' | 'warn' | 'error' | 'all') => void
 }
 
 const logLevels = [
@@ -66,7 +66,7 @@ export function LogFilters({ filter, level, onFilterChange, onLevelChange }: Log
             key={value}
             variant={level === value ? 'default' : 'outline'}
             size="sm"
-            onClick={() => onLevelChange(value)}
+            onClick={() => onLevelChange(value as 'debug' | 'info' | 'warn' | 'error' | 'all')}
             className={cn('flex items-center gap-2 transition-all', level === value && 'shadow-md')}
           >
             <Icon className={cn('h-4 w-4', level === value ? 'text-white' : color)} />

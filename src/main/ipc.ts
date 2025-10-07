@@ -130,27 +130,6 @@ export function setupIpcHandlers(): void {
     // Filter files based on media extensions if enabled
     const filteredFiles = request.files.filter((file) => pathProcessor!.shouldTransferFile(file))
 
-    // Create transfer session
-    const sessionId = db.createTransferSession({
-      driveId: request.driveInfo.device,
-      driveName: request.driveInfo.displayName,
-      sourceRoot: request.sourceRoot,
-      destinationRoot: request.destinationRoot,
-      startTime: Date.now(),
-      endTime: null,
-      status: 'transferring',
-      fileCount: filteredFiles.length,
-      totalBytes: 0,
-      files: []
-    })
-
-    logger.logTransferStart(
-      sessionId,
-      request.driveInfo.device,
-      request.sourceRoot,
-      request.destinationRoot
-    )
-
     // Process file paths using configuration
     const transferFiles = await Promise.all(
       filteredFiles.map(async (sourcePath) => {
@@ -186,11 +165,33 @@ export function setupIpcHandlers(): void {
       })
     )
 
+    const totalBytes = fileSizes.reduce((sum, size) => sum + size, 0)
+
+    // Create transfer session
+    const sessionId = db.createTransferSession({
+      driveId: request.driveInfo.device,
+      driveName: request.driveInfo.displayName,
+      sourceRoot: request.sourceRoot,
+      destinationRoot: request.destinationRoot,
+      startTime: Date.now(),
+      endTime: null,
+      status: 'transferring',
+      fileCount: filteredFiles.length,
+      totalBytes: totalBytes,
+      files: []
+    })
+
+    logger.logTransferStart(
+      sessionId,
+      request.driveInfo.device,
+      request.sourceRoot,
+      request.destinationRoot
+    )
+
     // Track overall progress
     const startTime = Date.now()
     let currentFileIndex = 0
     const totalFiles = transferFiles.length
-    const totalBytes = fileSizes.reduce((sum, size) => sum + size, 0)
 
     // Track current file state
     let currentFilePhase: 'transferring' | 'verifying' = 'transferring'
@@ -503,8 +504,17 @@ export function setupIpcHandlers(): void {
   })
 
   ipcMain.handle(IPC_CHANNELS.HISTORY_CLEAR, async () => {
-    // Not implemented for safety - users shouldn't delete transfer history easily
-    getLogger().warn('History clear requested but not implemented')
+    try {
+      const db = getDatabaseManager()
+      const deletedCount = db.clearTransferSessions()
+      getLogger().info('Transfer history cleared', { deletedCount })
+      return { success: true, deletedCount }
+    } catch (error) {
+      getLogger().error('Failed to clear transfer history', {
+        error: error instanceof Error ? error.message : String(error)
+      })
+      throw error
+    }
   })
 
   // Logging handlers

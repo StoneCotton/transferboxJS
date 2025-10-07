@@ -94,7 +94,10 @@ export const createConfigSlice: StateCreator<ConfigSlice> = (set) => ({
     // UI preferences
     showDetailedProgress: true,
     autoCleanupLogs: true,
-    logRetentionDays: 30
+    logRetentionDays: 30,
+
+    // Unit system for file size display
+    unitSystem: 'decimal' as const
   },
   isLoading: false,
   error: null,

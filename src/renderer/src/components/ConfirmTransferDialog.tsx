@@ -7,6 +7,7 @@ import { AlertTriangle, CheckCircle2, X } from 'lucide-react'
 import { Modal } from './ui/Modal'
 import { Button } from './ui/Button'
 import { formatBytes } from '../lib/utils'
+import { useConfigStore } from '../store'
 
 interface ConfirmTransferDialogProps {
   isOpen: boolean
@@ -28,6 +29,7 @@ export function ConfirmTransferDialog({
   destination,
   totalSize
 }: ConfirmTransferDialogProps) {
+  const { config } = useConfigStore()
   return (
     <Modal isOpen={isOpen} onClose={onCancel} title="Confirm Transfer" size="md">
       <div className="space-y-6">
@@ -64,7 +66,7 @@ export function ConfirmTransferDialog({
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Size</span>
               <span className="text-sm font-bold text-gray-900 dark:text-white">
-                {formatBytes(totalSize)}
+                {formatBytes(totalSize, config?.unitSystem || 'decimal')}
               </span>
             </div>
           )}

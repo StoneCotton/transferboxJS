@@ -6,12 +6,13 @@
 import { useState } from 'react'
 import { TransferSession } from '../../../shared/types'
 import { Button } from './ui/Button'
-import { 
-  CheckCircle, 
-  XCircle, 
+import { useConfigStore } from '../store'
+import {
+  CheckCircle,
+  XCircle,
   AlertTriangle,
   Clock,
-  ChevronDown, 
+  ChevronDown,
   ChevronRight,
   Copy,
   HardDrive,
@@ -30,24 +31,28 @@ interface HistorySessionProps {
 export function HistorySession({ session }: HistorySessionProps) {
   const [expanded, setExpanded] = useState(false)
   const [copied, setCopied] = useState(false)
+  const { config } = useConfigStore()
 
   const formatBytes = (bytes: number) => {
     if (bytes === 0) return '0 B'
-    const k = 1024
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
+    // Use config.unitSystem if available, otherwise default to decimal
+    const unitSystem = config?.unitSystem || 'decimal'
+    const k = unitSystem === 'binary' ? 1024 : 1000
+    const sizes =
+      unitSystem === 'binary' ? ['B', 'KiB', 'MiB', 'GiB', 'TiB'] : ['B', 'KB', 'MB', 'GB', 'TB']
     const i = Math.floor(Math.log(bytes) / Math.log(k))
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
   }
 
-  const formatDuration = (startTime: number, endTime?: number) => {
+  const formatDuration = (startTime: number, endTime?: number | null) => {
     const start = new Date(startTime)
     const end = endTime ? new Date(endTime) : new Date()
     const diff = end.getTime() - start.getTime()
-    
+
     const seconds = Math.floor(diff / 1000)
     const minutes = Math.floor(seconds / 60)
     const hours = Math.floor(minutes / 60)
-    
+
     if (hours > 0) {
       return `${hours}h ${minutes % 60}m`
     } else if (minutes > 0) {
@@ -73,13 +78,16 @@ export function HistorySession({ session }: HistorySessionProps) {
   const formatRelativeTime = (timestamp: number) => {
     const now = Date.now()
     const diff = now - timestamp
-    
-    if (diff < 60000) { // Less than 1 minute
+
+    if (diff < 60000) {
+      // Less than 1 minute
       return 'Just now'
-    } else if (diff < 3600000) { // Less than 1 hour
+    } else if (diff < 3600000) {
+      // Less than 1 hour
       const minutes = Math.floor(diff / 60000)
       return `${minutes}m ago`
-    } else if (diff < 86400000) { // Less than 1 day
+    } else if (diff < 86400000) {
+      // Less than 1 day
       const hours = Math.floor(diff / 3600000)
       return `${hours}h ago`
     } else {
@@ -145,7 +153,7 @@ Duration: ${formatDuration(session.startTime, session.endTime)}
 Files: ${session.fileCount}
 Size: ${formatBytes(session.totalBytes)}
 ${session.errorMessage ? `Error: ${session.errorMessage}` : ''}`
-    
+
     try {
       await navigator.clipboard.writeText(sessionText)
       setCopied(true)
@@ -156,15 +164,15 @@ ${session.errorMessage ? `Error: ${session.errorMessage}` : ''}`
   }
 
   return (
-    <div className={cn(
-      'p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors',
-      getStatusBgColor(session.status)
-    )}>
+    <div
+      className={cn(
+        'p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors',
+        getStatusBgColor(session.status)
+      )}
+    >
       <div className="flex items-start gap-4">
         {/* Status Icon */}
-        <div className="flex-shrink-0 mt-1">
-          {getStatusIcon(session.status)}
-        </div>
+        <div className="flex-shrink-0 mt-1">{getStatusIcon(session.status)}</div>
 
         {/* Main Content */}
         <div className="flex-1 min-w-0">
@@ -172,10 +180,12 @@ ${session.errorMessage ? `Error: ${session.errorMessage}` : ''}`
             <div className="flex-1 min-w-0">
               {/* Header */}
               <div className="flex items-center gap-3 mb-2">
-                <span className={cn(
-                  'text-sm font-medium uppercase tracking-wide',
-                  getStatusColor(session.status)
-                )}>
+                <span
+                  className={cn(
+                    'text-sm font-medium uppercase tracking-wide',
+                    getStatusColor(session.status)
+                  )}
+                >
                   {session.status}
                 </span>
                 <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
@@ -199,9 +209,7 @@ ${session.errorMessage ? `Error: ${session.errorMessage}` : ''}`
                   <span className="font-medium text-gray-900 dark:text-white">
                     {session.driveName}
                   </span>
-                  <span className="text-gray-500 dark:text-gray-400">
-                    ({session.driveId})
-                  </span>
+                  <span className="text-gray-500 dark:text-gray-400">({session.driveId})</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
                   <FolderOpen className="h-4 w-4 text-gray-400" />
@@ -275,23 +283,44 @@ ${session.errorMessage ? `Error: ${session.errorMessage}` : ''}`
             <div className="mt-4 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div>
-                  <h4 className="font-medium text-gray-900 dark:text-white mb-2">Session Details</h4>
+                  <h4 className="font-medium text-gray-900 dark:text-white mb-2">
+                    Session Details
+                  </h4>
                   <div className="space-y-1 text-gray-600 dark:text-gray-300">
-                    <div><span className="font-medium">ID:</span> {session.id}</div>
-                    <div><span className="font-medium">Start:</span> {formatTimestamp(session.startTime)}</div>
+                    <div>
+                      <span className="font-medium">ID:</span> {session.id}
+                    </div>
+                    <div>
+                      <span className="font-medium">Start:</span>{' '}
+                      {formatTimestamp(session.startTime)}
+                    </div>
                     {session.endTime && (
-                      <div><span className="font-medium">End:</span> {formatTimestamp(session.endTime)}</div>
+                      <div>
+                        <span className="font-medium">End:</span> {formatTimestamp(session.endTime)}
+                      </div>
                     )}
-                    <div><span className="font-medium">Duration:</span> {formatDuration(session.startTime, session.endTime)}</div>
+                    <div>
+                      <span className="font-medium">Duration:</span>{' '}
+                      {formatDuration(session.startTime, session.endTime)}
+                    </div>
                   </div>
                 </div>
                 <div>
                   <h4 className="font-medium text-gray-900 dark:text-white mb-2">Transfer Info</h4>
                   <div className="space-y-1 text-gray-600 dark:text-gray-300">
-                    <div><span className="font-medium">Files:</span> {session.fileCount.toLocaleString()}</div>
-                    <div><span className="font-medium">Size:</span> {formatBytes(session.totalBytes)}</div>
-                    <div><span className="font-medium">Drive:</span> {session.driveName}</div>
-                    <div><span className="font-medium">Device:</span> {session.driveId}</div>
+                    <div>
+                      <span className="font-medium">Files:</span>{' '}
+                      {session.fileCount.toLocaleString()}
+                    </div>
+                    <div>
+                      <span className="font-medium">Size:</span> {formatBytes(session.totalBytes)}
+                    </div>
+                    <div>
+                      <span className="font-medium">Drive:</span> {session.driveName}
+                    </div>
+                    <div>
+                      <span className="font-medium">Device:</span> {session.driveId}
+                    </div>
                   </div>
                 </div>
               </div>

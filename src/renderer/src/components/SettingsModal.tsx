@@ -63,6 +63,7 @@ export function SettingsModal() {
   const [showDetailedProgress, setShowDetailedProgress] = useState(config.showDetailedProgress)
   const [autoCleanupLogs, setAutoCleanupLogs] = useState(config.autoCleanupLogs)
   const [logRetentionDays, setLogRetentionDays] = useState(config.logRetentionDays)
+  const [unitSystem, setUnitSystem] = useState(config.unitSystem)
 
   const [isSaving, setIsSaving] = useState(false)
 
@@ -128,7 +129,8 @@ export function SettingsModal() {
         // UI preferences
         showDetailedProgress,
         autoCleanupLogs,
-        logRetentionDays
+        logRetentionDays,
+        unitSystem
       }
 
       const updatedConfig = await ipc.updateConfig(updates)
@@ -628,6 +630,51 @@ export function SettingsModal() {
                   </p>
                 </div>
               )}
+
+              {/* Unit System */}
+              <div className="rounded-lg border-2 border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800/50">
+                <label className="block text-sm font-medium text-gray-900 dark:text-white mb-3">
+                  File Size Display Units
+                </label>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-3">
+                    <input
+                      type="radio"
+                      name="unitSystem"
+                      value="decimal"
+                      checked={unitSystem === 'decimal'}
+                      onChange={(e) => setUnitSystem(e.target.value as 'decimal')}
+                      className="h-4 w-4 text-brand-500 focus:ring-brand-500"
+                    />
+                    <div>
+                      <p className="font-medium text-gray-900 dark:text-white">
+                        Decimal (GB, MB, KB) - 1000-based
+                      </p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        Matches standard storage device displays (1 GB = 1,000,000,000 bytes)
+                      </p>
+                    </div>
+                  </label>
+                  <label className="flex items-center gap-3">
+                    <input
+                      type="radio"
+                      name="unitSystem"
+                      value="binary"
+                      checked={unitSystem === 'binary'}
+                      onChange={(e) => setUnitSystem(e.target.value as 'binary')}
+                      className="h-4 w-4 text-brand-500 focus:ring-brand-500"
+                    />
+                    <div>
+                      <p className="font-medium text-gray-900 dark:text-white">
+                        Binary (GiB, MiB, KiB) - 1024-based
+                      </p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        Traditional computer science units (1 GiB = 1,073,741,824 bytes)
+                      </p>
+                    </div>
+                  </label>
+                </div>
+              </div>
             </div>
           </div>
 

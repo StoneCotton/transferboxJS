@@ -225,7 +225,7 @@ export class DatabaseManager {
       sourcePath: file.source_path,
       destinationPath: file.destination_path,
       fileName: file.file_name,
-      fileSize: file.file_size,
+      fileSize: Number(file.file_size), // Ensure it's a number
       bytesTransferred: file.bytes_transferred,
       percentage: file.percentage,
       status: file.status,
@@ -341,6 +341,15 @@ export class DatabaseManager {
   }
 
   /**
+   * Clear all transfer sessions
+   */
+  clearTransferSessions(): number {
+    const stmt = this.db.prepare('DELETE FROM transfer_sessions')
+    const result = stmt.run()
+    return result.changes
+  }
+
+  /**
    * Add file to transfer session
    */
   addFileToSession(sessionId: string, file: FileTransferInfo): void {
@@ -357,7 +366,7 @@ export class DatabaseManager {
       file.sourcePath,
       file.destinationPath,
       file.fileName,
-      file.fileSize,
+      Number(file.fileSize), // Ensure it's stored as a number
       file.bytesTransferred,
       file.percentage,
       file.status,
@@ -442,7 +451,7 @@ export class DatabaseManager {
       sourcePath: file.source_path,
       destinationPath: file.destination_path,
       fileName: file.file_name,
-      fileSize: file.file_size,
+      fileSize: Number(file.file_size), // Ensure it's a number
       bytesTransferred: file.bytes_transferred,
       percentage: file.percentage,
       status: file.status,

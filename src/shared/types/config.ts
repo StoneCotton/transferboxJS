@@ -8,6 +8,8 @@ export type FolderStructure = 'date-based' | 'device-based' | 'flat' | 'preserve
 
 export type ChecksumAlgorithm = 'xxhash64'
 
+export type UnitSystem = 'binary' | 'decimal'
+
 export interface AppConfig {
   // Config version for migration purposes
   configVersion: number
@@ -58,6 +60,7 @@ export interface AppConfig {
   showDetailedProgress: boolean
   autoCleanupLogs: boolean
   logRetentionDays: number
+  unitSystem: UnitSystem // 'binary' for GiB/KiB/MiB (1024-based), 'decimal' for GB/KB/MB (1000-based)
 }
 
 export const DEFAULT_CONFIG: AppConfig = {
@@ -136,5 +139,6 @@ export const DEFAULT_CONFIG: AppConfig = {
   // UI preferences
   showDetailedProgress: true,
   autoCleanupLogs: false,
-  logRetentionDays: 30
+  logRetentionDays: 30,
+  unitSystem: 'decimal' // Default to decimal units (GB/KB/MB) to match standard storage displays
 }

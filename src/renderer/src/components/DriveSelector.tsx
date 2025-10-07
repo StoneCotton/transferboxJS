@@ -3,7 +3,7 @@
  */
 
 import { HardDrive, Loader2, Usb, Check, Sparkles } from 'lucide-react'
-import { useDriveStore } from '../store'
+import { useDriveStore, useConfigStore } from '../store'
 import { useIpc } from '../hooks/useIpc'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/Card'
 import { formatBytes, cn } from '../lib/utils'
@@ -20,6 +20,7 @@ export function DriveSelector() {
     setScannedFiles,
     setScanError
   } = useDriveStore()
+  const { config } = useConfigStore()
   const ipc = useIpc()
 
   const handleSelectDrive = async (drive: DriveInfo): Promise<void> => {
@@ -144,7 +145,8 @@ export function DriveSelector() {
                           : 'text-gray-600 dark:text-gray-400'
                       )}
                     >
-                      {drive.description} • {formatBytes(drive.size)}
+                      {drive.description} •{' '}
+                      {formatBytes(drive.size, config?.unitSystem || 'decimal')}
                     </p>
                     <p
                       className={cn(
