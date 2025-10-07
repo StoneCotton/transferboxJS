@@ -5,11 +5,11 @@
 
 import { useState } from 'react'
 import { Button } from './ui/Button'
-import { 
-  Search, 
-  X, 
-  CheckCircle, 
-  XCircle, 
+import {
+  Search,
+  X,
+  CheckCircle,
+  XCircle,
   AlertTriangle,
   Clock,
   Filter,
@@ -41,13 +41,13 @@ const dateOptions = [
   { value: 'month', label: 'This Month', icon: Calendar }
 ]
 
-export function HistoryFilters({ 
-  filter, 
-  statusFilter, 
-  dateFilter, 
-  onFilterChange, 
-  onStatusFilterChange, 
-  onDateFilterChange 
+export function HistoryFilters({
+  filter,
+  statusFilter,
+  dateFilter,
+  onFilterChange,
+  onStatusFilterChange,
+  onDateFilterChange
 }: HistoryFiltersProps) {
   const [searchFocused, setSearchFocused] = useState(false)
 
@@ -63,7 +63,7 @@ export function HistoryFilters({
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
           <input
             type="text"
-            placeholder="Search transfers..."
+            placeholder="Search..."
             value={filter}
             onChange={(e) => onFilterChange(e.target.value)}
             onFocus={() => setSearchFocused(true)}
@@ -116,7 +116,9 @@ export function HistoryFilters({
               dateFilter === value && 'shadow-md'
             )}
           >
-            <Icon className={cn('h-4 w-4', dateFilter === value ? 'text-white' : 'text-gray-500')} />
+            <Icon
+              className={cn('h-4 w-4', dateFilter === value ? 'text-white' : 'text-gray-500')}
+            />
             <span className="hidden sm:inline">{label}</span>
           </Button>
         ))}
@@ -129,12 +131,12 @@ export function HistoryFilters({
           {filter && <span className="font-medium">"{filter}"</span>}
           {statusFilter !== 'all' && (
             <span className="font-medium">
-              {statusOptions.find(opt => opt.value === statusFilter)?.label}
+              {statusOptions.find((opt) => opt.value === statusFilter)?.label}
             </span>
           )}
           {dateFilter !== 'all' && (
             <span className="font-medium">
-              {dateOptions.find(opt => opt.value === dateFilter)?.label}
+              {dateOptions.find((opt) => opt.value === dateFilter)?.label}
             </span>
           )}
         </div>

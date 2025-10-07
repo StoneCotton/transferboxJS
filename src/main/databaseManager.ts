@@ -109,6 +109,32 @@ export class DatabaseManager {
       CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON logs(timestamp);
       CREATE INDEX IF NOT EXISTS idx_logs_level ON logs(level);
     `)
+
+    // Run migrations
+    this.runMigrations()
+  }
+
+  /**
+   * Run database migrations
+   */
+  private runMigrations(): void {
+    // Check if duration column exists in transfer_files table
+    const columns = this.db
+      .prepare(
+        `
+      PRAGMA table_info(transfer_files)
+    `
+      )
+      .all() as Array<{ name: string; type: string }>
+
+    const hasDurationColumn = columns.some((col) => col.name === 'duration')
+
+    if (!hasDurationColumn) {
+      console.log('Adding duration column to transfer_files table...')
+      this.db.exec(`
+        ALTER TABLE transfer_files ADD COLUMN duration REAL
+      `)
+    }
   }
 
   /**

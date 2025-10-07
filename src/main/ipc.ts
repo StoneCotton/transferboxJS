@@ -7,7 +7,7 @@ import { ipcMain, dialog } from 'electron'
 import { stat } from 'fs/promises'
 import { IPC_CHANNELS, PathValidationRequest, TransferStartRequest } from '../shared/types'
 import { validatePath } from './pathValidator'
-import { getConfig, updateConfig, resetConfig } from './configManager'
+import { getConfig, updateConfig, resetConfig, forceMigration } from './configManager'
 import { DriveMonitor } from './driveMonitor'
 import { FileTransferEngine } from './fileTransfer'
 import { getDatabaseManager } from './databaseManager'
@@ -35,6 +35,10 @@ export function setupIpcHandlers(): void {
 
   ipcMain.handle(IPC_CHANNELS.CONFIG_RESET, async () => {
     return resetConfig()
+  })
+
+  ipcMain.handle(IPC_CHANNELS.CONFIG_MIGRATE, async () => {
+    return forceMigration()
   })
 
   // Path validation handlers
@@ -124,7 +128,7 @@ export function setupIpcHandlers(): void {
     const logger = getLogger()
 
     // Filter files based on media extensions if enabled
-    const filteredFiles = request.files.filter(file => pathProcessor!.shouldTransferFile(file))
+    const filteredFiles = request.files.filter((file) => pathProcessor!.shouldTransferFile(file))
 
     // Create transfer session
     const sessionId = db.createTransferSession({
@@ -151,17 +155,20 @@ export function setupIpcHandlers(): void {
     const transferFiles = await Promise.all(
       filteredFiles.map(async (sourcePath) => {
         try {
+          console.log(`[IPC] Processing path: ${sourcePath}`)
           const processedPath = await pathProcessor!.processFilePath(
             sourcePath,
             request.destinationRoot,
             request.driveInfo.displayName
           )
+          console.log(`[IPC] Processed path result: ${processedPath.destinationPath}`)
           return { source: sourcePath, dest: processedPath.destinationPath }
         } catch (error) {
           console.error(`Failed to process path for ${sourcePath}:`, error)
           // Fallback to simple filename if processing fails
           const fileName = sourcePath.split('/').pop() || 'file'
           const destPath = `${request.destinationRoot}/${fileName}`
+          console.log(`[IPC] Using fallback path: ${destPath}`)
           return { source: sourcePath, dest: destPath }
         }
       })

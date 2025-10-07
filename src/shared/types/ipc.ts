@@ -13,6 +13,7 @@ export const IPC_CHANNELS = {
   CONFIG_GET: 'config:get',
   CONFIG_UPDATE: 'config:update',
   CONFIG_RESET: 'config:reset',
+  CONFIG_MIGRATE: 'config:migrate',
 
   // Path validation
   PATH_VALIDATE: 'path:validate',
@@ -81,6 +82,7 @@ export interface IpcHandlers {
   [IPC_CHANNELS.CONFIG_GET]: () => Promise<AppConfig>
   [IPC_CHANNELS.CONFIG_UPDATE]: (config: Partial<AppConfig>) => Promise<AppConfig>
   [IPC_CHANNELS.CONFIG_RESET]: () => Promise<AppConfig>
+  [IPC_CHANNELS.CONFIG_MIGRATE]: () => Promise<AppConfig>
 
   [IPC_CHANNELS.PATH_VALIDATE]: (request: PathValidationRequest) => Promise<PathValidationResponse>
   [IPC_CHANNELS.PATH_SELECT_FOLDER]: () => Promise<string | null>

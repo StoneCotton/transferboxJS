@@ -51,16 +51,21 @@ export class PathProcessor {
     destinationRoot: string,
     deviceName?: string
   ): Promise<ProcessedPath> {
+    console.log(`[PathProcessor] Processing: ${sourcePath} -> ${destinationRoot}`)
+
     // Get file information
     const fileInfo = await this.getFileInfo(sourcePath)
 
     // Check if file should be transferred based on media filter
     if (this.config.transferOnlyMediaFiles && !this.isMediaFile(fileInfo)) {
-      throw new Error(`File ${fileInfo.fileName} is not a media file and transferOnlyMediaFiles is enabled`)
+      throw new Error(
+        `File ${fileInfo.fileName} is not a media file and transferOnlyMediaFiles is enabled`
+      )
     }
 
     // Generate filename based on configuration
     const processedFileName = this.generateFileName(fileInfo)
+    console.log(`[PathProcessor] Generated filename: ${processedFileName}`)
 
     // Generate directory structure based on configuration
     const directoryStructure = this.generateDirectoryStructure(
@@ -68,9 +73,11 @@ export class PathProcessor {
       destinationRoot,
       deviceName
     )
+    console.log(`[PathProcessor] Generated directory: ${directoryStructure}`)
 
     // Combine directory and filename
     const destinationPath = path.join(directoryStructure, processedFileName)
+    console.log(`[PathProcessor] Final destination: ${destinationPath}`)
 
     return {
       destinationPath,
@@ -120,19 +127,18 @@ export class PathProcessor {
     // Apply timestamp if enabled
     if (this.config.addTimestampToFilename) {
       const timestamp = this.formatTimestamp(fileInfo.stats.birthtime)
-      
+
       if (this.config.keepOriginalFilename) {
         // Use template to combine original name with timestamp
-        fileName = this.config.filenameTemplate
-          .replace('{original}', fileInfo.baseName)
-          .replace('{timestamp}', timestamp)
-          + fileInfo.extension
+        fileName =
+          this.config.filenameTemplate
+            .replace('{original}', fileInfo.baseName)
+            .replace('{timestamp}', timestamp) + fileInfo.extension
       } else {
         // Use just timestamp with extension
-        fileName = this.config.filenameTemplate
-          .replace('{original}', '')
-          .replace('{timestamp}', timestamp)
-          + fileInfo.extension
+        fileName =
+          this.config.filenameTemplate.replace('{original}', '').replace('{timestamp}', timestamp) +
+          fileInfo.extension
       }
     }
 
@@ -144,7 +150,7 @@ export class PathProcessor {
    */
   private formatTimestamp(date: Date): string {
     const format = this.config.timestampFormat
-    
+
     // Replace format tokens with actual values
     return format
       .replace(/%Y/g, date.getFullYear().toString())
@@ -168,9 +174,23 @@ export class PathProcessor {
     // Handle folder structure preservation
     if (this.config.keepFolderStructure) {
       // Extract relative path from source and preserve it
-      const relativePath = path.relative(fileInfo.sourcePath.split(path.sep)[0] || '', fileInfo.directory)
-      if (relativePath && relativePath !== '.') {
-        directory = path.join(directory, relativePath)
+      // Find the drive root by looking for the first path segment after /Volumes
+      const pathParts = fileInfo.sourcePath.split(path.sep)
+      let driveRoot = ''
+
+      // Find the drive root (e.g., /Volumes/CanonA_0015)
+      for (let i = 0; i < pathParts.length; i++) {
+        if (pathParts[i] === 'Volumes' && i + 1 < pathParts.length) {
+          driveRoot = pathParts.slice(0, i + 2).join(path.sep)
+          break
+        }
+      }
+
+      if (driveRoot) {
+        const relativePath = path.relative(driveRoot, fileInfo.directory)
+        if (relativePath && relativePath !== '.') {
+          directory = path.join(directory, relativePath)
+        }
       }
     }
 
@@ -194,7 +214,7 @@ export class PathProcessor {
    */
   private formatDateFolder(date: Date): string {
     const format = this.config.dateFolderFormat
-    
+
     // Replace format tokens with actual values
     return format
       .replace(/%Y/g, date.getFullYear().toString())

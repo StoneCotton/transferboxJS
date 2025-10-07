@@ -33,9 +33,53 @@ export class ConfigManager {
   }
 
   /**
-   * Migrate config to ensure new default extensions are added
+   * Migrate config to ensure compatibility with current version
    */
   private migrateConfig(): void {
+    const currentConfig = this.getConfig()
+    const currentVersion = currentConfig.configVersion || 0
+    const targetVersion = DEFAULT_CONFIG.configVersion
+
+    console.log(
+      `[ConfigManager] Migrating config from version ${currentVersion} to ${targetVersion}`
+    )
+
+    // If no version or version 0, this is an old config
+    if (currentVersion < 1) {
+      this.migrateFromVersion0()
+    }
+
+    // Update config version to current
+    if (currentVersion < targetVersion) {
+      this.store.set('configVersion', targetVersion)
+    }
+
+    // Always ensure media extensions are up to date
+    this.migrateMediaExtensions()
+  }
+
+  /**
+   * Migrate from version 0 (no version field) to version 1
+   */
+  private migrateFromVersion0(): void {
+    console.log('[ConfigManager] Migrating from version 0 to version 1')
+
+    const currentConfig = this.getConfig()
+
+    // Fix the keepOriginalFilename issue - if it's true but addTimestampToFilename is false, set it to false
+    if (
+      currentConfig.keepOriginalFilename === true &&
+      currentConfig.addTimestampToFilename === false
+    ) {
+      console.log('[ConfigManager] Fixing keepOriginalFilename dependency - setting to false')
+      this.store.set('keepOriginalFilename', false)
+    }
+  }
+
+  /**
+   * Migrate media extensions to ensure new default extensions are added
+   */
+  private migrateMediaExtensions(): void {
     const currentConfig = this.getConfig()
     const currentExtensions = new Set(currentConfig.mediaExtensions.map((ext) => ext.toLowerCase()))
     const defaultExtensions = DEFAULT_CONFIG.mediaExtensions.map((ext) => ext.toLowerCase())
@@ -89,6 +133,8 @@ export class ConfigManager {
    */
   private validateConfigDependencies(config: AppConfig): void {
     // Validate keepOriginalFilename dependency on addTimestampToFilename
+    // If keepOriginalFilename is true, addTimestampToFilename should also be true
+    // This ensures that when we add timestamps, we preserve the original filename
     if (config.keepOriginalFilename === true && config.addTimestampToFilename === false) {
       throw new Error('Keep Original Filename requires Add Timestamp to Filename to be enabled')
     }
@@ -100,6 +146,39 @@ export class ConfigManager {
   resetConfig(): AppConfig {
     this.store.store = DEFAULT_CONFIG
     return DEFAULT_CONFIG
+  }
+
+  /**
+   * Forces a complete config migration and validation
+   * Useful for fixing corrupted or incompatible configs
+   */
+  forceMigration(): AppConfig {
+    console.log('[ConfigManager] Forcing complete config migration')
+
+    // Get current config
+    const currentConfig = this.getConfig()
+
+    // Create a new config by merging current with defaults
+    const migratedConfig: AppConfig = {
+      ...DEFAULT_CONFIG,
+      ...currentConfig,
+      configVersion: DEFAULT_CONFIG.configVersion
+    }
+
+    // Fix any known issues
+    if (
+      migratedConfig.keepOriginalFilename === true &&
+      migratedConfig.addTimestampToFilename === false
+    ) {
+      console.log('[ConfigManager] Fixing keepOriginalFilename dependency during migration')
+      migratedConfig.keepOriginalFilename = false
+    }
+
+    // Save the migrated config
+    this.store.store = migratedConfig
+
+    console.log('[ConfigManager] Config migration completed')
+    return migratedConfig
   }
 
   /**
@@ -149,6 +228,13 @@ export function updateConfig(updates: Partial<AppConfig>): AppConfig {
  */
 export function resetConfig(): AppConfig {
   return getConfigManager().resetConfig()
+}
+
+/**
+ * Forces a complete config migration (convenience function)
+ */
+export function forceMigration(): AppConfig {
+  return getConfigManager().forceMigration()
 }
 
 /**
@@ -254,7 +340,10 @@ export function validateConfig(config: Partial<AppConfig>): void {
       throw new Error('Filename template cannot be empty')
     }
     // Check for required placeholders
-    if (!config.filenameTemplate.includes('{original}') && !config.filenameTemplate.includes('{timestamp}')) {
+    if (
+      !config.filenameTemplate.includes('{original}') &&
+      !config.filenameTemplate.includes('{timestamp}')
+    ) {
       throw new Error('Filename template must contain at least {original} or {timestamp}')
     }
   }

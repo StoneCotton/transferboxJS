@@ -23,28 +23,47 @@ export function SettingsModal() {
     config.defaultDestination
   )
   const [verifyChecksums, setVerifyChecksums] = useState(config.verifyChecksums)
-  
+
   // File naming settings
-  const [addTimestampToFilename, setAddTimestampToFilename] = useState(config.addTimestampToFilename)
+  const [addTimestampToFilename, setAddTimestampToFilename] = useState(
+    config.addTimestampToFilename
+  )
   const [keepOriginalFilename, setKeepOriginalFilename] = useState(config.keepOriginalFilename)
   const [filenameTemplate, setFilenameTemplate] = useState(config.filenameTemplate)
   const [timestampFormat, setTimestampFormat] = useState(config.timestampFormat)
-  
+
   // Directory structure settings
-  const [createDateBasedFolders, setCreateDateBasedFolders] = useState(config.createDateBasedFolders)
+  const [createDateBasedFolders, setCreateDateBasedFolders] = useState(
+    config.createDateBasedFolders
+  )
   const [dateFolderFormat, setDateFolderFormat] = useState(config.dateFolderFormat)
-  const [createDeviceBasedFolders, setCreateDeviceBasedFolders] = useState(config.createDeviceBasedFolders)
+  const [createDeviceBasedFolders, setCreateDeviceBasedFolders] = useState(
+    config.createDeviceBasedFolders
+  )
   const [deviceFolderTemplate, setDeviceFolderTemplate] = useState(config.deviceFolderTemplate)
   const [keepFolderStructure, setKeepFolderStructure] = useState(config.keepFolderStructure)
-  
+
   // Media file filtering
-  const [transferOnlyMediaFiles, setTransferOnlyMediaFiles] = useState(config.transferOnlyMediaFiles)
+  const [transferOnlyMediaFiles, setTransferOnlyMediaFiles] = useState(
+    config.transferOnlyMediaFiles
+  )
   const [mediaExtensions, setMediaExtensions] = useState<string[]>(config.mediaExtensions)
   const [newExtension, setNewExtension] = useState('')
-  
+
   // Checksum settings
-  const [generateMHLChecksumFiles, setGenerateMHLChecksumFiles] = useState(config.generateMHLChecksumFiles)
-  
+  const [generateMHLChecksumFiles, setGenerateMHLChecksumFiles] = useState(
+    config.generateMHLChecksumFiles
+  )
+
+  // Performance settings
+  const [bufferSize, setBufferSize] = useState(config.bufferSize)
+  const [chunkSize, setChunkSize] = useState(config.chunkSize)
+
+  // UI preferences
+  const [showDetailedProgress, setShowDetailedProgress] = useState(config.showDetailedProgress)
+  const [autoCleanupLogs, setAutoCleanupLogs] = useState(config.autoCleanupLogs)
+  const [logRetentionDays, setLogRetentionDays] = useState(config.logRetentionDays)
+
   const [isSaving, setIsSaving] = useState(false)
 
   const handleSelectDestination = async (): Promise<void> => {
@@ -56,14 +75,16 @@ export function SettingsModal() {
 
   const handleAddExtension = (): void => {
     if (newExtension.trim() && !mediaExtensions.includes(newExtension.toLowerCase())) {
-      const extension = newExtension.startsWith('.') ? newExtension.toLowerCase() : `.${newExtension.toLowerCase()}`
+      const extension = newExtension.startsWith('.')
+        ? newExtension.toLowerCase()
+        : `.${newExtension.toLowerCase()}`
       setMediaExtensions([...mediaExtensions, extension])
       setNewExtension('')
     }
   }
 
   const handleRemoveExtension = (extension: string): void => {
-    setMediaExtensions(mediaExtensions.filter(ext => ext !== extension))
+    setMediaExtensions(mediaExtensions.filter((ext) => ext !== extension))
   }
 
   const handleKeyPress = (e: React.KeyboardEvent): void => {
@@ -79,26 +100,35 @@ export function SettingsModal() {
         transferMode,
         defaultDestination,
         verifyChecksums,
-        
+
         // File naming settings
         addTimestampToFilename,
         keepOriginalFilename,
         filenameTemplate,
         timestampFormat,
-        
+
         // Directory structure settings
         createDateBasedFolders,
         dateFolderFormat,
         createDeviceBasedFolders,
         deviceFolderTemplate,
         keepFolderStructure,
-        
+
         // Media file filtering
         transferOnlyMediaFiles,
         mediaExtensions,
-        
+
         // Checksum settings
-        generateMHLChecksumFiles
+        generateMHLChecksumFiles,
+
+        // Performance settings
+        bufferSize,
+        chunkSize,
+
+        // UI preferences
+        showDetailedProgress,
+        autoCleanupLogs,
+        logRetentionDays
       }
 
       const updatedConfig = await ipc.updateConfig(updates)
@@ -148,88 +178,88 @@ export function SettingsModal() {
     <Modal isOpen={showSettings} onClose={toggleSettings} title="Settings" size="xl">
       <div className="max-h-[80vh] overflow-y-auto">
         <div className="space-y-8">
-        {/* Transfer Modes */}
-        <div>
-          <h3 className="mb-3 text-lg font-semibold text-gray-900 dark:text-white">
-            Transfer Mode
-          </h3>
-          <div className="space-y-3">
-            {modes.map((mode) => (
-              <button
-                key={mode.id}
-                onClick={() => setTransferMode(mode.id)}
-                className={cn(
-                  'w-full rounded-xl border-2 p-4 text-left transition-all',
-                  transferMode === mode.id
-                    ? 'border-brand-500 bg-brand-50 dark:border-brand-400 dark:bg-brand-950/50'
-                    : 'border-gray-200 bg-white hover:border-brand-300 dark:border-gray-700 dark:bg-gray-800/50'
-                )}
-              >
-                <div className="flex items-start gap-3">
-                  <span className="text-2xl">{mode.icon}</span>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <h4
-                        className={cn(
-                          'font-semibold',
-                          transferMode === mode.id
-                            ? 'text-brand-900 dark:text-brand-100'
-                            : 'text-gray-900 dark:text-white'
-                        )}
-                      >
-                        {mode.name}
-                      </h4>
-                      {transferMode === mode.id && (
-                        <CheckCircle2 className="h-5 w-5 text-brand-500" />
-                      )}
-                    </div>
-                    <p
-                      className={cn(
-                        'mt-1 text-sm',
-                        transferMode === mode.id
-                          ? 'text-brand-700 dark:text-brand-300'
-                          : 'text-gray-600 dark:text-gray-400'
-                      )}
-                    >
-                      {mode.description}
-                    </p>
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Default Destination (for Fully Autonomous mode) */}
-        {transferMode === 'fully-autonomous' && (
-          <div className="animate-in fade-in slide-in-from-top-4 duration-300">
+          {/* Transfer Modes */}
+          <div>
             <h3 className="mb-3 text-lg font-semibold text-gray-900 dark:text-white">
-              Default Destination
+              Transfer Mode
             </h3>
             <div className="space-y-3">
-              {defaultDestination ? (
-                <div className="rounded-lg border-2 border-green-400 bg-green-50 p-3 dark:border-green-600 dark:bg-green-950/50">
-                  <p className="text-sm font-medium text-green-900 dark:text-green-100">
-                    {defaultDestination}
-                  </p>
-                </div>
-              ) : (
-                <div className="rounded-lg border-2 border-dashed border-yellow-400 bg-yellow-50 p-3 dark:border-yellow-600 dark:bg-yellow-950/50">
-                  <p className="text-sm font-medium text-yellow-900 dark:text-yellow-100">
-                    ⚠️ No destination set - Fully Autonomous mode requires a default destination
-                  </p>
-                </div>
-              )}
-              <Button
-                onClick={handleSelectDestination}
-                className="w-full bg-gradient-to-r from-slate-600 to-slate-700"
-              >
-                <FolderOpen className="mr-2 h-4 w-4" />
-                {defaultDestination ? 'Change Destination' : 'Set Default Destination'}
-              </Button>
+              {modes.map((mode) => (
+                <button
+                  key={mode.id}
+                  onClick={() => setTransferMode(mode.id)}
+                  className={cn(
+                    'w-full rounded-xl border-2 p-4 text-left transition-all',
+                    transferMode === mode.id
+                      ? 'border-brand-500 bg-brand-50 dark:border-brand-400 dark:bg-brand-950/50'
+                      : 'border-gray-200 bg-white hover:border-brand-300 dark:border-gray-700 dark:bg-gray-800/50'
+                  )}
+                >
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl">{mode.icon}</span>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <h4
+                          className={cn(
+                            'font-semibold',
+                            transferMode === mode.id
+                              ? 'text-brand-900 dark:text-brand-100'
+                              : 'text-gray-900 dark:text-white'
+                          )}
+                        >
+                          {mode.name}
+                        </h4>
+                        {transferMode === mode.id && (
+                          <CheckCircle2 className="h-5 w-5 text-brand-500" />
+                        )}
+                      </div>
+                      <p
+                        className={cn(
+                          'mt-1 text-sm',
+                          transferMode === mode.id
+                            ? 'text-brand-700 dark:text-brand-300'
+                            : 'text-gray-600 dark:text-gray-400'
+                        )}
+                      >
+                        {mode.description}
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              ))}
             </div>
           </div>
-        )}
+
+          {/* Default Destination (for Fully Autonomous mode) */}
+          {transferMode === 'fully-autonomous' && (
+            <div className="animate-in fade-in slide-in-from-top-4 duration-300">
+              <h3 className="mb-3 text-lg font-semibold text-gray-900 dark:text-white">
+                Default Destination
+              </h3>
+              <div className="space-y-3">
+                {defaultDestination ? (
+                  <div className="rounded-lg border-2 border-green-400 bg-green-50 p-3 dark:border-green-600 dark:bg-green-950/50">
+                    <p className="text-sm font-medium text-green-900 dark:text-green-100">
+                      {defaultDestination}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="rounded-lg border-2 border-dashed border-yellow-400 bg-yellow-50 p-3 dark:border-yellow-600 dark:bg-yellow-950/50">
+                    <p className="text-sm font-medium text-yellow-900 dark:text-yellow-100">
+                      ⚠️ No destination set - Fully Autonomous mode requires a default destination
+                    </p>
+                  </div>
+                )}
+                <Button
+                  onClick={handleSelectDestination}
+                  className="w-full bg-gradient-to-r from-slate-600 to-slate-700"
+                >
+                  <FolderOpen className="mr-2 h-4 w-4" />
+                  {defaultDestination ? 'Change Destination' : 'Set Default Destination'}
+                </Button>
+              </div>
+            </div>
+          )}
 
           {/* File Naming Settings */}
           <div>
@@ -245,9 +275,12 @@ export function SettingsModal() {
                   className="h-5 w-5 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
                 />
                 <div>
-                  <p className="font-medium text-gray-900 dark:text-white">Add Timestamp to Filename</p>
+                  <p className="font-medium text-gray-900 dark:text-white">
+                    Add Timestamp to Filename
+                  </p>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Automatically add a timestamp to file names to prevent duplicates and track when files were ingested
+                    Automatically add a timestamp to file names to prevent duplicates and track when
+                    files were ingested
                   </p>
                 </div>
               </label>
@@ -262,7 +295,9 @@ export function SettingsModal() {
                       className="h-5 w-5 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
                     />
                     <div>
-                      <p className="font-medium text-gray-900 dark:text-white">Keep Original Filename</p>
+                      <p className="font-medium text-gray-900 dark:text-white">
+                        Keep Original Filename
+                      </p>
                       <p className="text-sm text-gray-600 dark:text-gray-400">
                         Preserve the original filename when adding timestamps
                       </p>
@@ -334,7 +369,9 @@ export function SettingsModal() {
                   className="h-5 w-5 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
                 />
                 <div>
-                  <p className="font-medium text-gray-900 dark:text-white">Create Date-Based Folders</p>
+                  <p className="font-medium text-gray-900 dark:text-white">
+                    Create Date-Based Folders
+                  </p>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
                     Organize files into folders based on their creation date
                   </p>
@@ -367,7 +404,9 @@ export function SettingsModal() {
                   className="h-5 w-5 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
                 />
                 <div>
-                  <p className="font-medium text-gray-900 dark:text-white">Create Device-Based Folders</p>
+                  <p className="font-medium text-gray-900 dark:text-white">
+                    Create Device-Based Folders
+                  </p>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
                     Create separate folders for each source device or drive
                   </p>
@@ -408,7 +447,9 @@ export function SettingsModal() {
                   className="h-5 w-5 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
                 />
                 <div>
-                  <p className="font-medium text-gray-900 dark:text-white">Transfer Only Media Files</p>
+                  <p className="font-medium text-gray-900 dark:text-white">
+                    Transfer Only Media Files
+                  </p>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
                     Only transfer files with media extensions, ignoring other file types
                   </p>
@@ -453,25 +494,25 @@ export function SettingsModal() {
           </div>
 
           {/* Transfer Options */}
-        <div>
-          <h3 className="mb-3 text-lg font-semibold text-gray-900 dark:text-white">
-            Transfer Options
-          </h3>
+          <div>
+            <h3 className="mb-3 text-lg font-semibold text-gray-900 dark:text-white">
+              Transfer Options
+            </h3>
             <div className="space-y-4">
-          <label className="flex items-center gap-3 rounded-lg border-2 border-gray-200 bg-white p-4 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800/50">
-            <input
-              type="checkbox"
-              checked={verifyChecksums}
-              onChange={(e) => setVerifyChecksums(e.target.checked)}
-              className="h-5 w-5 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
-            />
-            <div>
-              <p className="font-medium text-gray-900 dark:text-white">Verify Checksums</p>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Verify file integrity after transfer (recommended)
-              </p>
-            </div>
-          </label>
+              <label className="flex items-center gap-3 rounded-lg border-2 border-gray-200 bg-white p-4 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800/50">
+                <input
+                  type="checkbox"
+                  checked={verifyChecksums}
+                  onChange={(e) => setVerifyChecksums(e.target.checked)}
+                  className="h-5 w-5 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
+                />
+                <div>
+                  <p className="font-medium text-gray-900 dark:text-white">Verify Checksums</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Verify file integrity after transfer (recommended)
+                  </p>
+                </div>
+              </label>
 
               <label className="flex items-center gap-3 rounded-lg border-2 border-gray-200 bg-white p-4 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800/50">
                 <input
@@ -481,34 +522,134 @@ export function SettingsModal() {
                   className="h-5 w-5 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
                 />
                 <div>
-                  <p className="font-medium text-gray-900 dark:text-white">Generate MHL Checksum Files</p>
+                  <p className="font-medium text-gray-900 dark:text-white">
+                    Generate MHL Checksum Files
+                  </p>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
                     Create Media Hash List (MHL) files for data integrity verification
                   </p>
                 </div>
               </label>
             </div>
-        </div>
+          </div>
 
-        {/* Actions */}
-        <div className="flex gap-3 border-t border-gray-200 pt-6 dark:border-gray-800">
-          <Button variant="ghost" onClick={toggleSettings} className="flex-1">
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSave}
-            disabled={isSaving}
-            className="flex-1 bg-gradient-to-r from-brand-500 to-brand-600 text-white"
-          >
-            {isSaving ? (
-              'Saving...'
-            ) : (
-              <>
-                <Save className="mr-2 h-4 w-4" />
-                Save Settings
-              </>
-            )}
-          </Button>
+          {/* Performance Settings */}
+          <div>
+            <h3 className="mb-3 text-lg font-semibold text-gray-900 dark:text-white">
+              Performance Settings
+            </h3>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-900 dark:text-white">
+                  Buffer Size (bytes)
+                </label>
+                <input
+                  type="number"
+                  value={bufferSize}
+                  onChange={(e) => setBufferSize(parseInt(e.target.value) || 0)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-brand-500 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                />
+                <p className="text-xs text-gray-600 dark:text-gray-400">
+                  Buffer size for file operations (default: 4MB). Higher values may improve
+                  performance for large files.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-900 dark:text-white">
+                  Chunk Size (bytes)
+                </label>
+                <input
+                  type="number"
+                  value={chunkSize}
+                  onChange={(e) => setChunkSize(parseInt(e.target.value) || 0)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-brand-500 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                />
+                <p className="text-xs text-gray-600 dark:text-gray-400">
+                  Chunk size for progress updates (default: 1MB). Smaller values provide more
+                  frequent progress updates.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* UI Preferences */}
+          <div>
+            <h3 className="mb-3 text-lg font-semibold text-gray-900 dark:text-white">
+              UI Preferences
+            </h3>
+            <div className="space-y-4">
+              <label className="flex items-center gap-3 rounded-lg border-2 border-gray-200 bg-white p-4 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800/50">
+                <input
+                  type="checkbox"
+                  checked={showDetailedProgress}
+                  onChange={(e) => setShowDetailedProgress(e.target.checked)}
+                  className="h-5 w-5 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
+                />
+                <div>
+                  <p className="font-medium text-gray-900 dark:text-white">
+                    Show Detailed Progress
+                  </p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Display detailed progress information during transfers
+                  </p>
+                </div>
+              </label>
+
+              <label className="flex items-center gap-3 rounded-lg border-2 border-gray-200 bg-white p-4 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800/50">
+                <input
+                  type="checkbox"
+                  checked={autoCleanupLogs}
+                  onChange={(e) => setAutoCleanupLogs(e.target.checked)}
+                  className="h-5 w-5 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
+                />
+                <div>
+                  <p className="font-medium text-gray-900 dark:text-white">Auto Cleanup Logs</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Automatically clean up old log entries based on retention settings
+                  </p>
+                </div>
+              </label>
+
+              {autoCleanupLogs && (
+                <div className="ml-8 space-y-2 animate-in fade-in slide-in-from-top-4 duration-300">
+                  <label className="block text-sm font-medium text-gray-900 dark:text-white">
+                    Log Retention Days
+                  </label>
+                  <input
+                    type="number"
+                    value={logRetentionDays}
+                    onChange={(e) => setLogRetentionDays(parseInt(e.target.value) || 0)}
+                    min="0"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-brand-500 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  />
+                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                    Number of days to keep log entries (0 = keep forever)
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-3 border-t border-gray-200 pt-6 dark:border-gray-800">
+            <Button variant="ghost" onClick={toggleSettings} className="flex-1">
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={isSaving}
+              className="flex-1 bg-gradient-to-r from-brand-500 to-brand-600 text-white"
+            >
+              {isSaving ? (
+                'Saving...'
+              ) : (
+                <>
+                  <Save className="mr-2 h-4 w-4" />
+                  Save Settings
+                </>
+              )}
+            </Button>
           </div>
         </div>
       </div>

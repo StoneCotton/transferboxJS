@@ -5,15 +5,7 @@
 
 import { useState } from 'react'
 import { Button } from './ui/Button'
-import { 
-  Search, 
-  X, 
-  AlertCircle, 
-  AlertTriangle, 
-  Info, 
-  Bug,
-  Filter
-} from 'lucide-react'
+import { Search, X, AlertCircle, AlertTriangle, Info, Bug, Filter } from 'lucide-react'
 import { cn } from '../lib/utils'
 
 interface LogFiltersProps {
@@ -46,7 +38,7 @@ export function LogFilters({ filter, level, onFilterChange, onLevelChange }: Log
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
           <input
             type="text"
-            placeholder="Search logs..."
+            placeholder="Search..."
             value={filter}
             onChange={(e) => onFilterChange(e.target.value)}
             onFocus={() => setSearchFocused(true)}
@@ -75,10 +67,7 @@ export function LogFilters({ filter, level, onFilterChange, onLevelChange }: Log
             variant={level === value ? 'default' : 'outline'}
             size="sm"
             onClick={() => onLevelChange(value)}
-            className={cn(
-              'flex items-center gap-2 transition-all',
-              level === value && 'shadow-md'
-            )}
+            className={cn('flex items-center gap-2 transition-all', level === value && 'shadow-md')}
           >
             <Icon className={cn('h-4 w-4', level === value ? 'text-white' : color)} />
             <span className="hidden sm:inline">{label}</span>

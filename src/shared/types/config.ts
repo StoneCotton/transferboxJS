@@ -9,6 +9,9 @@ export type FolderStructure = 'date-based' | 'device-based' | 'flat' | 'preserve
 export type ChecksumAlgorithm = 'xxhash64'
 
 export interface AppConfig {
+  // Config version for migration purposes
+  configVersion: number
+
   // Transfer modes
   // 'auto-transfer' = Mode 1: Auto-start when drive detected, ask for destination each time
   // 'confirm-transfer' = Mode 2: After setting destination, require confirmation
@@ -58,16 +61,17 @@ export interface AppConfig {
 }
 
 export const DEFAULT_CONFIG: AppConfig = {
+  configVersion: 1, // Current config version
   transferMode: 'auto-transfer', // Default to Mode 1
   defaultDestination: null,
-  
+
   // File naming settings
   addTimestampToFilename: false,
-  keepOriginalFilename: true,
+  keepOriginalFilename: false,
   filenameTemplate: '{original}_{timestamp}',
   timestampFormat: '%Y%m%d_%H%M%S', // YYYYMMDD_HHMMSS format
   preserveOriginalNames: true, // Legacy setting
-  
+
   // Directory structure settings
   createDateBasedFolders: false,
   dateFolderFormat: '%Y/%m/%d', // YYYY/MM/DD format
@@ -75,7 +79,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   deviceFolderTemplate: '{device_name}',
   folderStructure: 'preserve-source', // Legacy setting
   keepFolderStructure: true,
-  
+
   // Media file filtering
   transferOnlyMediaFiles: false,
   mediaExtensions: [
@@ -115,20 +119,20 @@ export const DEFAULT_CONFIG: AppConfig = {
     // Metadata/sidecar files
     '.xml' // Camera metadata, Adobe sidecar files
   ],
-  
+
   // Checksum settings
   checksumAlgorithm: 'xxhash64',
   verifyChecksums: true,
   generateMHLChecksumFiles: false,
-  
+
   // Performance settings
   bufferSize: 4194304, // 4MB - optimized for modern SSDs
   chunkSize: 1048576, // 1MB for progress updates
-  
+
   // Logging
   enableLogging: true,
   generateMHL: false, // Legacy setting
-  
+
   // UI preferences
   showDetailedProgress: true,
   autoCleanupLogs: false,

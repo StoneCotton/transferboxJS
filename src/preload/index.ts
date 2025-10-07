@@ -8,6 +8,7 @@ const api = {
   getConfig: () => ipcRenderer.invoke(IPC_CHANNELS.CONFIG_GET),
   updateConfig: (config: any) => ipcRenderer.invoke(IPC_CHANNELS.CONFIG_UPDATE, config),
   resetConfig: () => ipcRenderer.invoke(IPC_CHANNELS.CONFIG_RESET),
+  migrateConfig: () => ipcRenderer.invoke(IPC_CHANNELS.CONFIG_MIGRATE),
 
   // Path validation
   validatePath: (request: any) => ipcRenderer.invoke(IPC_CHANNELS.PATH_VALIDATE, request),

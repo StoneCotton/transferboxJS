@@ -14,6 +14,7 @@ interface IpcApi {
   getConfig: () => Promise<AppConfig>
   updateConfig: (config: Partial<AppConfig>) => Promise<AppConfig>
   resetConfig: () => Promise<AppConfig>
+  migrateConfig: () => Promise<AppConfig>
 
   // Path validation
   validatePath: (request: PathValidationRequest) => Promise<PathValidationResponse>

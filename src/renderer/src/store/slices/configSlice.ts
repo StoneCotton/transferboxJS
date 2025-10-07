@@ -19,16 +19,17 @@ export const createConfigSlice: StateCreator<ConfigSlice> = (set) => ({
   // Initial state
   config: {
     // Default config - will be loaded from main process
+    configVersion: 1,
     transferMode: 'manual',
     defaultDestination: null,
-    
+
     // File naming settings
     addTimestampToFilename: false,
-    keepOriginalFilename: true,
+    keepOriginalFilename: false,
     filenameTemplate: '{original}_{timestamp}',
     timestampFormat: '%Y%m%d_%H%M%S',
     preserveOriginalNames: true, // Legacy setting
-    
+
     // Directory structure settings
     createDateBasedFolders: false,
     dateFolderFormat: '%Y/%m/%d',
@@ -36,7 +37,7 @@ export const createConfigSlice: StateCreator<ConfigSlice> = (set) => ({
     deviceFolderTemplate: '{device_name}',
     folderStructure: 'preserve-source', // Legacy setting
     keepFolderStructure: true,
-    
+
     // Media file filtering
     transferOnlyMediaFiles: false,
     mediaExtensions: [
@@ -76,20 +77,20 @@ export const createConfigSlice: StateCreator<ConfigSlice> = (set) => ({
       // Metadata/sidecar files
       '.xml' // Camera metadata
     ],
-    
+
     // Checksum settings
     checksumAlgorithm: 'xxhash64' as const,
     verifyChecksums: true,
     generateMHLChecksumFiles: false,
-    
+
     // Performance settings
     bufferSize: 4194304, // 4MB - optimized for modern SSDs
     chunkSize: 1048576, // 1MB for progress updates
-    
+
     // Logging
     enableLogging: true,
     generateMHL: false, // Legacy setting
-    
+
     // UI preferences
     showDetailedProgress: true,
     autoCleanupLogs: true,
