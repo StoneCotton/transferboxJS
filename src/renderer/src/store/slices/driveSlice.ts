@@ -17,15 +17,19 @@ export interface DriveSlice extends DriveState {
   setScanInProgress: (inProgress: boolean) => void
   setScanError: (error: string | null) => void
   clearScan: () => void
+  // New actions for existing drive handling
+  setExistingDrives: (drives: DriveInfo[]) => void
+  isExistingDrive: (device: string) => boolean
 }
 
-export const createDriveSlice: StateCreator<DriveSlice> = (set) => ({
+export const createDriveSlice: StateCreator<DriveSlice> = (set, get) => ({
   // Initial state
   detectedDrives: [],
   selectedDrive: null,
   scannedFiles: [],
   scanInProgress: false,
   scanError: null,
+  existingDrives: new Set<string>(), // Track drives that were present at startup
 
   // Actions
   setDetectedDrives: (drives) => set({ detectedDrives: drives }),
@@ -62,5 +66,10 @@ export const createDriveSlice: StateCreator<DriveSlice> = (set) => ({
       scannedFiles: [],
       scanInProgress: false,
       scanError: null
-    })
+    }),
+
+  // New actions for existing drive handling
+  setExistingDrives: (drives) => set({ existingDrives: new Set(drives.map((d) => d.device)) }),
+
+  isExistingDrive: (device) => get().existingDrives.has(device)
 })

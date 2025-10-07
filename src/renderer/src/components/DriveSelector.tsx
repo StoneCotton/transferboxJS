@@ -2,7 +2,7 @@
  * Drive Selector Component
  */
 
-import { HardDrive, Loader2, Usb, Check, Sparkles } from 'lucide-react'
+import { HardDrive, Loader2, Usb, Check, Sparkles, Clock } from 'lucide-react'
 import { useDriveStore, useConfigStore } from '../store'
 import { useIpc } from '../hooks/useIpc'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/Card'
@@ -18,7 +18,8 @@ export function DriveSelector() {
     scanInProgress,
     setScanInProgress,
     setScannedFiles,
-    setScanError
+    setScanError,
+    isExistingDrive
   } = useDriveStore()
   const { config } = useConfigStore()
   const ipc = useIpc()
@@ -44,6 +45,9 @@ export function DriveSelector() {
   }
 
   if (detectedDrives.length === 0) {
+    const isAutoMode =
+      config.transferMode === 'fully-autonomous' || config.transferMode === 'auto-transfer'
+
     return (
       <Card className="h-full border-2 border-dashed border-gray-300 bg-white/50 backdrop-blur-sm dark:border-gray-700 dark:bg-gray-900/50">
         <CardContent className="flex flex-col items-center justify-center py-16">
@@ -53,13 +57,21 @@ export function DriveSelector() {
               <HardDrive className="h-10 w-10 text-brand-600 dark:text-brand-400" />
             </div>
           </div>
-          <p className="mt-6 text-xl font-bold text-gray-900 dark:text-white">No Drives Detected</p>
+          <p className="mt-6 text-xl font-bold text-gray-900 dark:text-white">
+            {isAutoMode ? 'Waiting for New Drive' : 'No Drives Detected'}
+          </p>
           <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
-            Insert an SD card or USB drive to begin
+            {isAutoMode
+              ? 'Insert a new SD card or USB drive to begin auto-transfer'
+              : 'Insert an SD card or USB drive to begin'}
           </p>
           <div className="mt-4 flex items-center gap-2 text-xs text-gray-500">
             <Sparkles className="h-3 w-3" />
-            <span>Monitoring for new devices...</span>
+            <span>
+              {isAutoMode
+                ? 'Auto-transfer mode active - monitoring for new devices...'
+                : 'Monitoring for new devices...'}
+            </span>
           </div>
         </CardContent>
       </Card>
@@ -86,6 +98,9 @@ export function DriveSelector() {
           {detectedDrives.map((drive) => {
             const isSelected = selectedDrive?.device === drive.device
             const isScanningThis = scanInProgress && isSelected
+            const isExisting = isExistingDrive(drive.device)
+            const isAutoMode =
+              config.transferMode === 'fully-autonomous' || config.transferMode === 'auto-transfer'
 
             return (
               <button
@@ -96,13 +111,22 @@ export function DriveSelector() {
                   'hover:shadow-lg hover:shadow-brand-500/20',
                   isSelected
                     ? 'border-brand-500 bg-gradient-to-br from-brand-50 to-orange-50 dark:border-brand-400 dark:from-brand-950/50 dark:to-orange-950/50'
-                    : 'border-gray-200 bg-white hover:border-brand-300 dark:border-gray-700 dark:bg-gray-800/50 dark:hover:border-brand-600'
+                    : isExisting && isAutoMode
+                      ? 'border-amber-300 bg-gradient-to-br from-amber-50 to-yellow-50 dark:border-amber-600 dark:from-amber-950/50 dark:to-yellow-950/50'
+                      : 'border-gray-200 bg-white hover:border-brand-300 dark:border-gray-700 dark:bg-gray-800/50 dark:hover:border-brand-600'
                 )}
               >
                 {/* Selection indicator */}
                 {isSelected && (
                   <div className="absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full bg-brand-500 text-white shadow-lg">
                     <Check className="h-4 w-4" strokeWidth={3} />
+                  </div>
+                )}
+
+                {/* Existing drive indicator */}
+                {isExisting && isAutoMode && !isSelected && (
+                  <div className="absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full bg-amber-500 text-white shadow-lg">
+                    <Clock className="h-4 w-4" strokeWidth={3} />
                   </div>
                 )}
 
@@ -165,6 +189,14 @@ export function DriveSelector() {
                         </div>
                         <span className="text-xs font-semibold text-brand-600 dark:text-brand-400">
                           Scanning...
+                        </span>
+                      </div>
+                    )}
+                    {isExisting && isAutoMode && !isSelected && (
+                      <div className="mt-2 flex items-center gap-2">
+                        <Clock className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+                        <span className="text-xs font-medium text-amber-700 dark:text-amber-300">
+                          Already connected - click to scan manually
                         </span>
                       </div>
                     )}

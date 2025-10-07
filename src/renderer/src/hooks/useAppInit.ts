@@ -38,20 +38,70 @@ export function useAppInit() {
       }
     }
 
+    // Load existing drives and handle them based on transfer mode
+    const loadExistingDrives = async () => {
+      try {
+        const drives = await ipc.listDrives()
+        const store = useStore.getState()
+
+        // Mark these as existing drives (present at startup)
+        store.setExistingDrives(drives)
+
+        // Handle existing drives based on transfer mode
+        const config = store.config
+        if (config.transferMode === 'manual' || config.transferMode === 'confirm-transfer') {
+          // In confirmation modes, show existing drives for manual selection
+          store.setDetectedDrives(drives)
+          console.log(
+            `[${config.transferMode}] Found ${drives.length} existing drives available for selection`
+          )
+        } else {
+          // In auto-transfer modes, show existing drives for manual selection
+          // but don't auto-scan them to prevent accidental transfers
+          store.setDetectedDrives(drives)
+          store.selectDrive(null)
+          store.clearScan()
+          console.log(
+            `[${config.transferMode}] Found ${drives.length} existing drives - available for manual selection (no auto-scan)`
+          )
+        }
+      } catch (error) {
+        console.error('Failed to load existing drives:', error)
+      }
+    }
+
     // Initialize
     loadConfig()
     loadHistory()
+    loadExistingDrives()
 
     // Set up event listeners
     const unsubDriveDetected = ipc.onDriveDetected(async (drive) => {
       console.log('Drive detected:', drive)
       const store = useStore.getState()
+
+      // Check if this is an existing drive (was present at startup)
+      const isExisting = store.isExistingDrive(drive.device)
+
+      // Add drive to detected drives
       store.addDrive(drive)
 
       // Get current config to determine transfer mode
       const config = store.config
 
-      // Mode-based auto-transfer logic
+      // For existing drives in auto-transfer modes, don't auto-scan to prevent accidental transfers
+      // But still add them to the UI so user can manually select them
+      if (
+        isExisting &&
+        (config.transferMode === 'fully-autonomous' || config.transferMode === 'auto-transfer')
+      ) {
+        console.log(
+          `[${config.transferMode}] Existing drive detected - available for manual selection (no auto-scan)`
+        )
+        return
+      }
+
+      // Mode-based auto-transfer logic (only for newly inserted drives)
       if (config.transferMode === 'fully-autonomous' && config.defaultDestination) {
         // Mode 3: Fully autonomous - auto-scan and auto-transfer
         console.log('[Mode 3] Fully autonomous transfer starting...')
@@ -134,7 +184,17 @@ export function useAppInit() {
 
     const unsubTransferComplete = ipc.onTransferComplete((data) => {
       console.log('Transfer complete:', data)
-      useStore.getState().completeTransfer()
+      const store = useStore.getState()
+      store.completeTransfer()
+
+      // In auto modes, after transfer completes, go back to waiting for new drives
+      const config = store.config
+      if (config.transferMode === 'fully-autonomous' || config.transferMode === 'auto-transfer') {
+        console.log(`[${config.transferMode}] Transfer complete - ready for next drive`)
+        // Clear current selection to prepare for next drive
+        store.selectDrive(null)
+        store.clearScan()
+      }
     })
 
     const unsubTransferError = ipc.onTransferError((error) => {

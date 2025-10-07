@@ -6,12 +6,12 @@
 import { useState } from 'react'
 import { LogEntry as LogEntryType } from '../../../shared/types'
 import { Button } from './ui/Button'
-import { 
-  AlertCircle, 
-  AlertTriangle, 
-  Info, 
-  Bug, 
-  ChevronDown, 
+import {
+  AlertCircle,
+  AlertTriangle,
+  Info,
+  Bug,
+  ChevronDown,
   ChevronRight,
   Copy,
   Clock
@@ -42,13 +42,16 @@ export function LogEntry({ log }: LogEntryProps) {
   const formatRelativeTime = (timestamp: number) => {
     const now = Date.now()
     const diff = now - timestamp
-    
-    if (diff < 60000) { // Less than 1 minute
+
+    if (diff < 60000) {
+      // Less than 1 minute
       return 'Just now'
-    } else if (diff < 3600000) { // Less than 1 hour
+    } else if (diff < 3600000) {
+      // Less than 1 hour
       const minutes = Math.floor(diff / 60000)
       return `${minutes}m ago`
-    } else if (diff < 86400000) { // Less than 1 day
+    } else if (diff < 86400000) {
+      // Less than 1 day
       const hours = Math.floor(diff / 3600000)
       return `${hours}h ago`
     } else {
@@ -106,7 +109,7 @@ export function LogEntry({ log }: LogEntryProps) {
     const logText = `[${formatTimestamp(log.timestamp)}] ${log.level.toUpperCase()}: ${log.message}${
       log.context ? '\nContext: ' + JSON.stringify(log.context, null, 2) : ''
     }`
-    
+
     try {
       await navigator.clipboard.writeText(logText)
       setCopied(true)
@@ -119,15 +122,15 @@ export function LogEntry({ log }: LogEntryProps) {
   const hasContext = log.context && Object.keys(log.context).length > 0
 
   return (
-    <div className={cn(
-      'p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors',
-      getLevelBgColor(log.level)
-    )}>
+    <div
+      className={cn(
+        'p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors',
+        getLevelBgColor(log.level)
+      )}
+    >
       <div className="flex items-start gap-3">
         {/* Level Icon */}
-        <div className="flex-shrink-0 mt-0.5">
-          {getLevelIcon(log.level)}
-        </div>
+        <div className="flex-shrink-0 mt-0.5">{getLevelIcon(log.level)}</div>
 
         {/* Main Content */}
         <div className="flex-1 min-w-0">
@@ -135,10 +138,12 @@ export function LogEntry({ log }: LogEntryProps) {
             <div className="flex-1 min-w-0">
               {/* Header */}
               <div className="flex items-center gap-3 mb-1">
-                <span className={cn(
-                  'text-sm font-medium uppercase tracking-wide',
-                  getLevelColor(log.level)
-                )}>
+                <span
+                  className={cn(
+                    'text-sm font-medium uppercase tracking-wide',
+                    getLevelColor(log.level)
+                  )}
+                >
                   {log.level}
                 </span>
                 <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
@@ -150,9 +155,7 @@ export function LogEntry({ log }: LogEntryProps) {
               </div>
 
               {/* Message */}
-              <p className="text-sm text-gray-900 dark:text-white break-words">
-                {log.message}
-              </p>
+              <p className="text-sm text-gray-900 dark:text-white break-words">{log.message}</p>
 
               {/* Context Toggle */}
               {hasContext && (

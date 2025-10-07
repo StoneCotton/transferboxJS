@@ -45,6 +45,8 @@ export const useDriveStore = () => {
   const setScanInProgress = useStore((state) => state.setScanInProgress)
   const setScanError = useStore((state) => state.setScanError)
   const clearScan = useStore((state) => state.clearScan)
+  const setExistingDrives = useStore((state) => state.setExistingDrives)
+  const isExistingDrive = useStore((state) => state.isExistingDrive)
 
   return {
     detectedDrives,
@@ -59,7 +61,9 @@ export const useDriveStore = () => {
     setScannedFiles,
     setScanInProgress,
     setScanError,
-    clearScan
+    clearScan,
+    setExistingDrives,
+    isExistingDrive
   }
 }
 

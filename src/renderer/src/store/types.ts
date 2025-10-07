@@ -17,6 +17,7 @@ export interface DriveState {
   scannedFiles: string[]
   scanInProgress: boolean
   scanError: string | null
+  existingDrives: Set<string> // Track drives that were present at startup
 }
 
 export interface TransferState {
