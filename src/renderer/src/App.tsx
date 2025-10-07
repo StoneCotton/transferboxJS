@@ -173,11 +173,11 @@ function App() {
                   : 'grid-cols-1'
               )}
             >
-              <div className="animate-in fade-in slide-in-from-left-4 duration-500">
+              <div className="animate-in fade-in slide-in-from-left-4 duration-500 h-full">
                 <DriveSelector />
               </div>
               {shouldShowDestinationSelector(config.transferMode) && (
-                <div className="animate-in fade-in slide-in-from-right-4 duration-500 delay-100">
+                <div className="animate-in fade-in slide-in-from-right-4 duration-500 delay-100 h-full">
                   <DestinationSelector />
                 </div>
               )}

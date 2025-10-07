@@ -107,7 +107,7 @@ export function DestinationSelector() {
   }, [selectedDrive?.device])
 
   return (
-    <Card className="border-0 bg-white/70 shadow-xl shadow-slate-500/10 backdrop-blur-sm dark:bg-gray-900/70">
+    <Card className="h-full border-0 bg-white/70 shadow-xl shadow-slate-500/10 backdrop-blur-sm dark:bg-gray-900/70">
       <CardHeader>
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-slate-600 to-slate-700 text-white shadow-lg shadow-slate-500/30">

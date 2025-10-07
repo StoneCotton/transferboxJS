@@ -45,7 +45,7 @@ export function DriveSelector() {
 
   if (detectedDrives.length === 0) {
     return (
-      <Card className="border-2 border-dashed border-gray-300 bg-white/50 backdrop-blur-sm dark:border-gray-700 dark:bg-gray-900/50">
+      <Card className="h-full border-2 border-dashed border-gray-300 bg-white/50 backdrop-blur-sm dark:border-gray-700 dark:bg-gray-900/50">
         <CardContent className="flex flex-col items-center justify-center py-16">
           <div className="relative">
             <div className="absolute inset-0 animate-ping rounded-full bg-brand-400 opacity-20" />
@@ -67,7 +67,7 @@ export function DriveSelector() {
   }
 
   return (
-    <Card className="border-0 bg-white/70 shadow-xl shadow-brand-500/10 backdrop-blur-sm dark:bg-gray-900/70">
+    <Card className="h-full border-0 bg-white/70 shadow-xl shadow-brand-500/10 backdrop-blur-sm dark:bg-gray-900/70">
       <CardHeader>
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-brand-400 to-brand-600 text-white shadow-lg shadow-brand-500/30">
