@@ -54,40 +54,40 @@ describe('ConfigManager', () => {
     })
 
     it('should update config partially', () => {
-      configManager.updateConfig({ transferMode: 'autonomous' })
+      configManager.updateConfig({ transferMode: 'fully-autonomous' })
 
       const config = configManager.getConfig()
-      expect(config.transferMode).toBe('autonomous')
+      expect(config.transferMode).toBe('fully-autonomous')
       // Other values should remain default
       expect(config.folderStructure).toBe('date-based')
     })
 
     it('should update multiple config values', () => {
       configManager.updateConfig({
-        transferMode: 'semi-auto',
+        transferMode: 'auto-transfer',
         folderStructure: 'flat',
         verifyChecksums: false
       })
 
       const config = configManager.getConfig()
-      expect(config.transferMode).toBe('semi-auto')
+      expect(config.transferMode).toBe('auto-transfer')
       expect(config.folderStructure).toBe('flat')
       expect(config.verifyChecksums).toBe(false)
     })
 
     it('should persist config across instances', () => {
-      configManager.updateConfig({ transferMode: 'autonomous' })
+      configManager.updateConfig({ transferMode: 'fully-autonomous' })
 
       // Create new instance with same path
       const newConfigManager = new ConfigManager(testConfigPath)
       const config = newConfigManager.getConfig()
 
-      expect(config.transferMode).toBe('autonomous')
+      expect(config.transferMode).toBe('fully-autonomous')
     })
 
     it('should reset config to defaults', () => {
       configManager.updateConfig({
-        transferMode: 'autonomous',
+        transferMode: 'fully-autonomous',
         folderStructure: 'flat'
       })
 
@@ -135,13 +135,13 @@ describe('ConfigManager', () => {
     })
 
     it('should update config using global function', () => {
-      updateConfig({ transferMode: 'semi-auto' })
+      updateConfig({ transferMode: 'auto-transfer' })
       const config = getConfig()
-      expect(config.transferMode).toBe('semi-auto')
+      expect(config.transferMode).toBe('auto-transfer')
     })
 
     it('should reset config using global function', () => {
-      updateConfig({ transferMode: 'autonomous' })
+      updateConfig({ transferMode: 'fully-autonomous' })
       resetConfig()
       const config = getConfig()
       expect(config.transferMode).toBe('manual')
@@ -209,23 +209,23 @@ describe('ConfigManager', () => {
 
     it('should support semi-auto mode (Mode 2)', () => {
       configManager.updateConfig({
-        transferMode: 'semi-auto',
+        transferMode: 'auto-transfer',
         defaultDestination: null
       })
 
       const config = configManager.getConfig()
-      expect(config.transferMode).toBe('semi-auto')
+      expect(config.transferMode).toBe('auto-transfer')
     })
 
     it('should support autonomous mode (Mode 3)', () => {
       const destination = '/Users/test/Transfers'
       configManager.updateConfig({
-        transferMode: 'autonomous',
+        transferMode: 'fully-autonomous',
         defaultDestination: destination
       })
 
       const config = configManager.getConfig()
-      expect(config.transferMode).toBe('autonomous')
+      expect(config.transferMode).toBe('fully-autonomous')
       expect(config.defaultDestination).toBe(destination)
     })
   })

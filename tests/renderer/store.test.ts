@@ -158,9 +158,9 @@ describe('Store', () => {
 
   describe('Config Slice', () => {
     it('should update config', () => {
-      store.getState().updateConfig({ transferMode: 'autonomous' })
+      store.getState().updateConfig({ transferMode: 'fully-autonomous' })
 
-      expect(store.getState().config.transferMode).toBe('autonomous')
+      expect(store.getState().config.transferMode).toBe('fully-autonomous')
     })
 
     it('should set loading state', () => {
