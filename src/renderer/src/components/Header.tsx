@@ -2,6 +2,7 @@
  * Header Component
  */
 
+import { useState, useEffect } from 'react'
 import { Settings, History, FileText } from 'lucide-react'
 import { Button } from './ui/Button'
 import { useUIStore } from '../store'
@@ -10,6 +11,20 @@ import logoImage from '../assets/logo.png'
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export function Header() {
   const { toggleSettings, toggleHistory, toggleLogs } = useUIStore()
+  const [appVersion, setAppVersion] = useState<string>('1.0.0')
+
+  useEffect(() => {
+    // Get app version from main process
+    window.api
+      .getAppVersion()
+      .then((version: string) => {
+        setAppVersion(version)
+      })
+      .catch(() => {
+        // Fallback to package.json version if IPC fails
+        setAppVersion('1.0.0')
+      })
+  }, [])
 
   return (
     <header className="relative border-b border-white/20 bg-white/80 px-6 py-4 backdrop-blur-xl dark:border-gray-800/50 dark:bg-gray-900/80">
@@ -31,7 +46,7 @@ export function Header() {
               TransferBox
             </h1>
             <p className="text-xs font-medium text-slate-600 dark:text-slate-400">
-              Professional Media Transfer Tool | v2.0.0
+              Professional Media Transfer Tool | v{appVersion}
             </p>
           </div>
         </div>

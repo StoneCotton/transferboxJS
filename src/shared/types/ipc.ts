@@ -44,7 +44,8 @@ export const IPC_CHANNELS = {
   LOG_ENTRY: 'log:entry', // Event from main to renderer
 
   // System
-  SYSTEM_SHUTDOWN: 'system:shutdown'
+  SYSTEM_SHUTDOWN: 'system:shutdown',
+  APP_VERSION: 'app:version'
 } as const
 
 // Request/Response types for each IPC channel
@@ -102,6 +103,7 @@ export interface IpcHandlers {
   [IPC_CHANNELS.LOG_CLEAR]: () => Promise<void>
 
   [IPC_CHANNELS.SYSTEM_SHUTDOWN]: () => Promise<void>
+  [IPC_CHANNELS.APP_VERSION]: () => Promise<string>
 }
 
 // Event listeners (main -> renderer)

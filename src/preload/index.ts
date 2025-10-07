@@ -32,6 +32,9 @@ const api = {
   getRecentLogs: (limit?: number) => ipcRenderer.invoke(IPC_CHANNELS.LOG_GET_RECENT, limit),
   clearLogs: () => ipcRenderer.invoke(IPC_CHANNELS.LOG_CLEAR),
 
+  // App info
+  getAppVersion: () => ipcRenderer.invoke(IPC_CHANNELS.APP_VERSION),
+
   // Event listeners
   onDriveDetected: (callback: (drive: any) => void) => {
     const listener = (_event: any, drive: any) => callback(drive)

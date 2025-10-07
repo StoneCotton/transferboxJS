@@ -531,6 +531,12 @@ export function setupIpcHandlers(): void {
     const { app } = await import('electron')
     app.quit()
   })
+
+  // App version handler
+  ipcMain.handle(IPC_CHANNELS.APP_VERSION, async () => {
+    const { app } = await import('electron')
+    return app.getVersion()
+  })
 }
 
 /**

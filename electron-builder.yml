@@ -1,5 +1,5 @@
 appId: com.electron.app
-productName: transferbox
+productName: TransferBox
 directories:
   buildResources: build
 icon: build/icon.png
@@ -13,7 +13,7 @@ files:
 asarUnpack:
   - resources/**
 win:
-  executableName: transferbox
+  executableName: TransferBox
   icon: build/icon.png
 nsis:
   artifactName: ${name}-${version}-setup.${ext}

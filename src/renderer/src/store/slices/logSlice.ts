@@ -56,6 +56,7 @@ export const createLogSlice: StateCreator<LogSlice> = (set, get) => ({
       )
     }
 
-    return filtered
+    // Sort by timestamp (most recent first)
+    return filtered.sort((a, b) => b.timestamp - a.timestamp)
   }
 })
