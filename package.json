@@ -1,6 +1,6 @@
 {
   "name": "transferbox",
-  "version": "2.0.1-alpha.0",
+  "version": "2.0.1-alpha.1",
   "description": "An Electron application with React and TypeScript",
   "main": "./out/main/index.js",
   "author": "example.com",
