@@ -3,6 +3,7 @@
  */
 
 import { useState, useEffect } from 'react'
+import { useIpc } from '../hooks/useIpc'
 import { Settings, History, FileText } from 'lucide-react'
 import { Button } from './ui/Button'
 import { useUIStore } from '../store'
@@ -12,10 +13,11 @@ import logoImage from '../assets/logo.png'
 export function Header() {
   const { toggleSettings, toggleHistory, toggleLogs } = useUIStore()
   const [appVersion, setAppVersion] = useState<string>('1.0.0')
+  const ipc = useIpc()
 
   useEffect(() => {
     // Get app version from main process
-    window.api
+    ipc
       .getAppVersion()
       .then((version: string) => {
         setAppVersion(version)
@@ -24,7 +26,7 @@ export function Header() {
         // Fallback to package.json version if IPC fails
         setAppVersion('1.0.0')
       })
-  }, [])
+  }, [ipc])
 
   return (
     <header className="relative border-b border-white/20 bg-white/80 px-6 py-4 backdrop-blur-xl dark:border-gray-800/50 dark:bg-gray-900/80">

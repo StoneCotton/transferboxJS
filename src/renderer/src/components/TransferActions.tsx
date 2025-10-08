@@ -4,7 +4,7 @@
 
 import { Play, Loader2, Rocket, AlertCircle } from 'lucide-react'
 import { useState } from 'react'
-import { useDriveStore, useTransferStore, useUIStore, useConfigStore } from '../store'
+import { useDriveStore, useTransferStore, useUIStore } from '../store'
 import { useIpc } from '../hooks/useIpc'
 import { Button } from './ui/Button'
 import { Card, CardContent } from './ui/Card'
@@ -15,7 +15,6 @@ export function TransferActions() {
   const { selectedDrive, scannedFiles } = useDriveStore()
   const { isTransferring, startTransfer } = useTransferStore()
   const { selectedDestination } = useUIStore()
-  const { config } = useConfigStore()
   const ipc = useIpc()
   const [isStarting, setIsStarting] = useState(false)
 

@@ -4,7 +4,7 @@
  */
 
 import { Save, CheckCircle2, FolderOpen, Plus, X } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { TransferMode, AppConfig } from '../../../shared/types'
 import { Modal } from './ui/Modal'
 import { Button } from './ui/Button'
@@ -66,6 +66,31 @@ export function SettingsModal() {
   const [unitSystem, setUnitSystem] = useState(config.unitSystem)
 
   const [isSaving, setIsSaving] = useState(false)
+
+  // Sync local state with config changes
+  useEffect(() => {
+    setTransferMode(config.transferMode)
+    setDefaultDestination(config.defaultDestination)
+    setVerifyChecksums(config.verifyChecksums)
+    setAddTimestampToFilename(config.addTimestampToFilename)
+    setKeepOriginalFilename(config.keepOriginalFilename)
+    setFilenameTemplate(config.filenameTemplate)
+    setTimestampFormat(config.timestampFormat)
+    setCreateDateBasedFolders(config.createDateBasedFolders)
+    setDateFolderFormat(config.dateFolderFormat)
+    setCreateDeviceBasedFolders(config.createDeviceBasedFolders)
+    setDeviceFolderTemplate(config.deviceFolderTemplate)
+    setKeepFolderStructure(config.keepFolderStructure)
+    setTransferOnlyMediaFiles(config.transferOnlyMediaFiles)
+    setMediaExtensions(config.mediaExtensions)
+    setGenerateMHLChecksumFiles(config.generateMHLChecksumFiles)
+    setBufferSize(config.bufferSize)
+    setChunkSize(config.chunkSize)
+    setShowDetailedProgress(config.showDetailedProgress)
+    setAutoCleanupLogs(config.autoCleanupLogs)
+    setLogRetentionDays(config.logRetentionDays)
+    setUnitSystem(config.unitSystem)
+  }, [config])
 
   const handleSelectDestination = async (): Promise<void> => {
     const folder = await ipc.selectFolder()

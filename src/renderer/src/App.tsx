@@ -2,7 +2,6 @@
  * Main App Component
  */
 
-import React from 'react'
 import { useAppInit } from './hooks/useAppInit'
 import { Header } from './components/Header'
 import { DriveSelector } from './components/DriveSelector'
@@ -43,9 +42,6 @@ function App() {
     return mode === 'manual' || mode === 'confirm-transfer' // Show in manual and confirm modes
   }
 
-  const shouldShowFileList = (mode: TransferMode): boolean => {
-    return true // Always show file list
-  }
 
   // Get workflow steps based on transfer mode
   const getWorkflowSteps = (mode: TransferMode) => {

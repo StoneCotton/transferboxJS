@@ -45,6 +45,9 @@ export interface IpcApi {
   getRecentLogs: (limit?: number) => Promise<LogEntry[]>
   clearLogs: () => Promise<void>
 
+  // App info
+  getAppVersion: () => Promise<string>
+
   // Event listeners
   onDriveDetected: (callback: (drive: DriveInfo) => void) => () => void
   onDriveRemoved: (callback: (device: string) => void) => () => void
@@ -124,6 +127,11 @@ export function useIpc(): IpcApi {
     return await window.api.clearLogs()
   }, [])
 
+  // App info
+  const getAppVersion = useCallback(async () => {
+    return await window.api.getAppVersion()
+  }, [])
+
   // Event listeners
   const onDriveDetected = useCallback((callback: (drive: DriveInfo) => void) => {
     return window.api.onDriveDetected(callback)
@@ -165,6 +173,7 @@ export function useIpc(): IpcApi {
     clearHistory,
     getRecentLogs,
     clearLogs,
+    getAppVersion,
     onDriveDetected,
     onDriveRemoved,
     onTransferProgress,

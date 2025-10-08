@@ -47,7 +47,7 @@ export class DriveMonitor {
   async listRemovableDrives(): Promise<DriveInfo[]> {
     const allDrives = await this.listDrives()
 
-    return allDrives.filter((drive) => drive.isRemovable && !drive.isSystem)
+    return allDrives.filter((drive) => this.isTrulyRemovableDrive(drive))
   }
 
   /**
@@ -273,6 +273,32 @@ export class DriveMonitor {
   }
 
   /**
+   * Check if a drive is truly removable (not just marked as removable by the OS)
+   * This filters out internal SATA drives that are incorrectly marked as removable
+   */
+  private isTrulyRemovableDrive(drive: any): boolean {
+    // First check basic removable and non-system criteria
+    if (!drive.isRemovable || drive.isSystem) {
+      return false
+    }
+
+    // Additional checks to filter out internal drives incorrectly marked as removable
+    // Exclude SATA drives (internal storage)
+    if (drive.busType === 'SATA' || drive.busType === 'ATA') {
+      return false
+    }
+
+    // Exclude SCSI drives that are likely internal
+    if (drive.isSCSI && !drive.isUSB && !drive.isCard) {
+      return false
+    }
+
+    // Only include drives that are explicitly USB, card-based, or have mountable interfaces
+    return drive.isUSB || drive.isCard || drive.isUAS || 
+           (drive.busType && !['SATA', 'ATA', 'SCSI'].includes(drive.busType))
+  }
+
+  /**
    * Convert drivelist drive info to our DriveInfo format
    */
   private convertDriveInfo(drive: any): DriveInfo {
@@ -291,6 +317,9 @@ export class DriveMonitor {
 
 /**
  * Check if a drive is removable and not a system drive
+ * Note: This function works with converted DriveInfo objects that may not have
+ * the raw drivelist properties, so it uses the basic filtering logic.
+ * For more precise filtering, use DriveMonitor.isTrulyRemovableDrive() with raw drive data.
  */
 export function isRemovableDrive(drive: DriveInfo): boolean {
   return drive.isRemovable && !drive.isSystem
