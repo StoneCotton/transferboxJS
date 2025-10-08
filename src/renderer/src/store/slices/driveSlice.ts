@@ -44,14 +44,21 @@ export const createDriveSlice: StateCreator<DriveSlice> = (set, get) => ({
     }),
 
   removeDrive: (device) =>
-    set((state) => ({
-      detectedDrives: state.detectedDrives.filter((d) => d.device !== device),
-      // Clear selected drive if it was removed
-      selectedDrive: state.selectedDrive?.device === device ? null : state.selectedDrive,
-      // Clear scan if removed drive was selected
-      scannedFiles: state.selectedDrive?.device === device ? [] : state.scannedFiles,
-      scanError: state.selectedDrive?.device === device ? null : state.scanError
-    })),
+    set((state) => {
+      // Remove drive from existing drives set when it's physically disconnected
+      const newExistingDrives = new Set(state.existingDrives)
+      newExistingDrives.delete(device)
+
+      return {
+        detectedDrives: state.detectedDrives.filter((d) => d.device !== device),
+        existingDrives: newExistingDrives,
+        // Clear selected drive if it was removed
+        selectedDrive: state.selectedDrive?.device === device ? null : state.selectedDrive,
+        // Clear scan if removed drive was selected
+        scannedFiles: state.selectedDrive?.device === device ? [] : state.scannedFiles,
+        scanError: state.selectedDrive?.device === device ? null : state.scanError
+      }
+    }),
 
   selectDrive: (drive) => set({ selectedDrive: drive }),
 

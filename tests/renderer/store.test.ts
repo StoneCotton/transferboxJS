@@ -83,6 +83,34 @@ describe('Store', () => {
 
       expect(store.getState().selectedDrive).toEqual(mockDrive)
     })
+
+    it('should remove drive from existingDrives when drive is disconnected', () => {
+      const mockDrive: DriveInfo = {
+        device: '/dev/disk6',
+        displayName: 'SD Card 5',
+        description: 'USB Drive',
+        mountpoints: ['/Volumes/SD_CARD_5'],
+        size: 32000000000,
+        isRemovable: true,
+        isSystem: false,
+        busType: 'USB'
+      }
+
+      // Simulate drive being present at startup
+      store.getState().setExistingDrives([mockDrive])
+      expect(store.getState().isExistingDrive('/dev/disk6')).toBe(true)
+
+      // Add the drive to detected drives
+      store.getState().addDrive(mockDrive)
+      expect(store.getState().detectedDrives.some((d) => d.device === '/dev/disk6')).toBe(true)
+
+      // Remove the drive (simulating physical disconnection)
+      store.getState().removeDrive('/dev/disk6')
+
+      // Drive should be removed from both detectedDrives and existingDrives
+      expect(store.getState().detectedDrives.some((d) => d.device === '/dev/disk6')).toBe(false)
+      expect(store.getState().isExistingDrive('/dev/disk6')).toBe(false)
+    })
   })
 
   describe('Transfer Slice', () => {
