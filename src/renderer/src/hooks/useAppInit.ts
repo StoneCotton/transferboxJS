@@ -6,6 +6,12 @@
 import { useEffect } from 'react'
 import { useStore } from '../store'
 import { useIpc } from './useIpc'
+import {
+  initSoundManager,
+  playErrorSound,
+  playSuccessSound,
+  cleanupSoundManager
+} from '../utils/soundManager'
 
 /**
  * Hook to initialize the app
@@ -15,6 +21,9 @@ export function useAppInit() {
   const ipc = useIpc()
 
   useEffect(() => {
+    // Initialize sound manager
+    initSoundManager()
+
     // Load initial configuration
     const loadConfig = async () => {
       const store = useStore.getState()
@@ -110,6 +119,12 @@ export function useAppInit() {
           const result = await ipc.scanDrive(drive.device)
           store.setScannedFiles(result.files)
 
+          // Play error sound if no valid files found
+          if (result.files.length === 0) {
+            console.log('[Mode 3] No valid files found on drive - playing error sound')
+            playErrorSound()
+          }
+
           if (result.files.length > 0) {
             // Auto-start transfer without confirmation
             const request = {
@@ -136,6 +151,8 @@ export function useAppInit() {
         } catch (error) {
           console.error('Auto-transfer failed:', error)
           store.setScanError(error instanceof Error ? error.message : 'Auto-transfer failed')
+          // Play error sound when auto-transfer fails
+          playErrorSound()
         } finally {
           store.setScanInProgress(false)
         }
@@ -147,10 +164,18 @@ export function useAppInit() {
           const result = await ipc.scanDrive(drive.device)
           store.setScannedFiles(result.files)
           store.selectDrive(drive)
+
+          // Play error sound if no valid files found
+          if (result.files.length === 0) {
+            console.log('[Mode 1] No valid files found on drive - playing error sound')
+            playErrorSound()
+          }
           // UI will show files and user can set destination then click transfer
         } catch (error) {
           console.error('Auto-scan failed:', error)
           store.setScanError(error instanceof Error ? error.message : 'Auto-scan failed')
+          // Play error sound when scan fails
+          playErrorSound()
         } finally {
           store.setScanInProgress(false)
         }
@@ -162,10 +187,18 @@ export function useAppInit() {
           const result = await ipc.scanDrive(drive.device)
           store.setScannedFiles(result.files)
           store.selectDrive(drive)
+
+          // Play error sound if no valid files found
+          if (result.files.length === 0) {
+            console.log('[Mode 2] No valid files found on drive - playing error sound')
+            playErrorSound()
+          }
           // UI will show confirmation dialog before starting transfer
         } catch (error) {
           console.error('Auto-scan failed:', error)
           store.setScanError(error instanceof Error ? error.message : 'Auto-scan failed')
+          // Play error sound when scan fails
+          playErrorSound()
         } finally {
           store.setScanInProgress(false)
         }
@@ -187,6 +220,15 @@ export function useAppInit() {
       const store = useStore.getState()
       store.completeTransfer()
 
+      // Play success or error sound based on transfer status
+      if (data.status === 'complete') {
+        console.log('[SoundManager] Transfer completed successfully - playing success sound')
+        playSuccessSound()
+      } else {
+        console.log('[SoundManager] Transfer completed with errors - playing error sound')
+        playErrorSound()
+      }
+
       // In auto modes, after transfer completes, go back to waiting for new drives
       const config = store.config
       if (config.transferMode === 'fully-autonomous' || config.transferMode === 'auto-transfer') {
@@ -200,6 +242,10 @@ export function useAppInit() {
     const unsubTransferError = ipc.onTransferError((error) => {
       console.error('Transfer error:', error)
       useStore.getState().failTransfer(error)
+
+      // Play error sound when transfer fails
+      console.log('[SoundManager] Transfer failed - playing error sound')
+      playErrorSound()
     })
 
     const unsubLogEntry = ipc.onLogEntry((entry) => {
@@ -214,6 +260,7 @@ export function useAppInit() {
       unsubTransferComplete()
       unsubTransferError()
       unsubLogEntry()
+      cleanupSoundManager()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []) // Only run once on mount

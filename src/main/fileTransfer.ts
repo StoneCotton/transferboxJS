@@ -180,6 +180,9 @@ export class FileTransferEngine {
     // Track file start times for duration calculation
     const fileStartTimes = new Map<number, number>()
 
+    // Track completed files for progress calculation
+    const completedFiles = new Map<number, number>() // fileIndex -> bytesTransferred
+
     // Get file sizes for all files
     await Promise.all(
       files.map(async (file, index) => {
@@ -193,6 +196,12 @@ export class FileTransferEngine {
       })
     )
 
+    // Calculate total bytes for all files (not just active ones)
+    const totalBytesForAllFiles = Array.from(fileInfo.values()).reduce(
+      (sum, info) => sum + info.totalBytes,
+      0
+    )
+
     // Aggregate and report progress from all active transfers
     const reportAggregatedProgress = (): void => {
       if (!options?.onProgress) return
@@ -202,24 +211,29 @@ export class FileTransferEngine {
       lastAggregatedProgressTime = now
 
       let totalBytesTransferred = 0
-      let totalBytes = 0
       let totalSpeed = 0
       let activeTransfers = 0
 
+      // Add bytes from completed files
+      completedFiles.forEach((bytes) => {
+        totalBytesTransferred += bytes
+      })
+
+      // Add bytes from active transfers
       fileProgress.forEach((progress) => {
         totalBytesTransferred += progress.bytesTransferred
-        totalBytes += progress.totalBytes
         totalSpeed += progress.speed
         if (progress.percentage < 100) activeTransfers++
       })
 
-      if (activeTransfers > 0) {
-        const overallPercentage = totalBytes > 0 ? (totalBytesTransferred / totalBytes) * 100 : 0
+      if (activeTransfers > 0 || completedFiles.size > 0) {
+        const overallPercentage =
+          totalBytesForAllFiles > 0 ? (totalBytesTransferred / totalBytesForAllFiles) * 100 : 0
 
         // Create enhanced progress with individual file information
         const enhancedProgress = {
           bytesTransferred: totalBytesTransferred,
-          totalBytes,
+          totalBytes: totalBytesForAllFiles,
           percentage: overallPercentage,
           speed: totalSpeed,
           activeFiles: Array.from(fileProgress.entries()).map(([index, progress]) => {
@@ -292,6 +306,13 @@ export class FileTransferEngine {
 
           results[fileIndex] = resultWithDuration
           completed++
+
+          // Track completed file bytes for progress calculation
+          const fileInfoEntry = fileInfo.get(fileIndex)
+          if (fileInfoEntry) {
+            completedFiles.set(fileIndex, fileInfoEntry.totalBytes)
+          }
+
           fileProgress.delete(fileIndex)
           activeTransfers.delete(fileIndex)
           fileStartTimes.delete(fileIndex) // Clean up start time tracking

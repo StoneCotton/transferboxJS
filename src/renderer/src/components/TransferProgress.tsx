@@ -23,10 +23,28 @@ import {
   formatRemainingTime,
   cn
 } from '../lib/utils'
+import { useIpc } from '../hooks/useIpc'
+import { playErrorSound } from '../utils/soundManager'
 
 export function TransferProgress() {
   const { isTransferring, progress, error, cancelTransfer } = useTransferStore()
   const { config } = useConfigStore()
+  const ipc = useIpc()
+
+  // Handle transfer cancellation
+  const handleCancelTransfer = async () => {
+    try {
+      // Stop the transfer via IPC
+      await ipc.stopTransfer()
+      // Play error sound for cancellation
+      console.log('[SoundManager] Transfer cancelled - playing error sound')
+      playErrorSound()
+      // Update store state
+      cancelTransfer()
+    } catch (error) {
+      console.error('Failed to cancel transfer:', error)
+    }
+  }
 
   if (!isTransferring && !error) {
     return null
@@ -92,7 +110,7 @@ export function TransferProgress() {
             <Button
               variant="danger"
               size="sm"
-              onClick={cancelTransfer}
+              onClick={handleCancelTransfer}
               className="bg-red-500 text-white hover:bg-red-600"
             >
               Cancel Transfer

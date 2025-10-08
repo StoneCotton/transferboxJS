@@ -227,13 +227,10 @@ export function setupIpcHandlers(): void {
           // This is now enhanced progress with individual file information
           currentFilePhase = 'transferring'
 
-          // Calculate overall progress based on all files
-          const bytesCompletedPreviously = fileSizes
-            .slice(0, currentFileIndex)
-            .reduce((sum, size) => sum + size, 0)
-          const overallBytesTransferred = bytesCompletedPreviously + progress.bytesTransferred
-          const overallPercentage =
-            totalBytes > 0 ? (overallBytesTransferred / totalBytes) * 100 : 0
+          // Use the progress values directly from the file transfer engine
+          // The progress object already contains aggregated values from all active transfers
+          const overallBytesTransferred = progress.bytesTransferred
+          const overallPercentage = progress.percentage
 
           // Calculate speeds and ETA
           const elapsedTime = (Date.now() - startTime) / 1000 // seconds
@@ -290,16 +287,19 @@ export function setupIpcHandlers(): void {
             overallPercentage,
             activeFiles, // Array of currently active files with individual progress
             completedFiles: [...completedFiles, ...failedFilesList],
-            currentFile: {
-              sourcePath: transferFiles[currentFileIndex]?.source || '',
-              destinationPath: transferFiles[currentFileIndex]?.dest || '',
-              fileName: transferFiles[currentFileIndex]?.source.split('/').pop() || '',
-              fileSize: progress.totalBytes,
-              bytesTransferred: progress.bytesTransferred,
-              percentage: progress.percentage,
-              status: currentFilePhase,
-              startTime
-            },
+            currentFile:
+              activeFiles.length > 0
+                ? activeFiles[0]
+                : {
+                    sourcePath: transferFiles[currentFileIndex]?.source || '',
+                    destinationPath: transferFiles[currentFileIndex]?.dest || '',
+                    fileName: transferFiles[currentFileIndex]?.source.split('/').pop() || '',
+                    fileSize: 0,
+                    bytesTransferred: 0,
+                    percentage: 0,
+                    status: currentFilePhase,
+                    startTime
+                  },
             transferSpeed: progress.speed,
             averageSpeed,
             eta,

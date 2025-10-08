@@ -8,6 +8,7 @@ import { useIpc } from '../hooks/useIpc'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/Card'
 import { formatBytes, cn } from '../lib/utils'
 import type { DriveInfo } from '../../../shared/types'
+import { playErrorSound } from '../utils/soundManager'
 
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export function DriveSelector() {
@@ -35,10 +36,18 @@ export function DriveSelector() {
       const result = await ipc.scanDrive(drive.device)
       setScannedFiles(result.files)
       console.log(`Found ${result.files.length} media files on ${drive.displayName}`)
+
+      // Play error sound if no valid files found
+      if (result.files.length === 0) {
+        console.log('[DriveSelector] No valid files found on drive - playing error sound')
+        playErrorSound()
+      }
     } catch (error) {
       console.error('Failed to scan drive:', error)
       setScanError(error instanceof Error ? error.message : 'Failed to scan drive')
       setScannedFiles([])
+      // Play error sound when scan fails
+      playErrorSound()
     } finally {
       setScanInProgress(false)
     }
