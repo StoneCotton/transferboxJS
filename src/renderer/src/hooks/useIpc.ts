@@ -51,6 +51,7 @@ export interface IpcApi {
   // Event listeners
   onDriveDetected: (callback: (drive: DriveInfo) => void) => () => void
   onDriveRemoved: (callback: (device: string) => void) => () => void
+  onDriveUnmounted: (callback: (device: string) => void) => () => void
   onTransferProgress: (callback: (progress: any) => void) => () => void
   onTransferComplete: (callback: (data: any) => void) => () => void
   onTransferError: (callback: (error: string) => void) => () => void
@@ -141,6 +142,10 @@ export function useIpc(): IpcApi {
     return window.api.onDriveRemoved(callback)
   }, [])
 
+  const onDriveUnmounted = useCallback((callback: (device: string) => void) => {
+    return window.api.onDriveUnmounted(callback)
+  }, [])
+
   const onTransferProgress = useCallback((callback: (progress: any) => void) => {
     return window.api.onTransferProgress(callback)
   }, [])
@@ -176,6 +181,7 @@ export function useIpc(): IpcApi {
     getAppVersion,
     onDriveDetected,
     onDriveRemoved,
+    onDriveUnmounted,
     onTransferProgress,
     onTransferComplete,
     onTransferError,

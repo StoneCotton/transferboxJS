@@ -18,6 +18,7 @@ export interface DriveState {
   scanInProgress: boolean
   scanError: string | null
   existingDrives: Set<string> // Track drives that were present at startup
+  unmountedDrives: string[] // Track drives that are unmounted but still physically connected
 }
 
 export interface TransferState {

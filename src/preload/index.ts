@@ -46,6 +46,11 @@ const api = {
     ipcRenderer.on(IPC_CHANNELS.DRIVE_REMOVED, listener)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.DRIVE_REMOVED, listener)
   },
+  onDriveUnmounted: (callback: (device: string) => void) => {
+    const listener = (_event: any, device: string) => callback(device)
+    ipcRenderer.on(IPC_CHANNELS.DRIVE_UNMOUNTED, listener)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.DRIVE_UNMOUNTED, listener)
+  },
   onTransferProgress: (callback: (progress: any) => void) => {
     const listener = (_event: any, progress: any) => callback(progress)
     ipcRenderer.on(IPC_CHANNELS.TRANSFER_PROGRESS, listener)

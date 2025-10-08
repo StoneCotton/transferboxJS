@@ -17,7 +17,7 @@ import {
  * Hook to initialize the app
  * Loads config, sets up IPC listeners
  */
-export function useAppInit() {
+export function useAppInit(): null {
   const ipc = useIpc()
 
   useEffect(() => {
@@ -25,7 +25,7 @@ export function useAppInit() {
     initSoundManager()
 
     // Load initial configuration
-    const loadConfig = async () => {
+    const loadConfig = async (): Promise<void> => {
       const store = useStore.getState()
       store.setLoading(true)
       try {
@@ -38,7 +38,7 @@ export function useAppInit() {
     }
 
     // Load transfer history
-    const loadHistory = async () => {
+    const loadHistory = async (): Promise<void> => {
       try {
         const history = await ipc.getHistory()
         useStore.getState().setHistory(history)
@@ -48,7 +48,7 @@ export function useAppInit() {
     }
 
     // Load existing drives and handle them based on transfer mode
-    const loadExistingDrives = async () => {
+    const loadExistingDrives = async (): Promise<void> => {
       try {
         const drives = await ipc.listDrives()
         const store = useStore.getState()
@@ -211,6 +211,18 @@ export function useAppInit() {
       useStore.getState().removeDrive(device)
     })
 
+    const unsubDriveUnmounted = ipc.onDriveUnmounted((device) => {
+      console.log('[useAppInit] Drive unmounted event received:', device)
+      const store = useStore.getState()
+      console.log(
+        '[useAppInit] Current detectedDrives:',
+        store.detectedDrives.map((d) => d.device)
+      )
+      console.log('[useAppInit] Current unmountedDrives before:', store.unmountedDrives)
+      store.markDriveAsUnmounted(device)
+      console.log('[useAppInit] Current unmountedDrives after:', store.unmountedDrives)
+    })
+
     const unsubTransferProgress = ipc.onTransferProgress((progress) => {
       useStore.getState().updateProgress(progress)
     })
@@ -256,6 +268,7 @@ export function useAppInit() {
     return () => {
       unsubDriveDetected()
       unsubDriveRemoved()
+      unsubDriveUnmounted()
       unsubTransferProgress()
       unsubTransferComplete()
       unsubTransferError()

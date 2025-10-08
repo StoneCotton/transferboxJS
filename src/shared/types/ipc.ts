@@ -25,6 +25,7 @@ export const IPC_CHANNELS = {
   DRIVE_UNMOUNT: 'drive:unmount',
   DRIVE_DETECTED: 'drive:detected', // Event from main to renderer
   DRIVE_REMOVED: 'drive:removed', // Event from main to renderer
+  DRIVE_UNMOUNTED: 'drive:unmounted', // Event from main to renderer when drive is unmounted but still connected
 
   // Transfer operations
   TRANSFER_START: 'transfer:start',
@@ -110,6 +111,7 @@ export interface IpcHandlers {
 export interface IpcEvents {
   [IPC_CHANNELS.DRIVE_DETECTED]: (driveInfo: DriveInfo) => void
   [IPC_CHANNELS.DRIVE_REMOVED]: (device: string) => void
+  [IPC_CHANNELS.DRIVE_UNMOUNTED]: (device: string) => void
   [IPC_CHANNELS.TRANSFER_PROGRESS]: (progress: TransferProgress) => void
   [IPC_CHANNELS.TRANSFER_COMPLETE]: (session: TransferSession) => void
   [IPC_CHANNELS.TRANSFER_ERROR]: (error: string) => void

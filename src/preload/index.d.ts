@@ -46,6 +46,7 @@ interface IpcApi {
   // Event listeners
   onDriveDetected: (callback: (drive: DriveInfo) => void) => () => void
   onDriveRemoved: (callback: (device: string) => void) => () => void
+  onDriveUnmounted: (callback: (device: string) => void) => () => void
   onTransferProgress: (callback: (progress: any) => void) => () => void
   onTransferComplete: (callback: (data: any) => void) => () => void
   onTransferError: (callback: (error: string) => void) => () => void

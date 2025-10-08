@@ -47,6 +47,8 @@ export const useDriveStore = () => {
   const clearScan = useStore((state) => state.clearScan)
   const setExistingDrives = useStore((state) => state.setExistingDrives)
   const isExistingDrive = useStore((state) => state.isExistingDrive)
+  const markDriveAsUnmounted = useStore((state) => state.markDriveAsUnmounted)
+  const isDriveUnmounted = useStore((state) => state.isDriveUnmounted)
 
   return {
     detectedDrives,
@@ -63,7 +65,9 @@ export const useDriveStore = () => {
     setScanError,
     clearScan,
     setExistingDrives,
-    isExistingDrive
+    isExistingDrive,
+    markDriveAsUnmounted,
+    isDriveUnmounted
   }
 }
 

@@ -20,6 +20,9 @@ export interface DriveSlice extends DriveState {
   // New actions for existing drive handling
   setExistingDrives: (drives: DriveInfo[]) => void
   isExistingDrive: (device: string) => boolean
+  // Mount status actions
+  markDriveAsUnmounted: (device: string) => void
+  isDriveUnmounted: (device: string) => boolean
 }
 
 export const createDriveSlice: StateCreator<DriveSlice> = (set, get) => ({
@@ -30,6 +33,7 @@ export const createDriveSlice: StateCreator<DriveSlice> = (set, get) => ({
   scanInProgress: false,
   scanError: null,
   existingDrives: new Set<string>(), // Track drives that were present at startup
+  unmountedDrives: [], // Track drives that are unmounted but still connected
 
   // Actions
   setDetectedDrives: (drives) => set({ detectedDrives: drives }),
@@ -45,13 +49,14 @@ export const createDriveSlice: StateCreator<DriveSlice> = (set, get) => ({
 
   removeDrive: (device) =>
     set((state) => {
-      // Remove drive from existing drives set when it's physically disconnected
+      // Remove drive from all tracking when it's physically disconnected
       const newExistingDrives = new Set(state.existingDrives)
       newExistingDrives.delete(device)
 
       return {
         detectedDrives: state.detectedDrives.filter((d) => d.device !== device),
         existingDrives: newExistingDrives,
+        unmountedDrives: state.unmountedDrives.filter((d) => d !== device),
         // Clear selected drive if it was removed
         selectedDrive: state.selectedDrive?.device === device ? null : state.selectedDrive,
         // Clear scan if removed drive was selected
@@ -78,5 +83,36 @@ export const createDriveSlice: StateCreator<DriveSlice> = (set, get) => ({
   // New actions for existing drive handling
   setExistingDrives: (drives) => set({ existingDrives: new Set(drives.map((d) => d.device)) }),
 
-  isExistingDrive: (device) => get().existingDrives.has(device)
+  isExistingDrive: (device) => get().existingDrives.has(device),
+
+  // Mount status actions
+  markDriveAsUnmounted: (device) =>
+    set((state) => {
+      console.log('[driveSlice] markDriveAsUnmounted called with device:', device)
+      console.log('[driveSlice] Current state.unmountedDrives:', state.unmountedDrives)
+
+      // Only add if not already in the array
+      if (state.unmountedDrives.includes(device)) {
+        console.log('[driveSlice] Device already unmounted, skipping')
+        return state
+      }
+
+      const update = {
+        unmountedDrives: [...state.unmountedDrives, device],
+        // Deselect the drive when it's unmounted
+        selectedDrive: state.selectedDrive?.device === device ? null : state.selectedDrive,
+        // Clear scan data for unmounted drive
+        scannedFiles: state.selectedDrive?.device === device ? [] : state.scannedFiles
+      }
+
+      console.log('[driveSlice] Returning update with unmountedDrives:', update.unmountedDrives)
+
+      return update
+    }),
+
+  isDriveUnmounted: (device) => {
+    const result = get().unmountedDrives.includes(device)
+    console.log('[driveSlice] isDriveUnmounted called for:', device, 'result:', result)
+    return result
+  }
 })

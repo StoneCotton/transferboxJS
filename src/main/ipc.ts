@@ -18,6 +18,7 @@ import { createPathProcessor, type PathProcessor } from './pathProcessor'
 let driveMonitor: DriveMonitor | null = null
 let transferEngine: FileTransferEngine | null = null
 let pathProcessor: PathProcessor | null = null
+let mainWindow: Electron.BrowserWindow | null = null
 
 /**
  * Setup all IPC handlers
@@ -132,6 +133,14 @@ export function setupIpcHandlers(): void {
 
       if (success) {
         getLogger().info('Drive unmounted successfully', { device })
+
+        // Notify renderer that drive was unmounted
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          console.log('[IPC] Sending DRIVE_UNMOUNTED event for device:', device)
+          mainWindow.webContents.send(IPC_CHANNELS.DRIVE_UNMOUNTED, device)
+        } else {
+          console.warn('[IPC] Cannot send DRIVE_UNMOUNTED - mainWindow not available')
+        }
       } else {
         getLogger().warn('Failed to unmount drive', { device })
       }
@@ -457,6 +466,20 @@ export function setupIpcHandlers(): void {
                   device: request.driveInfo.device,
                   sessionId
                 })
+
+                // Notify renderer that drive was unmounted
+                if (mainWindow && !mainWindow.isDestroyed()) {
+                  console.log(
+                    '[IPC] Sending DRIVE_UNMOUNTED event for auto-unmounted device:',
+                    request.driveInfo.device
+                  )
+                  mainWindow.webContents.send(
+                    IPC_CHANNELS.DRIVE_UNMOUNTED,
+                    request.driveInfo.device
+                  )
+                } else {
+                  console.warn('[IPC] Cannot send DRIVE_UNMOUNTED - mainWindow not available')
+                }
               } else {
                 logger.warn('Failed to auto-unmount drive', {
                   device: request.driveInfo.device,
@@ -582,6 +605,9 @@ export function startDriveMonitoring(window: Electron.BrowserWindow): void {
   }
 
   driveMonitor = new DriveMonitor()
+
+  // Store window reference for unmount events
+  mainWindow = window
 
   driveMonitor
     .start({
