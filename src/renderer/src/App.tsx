@@ -14,6 +14,7 @@ import { SettingsModal } from './components/SettingsModal'
 import { ModeIndicator } from './components/ModeIndicator'
 import { LogViewer } from './components/LogViewer'
 import { HistoryViewer } from './components/HistoryViewer'
+import { ToastContainer } from './components/ui/Toast'
 import { useDriveStore, useUIStore, useTransferStore, useConfigStore } from './store'
 import { CheckCircle2, Circle, CircleDot } from 'lucide-react'
 import { cn } from './lib/utils'
@@ -41,7 +42,6 @@ function App() {
   const shouldShowTransferActions = (mode: TransferMode): boolean => {
     return mode === 'manual' || mode === 'confirm-transfer' // Show in manual and confirm modes
   }
-
 
   // Get workflow steps based on transfer mode
   const getWorkflowSteps = (mode: TransferMode) => {
@@ -203,6 +203,9 @@ function App() {
       {/* Logs and History Viewers */}
       {showLogs && <LogViewer onClose={() => closeAllModals()} />}
       {showHistory && <HistoryViewer onClose={() => closeAllModals()} />}
+
+      {/* Toast Notifications */}
+      <ToastContainer />
     </div>
   )
 }

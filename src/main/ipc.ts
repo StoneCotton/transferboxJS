@@ -6,7 +6,7 @@
 import { ipcMain, dialog } from 'electron'
 import { stat } from 'fs/promises'
 import { IPC_CHANNELS, PathValidationRequest, TransferStartRequest } from '../shared/types'
-import { validatePath } from './pathValidator'
+import { validatePath, hasEnoughSpace, checkDiskSpace } from './pathValidator'
 import { getConfig, updateConfig, resetConfig, forceMigration } from './configManager'
 import { DriveMonitor } from './driveMonitor'
 import { FileTransferEngine } from './fileTransfer'
@@ -209,6 +209,19 @@ export function setupIpcHandlers(): void {
     )
 
     const totalBytes = fileSizes.reduce((sum, size) => sum + size, 0)
+
+    // Validate sufficient disk space
+    const hasSpace = await hasEnoughSpace(request.destinationRoot, totalBytes)
+    if (!hasSpace) {
+      const spaceInfo = await checkDiskSpace(request.destinationRoot)
+      const errorMessage = `Insufficient disk space. Required: ${(totalBytes / (1024 * 1024 * 1024)).toFixed(2)} GB, Available: ${(spaceInfo.freeSpace / (1024 * 1024 * 1024)).toFixed(2)} GB`
+      getLogger().error('Pre-transfer validation failed - insufficient space', {
+        required: totalBytes,
+        available: spaceInfo.freeSpace,
+        destination: request.destinationRoot
+      })
+      throw new Error(errorMessage)
+    }
 
     // Create transfer session
     const sessionId = db.createTransferSession({

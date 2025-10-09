@@ -9,7 +9,8 @@ import {
   Clock,
   Zap,
   FileCheck,
-  HardDriveDownload
+  HardDriveDownload,
+  AlertCircle
 } from 'lucide-react'
 import { useTransferStore, useConfigStore } from '../store'
 import { Card, CardHeader, CardTitle, CardContent } from './ui/Card'
@@ -120,14 +121,61 @@ export function TransferProgress() {
       </CardHeader>
       <CardContent className="relative">
         {hasError ? (
-          <div className="rounded-xl border-2 border-red-400 bg-red-100 p-6 dark:border-red-600 dark:bg-red-900/50">
-            <div className="flex items-start gap-3">
-              <XCircle className="h-6 w-6 flex-shrink-0 text-red-600 dark:text-red-400" />
-              <div>
-                <p className="text-base font-bold text-red-900 dark:text-red-100">Error Occurred</p>
-                <p className="mt-1 text-sm text-red-700 dark:text-red-300">{error}</p>
+          <div className="space-y-4">
+            <div className="rounded-xl border-2 border-red-400 bg-red-100 p-6 dark:border-red-600 dark:bg-red-900/50">
+              <div className="flex items-start gap-3">
+                <XCircle className="h-6 w-6 flex-shrink-0 text-red-600 dark:text-red-400" />
+                <div>
+                  <p className="text-base font-bold text-red-900 dark:text-red-100">
+                    Error Occurred
+                  </p>
+                  <p className="mt-1 text-sm text-red-700 dark:text-red-300">{error}</p>
+                </div>
               </div>
             </div>
+
+            {/* Detailed Failed Files List */}
+            {progress &&
+              progress.completedFiles &&
+              progress.completedFiles.some((f) => f.status === 'error') && (
+                <div className="rounded-xl border-2 border-red-300 bg-white p-4 dark:border-red-700 dark:bg-gray-900">
+                  <h4 className="mb-3 text-sm font-semibold text-gray-900 dark:text-white">
+                    Failed Files (
+                    {progress.completedFiles.filter((f) => f.status === 'error').length})
+                  </h4>
+                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                    {progress.completedFiles
+                      .filter((f) => f.status === 'error')
+                      .map((file) => (
+                        <div
+                          key={file.sourcePath}
+                          className="rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-950/50"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="truncate font-medium text-sm text-gray-900 dark:text-white">
+                              {file.fileName}
+                            </span>
+                            {file.errorType && (
+                              <span className="ml-2 rounded-full bg-red-200 px-2 py-0.5 text-xs font-bold text-red-800 dark:bg-red-900 dark:text-red-200">
+                                {file.errorType}
+                              </span>
+                            )}
+                          </div>
+                          {file.error && (
+                            <p className="mt-1 text-xs text-red-700 dark:text-red-300">
+                              {file.error}
+                            </p>
+                          )}
+                          {file.retryCount && file.retryCount > 0 && (
+                            <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
+                              Retried {file.retryCount} time{file.retryCount > 1 ? 's' : ''}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
           </div>
         ) : (
           <div className="space-y-6">
@@ -319,6 +367,18 @@ export function TransferProgress() {
                 ))}
               </div>
             )}
+
+            {/* Large File Warning */}
+            {progress?.activeFiles &&
+              progress.activeFiles.some((file) => file.fileSize > 1024 * 1024 * 1024) && (
+                <div className="flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900 dark:bg-amber-950/50 dark:border-amber-800 dark:text-amber-100">
+                  <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                  <span>
+                    Large file detected - progress updates may be less frequent to maintain
+                    performance
+                  </span>
+                </div>
+              )}
 
             {/* Fallback: Current File Progress Bar (for backward compatibility) */}
             {progress?.currentFile &&

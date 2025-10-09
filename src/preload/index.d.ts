@@ -51,6 +51,8 @@ interface IpcApi {
   onTransferComplete: (callback: (data: any) => void) => () => void
   onTransferError: (callback: (error: string) => void) => () => void
   onLogEntry: (callback: (entry: LogEntry) => void) => () => void
+  onSystemSuspend: (callback: () => void) => () => void
+  onSystemResume: (callback: () => void) => () => void
 }
 
 declare global {

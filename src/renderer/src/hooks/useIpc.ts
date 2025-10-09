@@ -56,6 +56,8 @@ export interface IpcApi {
   onTransferComplete: (callback: (data: any) => void) => () => void
   onTransferError: (callback: (error: string) => void) => () => void
   onLogEntry: (callback: (entry: LogEntry) => void) => () => void
+  onSystemSuspend: (callback: () => void) => () => void
+  onSystemResume: (callback: () => void) => () => void
 }
 
 /**
@@ -162,6 +164,14 @@ export function useIpc(): IpcApi {
     return window.api.onLogEntry(callback)
   }, [])
 
+  const onSystemSuspend = useCallback((callback: () => void) => {
+    return window.api.onSystemSuspend(callback)
+  }, [])
+
+  const onSystemResume = useCallback((callback: () => void) => {
+    return window.api.onSystemResume(callback)
+  }, [])
+
   return {
     getConfig,
     updateConfig,
@@ -185,6 +195,8 @@ export function useIpc(): IpcApi {
     onTransferProgress,
     onTransferComplete,
     onTransferError,
-    onLogEntry
+    onLogEntry,
+    onSystemSuspend,
+    onSystemResume
   }
 }

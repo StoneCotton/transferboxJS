@@ -2,6 +2,17 @@
  * Transfer state and progress types
  */
 
+export enum TransferErrorType {
+  PERMISSION_DENIED = 'PERMISSION_DENIED',
+  INSUFFICIENT_SPACE = 'INSUFFICIENT_SPACE',
+  CHECKSUM_MISMATCH = 'CHECKSUM_MISMATCH',
+  SOURCE_NOT_FOUND = 'SOURCE_NOT_FOUND',
+  DRIVE_DISCONNECTED = 'DRIVE_DISCONNECTED',
+  NETWORK_ERROR = 'NETWORK_ERROR',
+  CANCELLED = 'CANCELLED',
+  UNKNOWN = 'UNKNOWN'
+}
+
 export type TransferStatus =
   | 'idle' // Waiting for drive
   | 'scanning' // Scanning drive for media files
@@ -23,6 +34,8 @@ export interface FileTransferInfo {
   checksum?: string
   status: 'pending' | 'transferring' | 'verifying' | 'complete' | 'error' | 'skipped'
   error?: string
+  errorType?: TransferErrorType // Categorized error type
+  retryCount?: number // How many times this file was retried
   startTime?: number
   endTime?: number
   duration?: number // Total time taken for this file in seconds

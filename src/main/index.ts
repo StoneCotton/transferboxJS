@@ -1,9 +1,12 @@
-import { app, shell, BrowserWindow } from 'electron'
+import { app, shell, BrowserWindow, powerMonitor } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/TransferBox_Icon.png?asset'
 import { setupIpcHandlers, startDriveMonitoring, cleanupIpc } from './ipc'
 import { getLogger } from './logger'
+import { cleanupOrphanedPartFiles } from './fileTransfer'
+import { getConfig } from './configManager'
+import { IPC_CHANNELS } from '../shared/types'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -59,12 +62,55 @@ function createWindow(): void {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.transferbox')
 
   // Setup IPC handlers
   setupIpcHandlers()
+
+  // Clean up orphaned .TBPART files from previous incomplete transfers
+  try {
+    const config = getConfig()
+    if (config.defaultDestination) {
+      const cleaned = await cleanupOrphanedPartFiles(config.defaultDestination)
+      if (cleaned > 0) {
+        getLogger().info('Startup cleanup completed', {
+          orphanedFiles: cleaned,
+          directory: config.defaultDestination
+        })
+      }
+    }
+  } catch (error) {
+    getLogger().warn('Startup cleanup failed', {
+      error: error instanceof Error ? error.message : String(error)
+    })
+  }
+
+  // Setup power monitoring for system sleep/hibernate detection
+  powerMonitor.on('suspend', () => {
+    getLogger().warn('System suspending - transfers may be interrupted')
+    // Send event to renderer to update UI
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send(IPC_CHANNELS.SYSTEM_SUSPEND)
+    }
+  })
+
+  powerMonitor.on('resume', () => {
+    getLogger().info('System resumed from sleep')
+    // Send event to renderer to update UI
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send(IPC_CHANNELS.SYSTEM_RESUME)
+    }
+  })
+
+  powerMonitor.on('lock-screen', () => {
+    getLogger().info('Screen locked')
+  })
+
+  powerMonitor.on('unlock-screen', () => {
+    getLogger().info('Screen unlocked')
+  })
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.

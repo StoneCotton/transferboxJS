@@ -54,6 +54,7 @@ describe('Logger', () => {
     })
 
     it('should log debug messages', () => {
+      logger.setLevel('debug') // Set level to debug first
       logger.debug('Test debug')
 
       const logs = logger.getRecent(10)
@@ -106,6 +107,8 @@ describe('Logger', () => {
 
   describe('Log Retrieval', () => {
     beforeEach(() => {
+      // Set level to debug to ensure all logs are captured
+      logger.setLevel('debug')
       // Add multiple logs
       logger.info('Log 1')
       logger.warn('Log 2')

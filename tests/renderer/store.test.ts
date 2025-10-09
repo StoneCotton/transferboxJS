@@ -192,7 +192,7 @@ describe('Store', () => {
     })
 
     it('should set loading state', () => {
-      store.getState().setLoading(true)
+      store.getState().setConfigLoading(true)
 
       expect(store.getState().isLoading).toBe(true)
     })

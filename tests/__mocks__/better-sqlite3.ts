@@ -25,24 +25,82 @@ class MockStatement {
       const tableName = this.extractTableName(sqlLower, 'insert')
       if (tableName) {
         // Extract column names from INSERT statement
-        const columnsMatch = this.sql.match(/\((.*?)\)\s+VALUES/i)
-        const columns = columnsMatch ? columnsMatch[1].split(',').map((c) => c.trim()) : []
+        // Handle multiline and complex formatting
+        const columnsMatch = this.sql.match(/INSERT\s+INTO\s+\w+\s*\(([\s\S]*?)\)\s+VALUES/i)
+        const columns = columnsMatch
+          ? columnsMatch[1].split(',').map((c) => c.trim().replace(/\s+/g, ' '))
+          : []
 
         // Create row with params mapped to columns
         const row: MockRow = {}
         columns.forEach((col, index) => {
-          row[col] = params[index]
+          if (params[index] !== undefined) {
+            row[col] = params[index]
+          }
         })
 
         this.db.addRow(tableName, row)
       }
       return { changes: 1, lastInsertRowid: Date.now() }
     } else if (sqlLower.includes('update')) {
+      const tableName = this.extractTableName(sqlLower, 'update')
+      if (tableName) {
+        // Simple UPDATE simulation - update first row that matches WHERE
+        const data = this.db.getTableData(tableName)
+        if (data.length > 0) {
+          // Parse SET clause
+          const setMatch = this.sql.match(/SET\s+([\s\S]+?)(?:WHERE|$)/i)
+          if (setMatch) {
+            const setPairs = setMatch[1].split(',')
+            let paramIndex = 0
+
+            setPairs.forEach((pair) => {
+              const [col] = pair.split('=').map((s) => s.trim())
+              if (col && params[paramIndex] !== undefined) {
+                data[0][col] = params[paramIndex]
+                paramIndex++
+              }
+            })
+          }
+        }
+      }
       return { changes: 1, lastInsertRowid: 0 }
     } else if (sqlLower.includes('delete')) {
       const tableName = this.extractTableName(sqlLower, 'delete')
       if (tableName) {
-        const beforeCount = this.db.getTableData(tableName).length
+        const data = this.db.getTableData(tableName)
+        const beforeCount = data.length
+
+        // Handle WHERE clause for conditional deletes
+        if (sqlLower.includes('where') && params.length > 0) {
+          // Handle comparisons like "WHERE start_time < ?"
+          const whereMatch = this.sql.match(/where\s+(\w+)\s*(<|>|=)\s*\?/i)
+          if (whereMatch) {
+            const columnName = whereMatch[1]
+            const operator = whereMatch[2]
+            const compareValue = params[0]
+
+            // Filter and keep only rows that DON'T match the delete condition
+            const kept = data.filter((row) => {
+              const value = row[columnName]
+              switch (operator) {
+                case '<':
+                  return !(value < compareValue)
+                case '>':
+                  return !(value > compareValue)
+                case '=':
+                  return !(value === compareValue)
+                default:
+                  return true
+              }
+            })
+
+            this.db._setMockData(tableName, kept)
+            return { changes: beforeCount - kept.length, lastInsertRowid: 0 }
+          }
+        }
+
+        // No WHERE clause - delete all
         this.db.clearTable(tableName)
         return { changes: beforeCount, lastInsertRowid: 0 }
       }
@@ -53,12 +111,28 @@ class MockStatement {
   }
 
   get(...params: any[]): MockRow | undefined {
-    // Return first row or undefined
+    // Return first row matching WHERE clause or undefined
     const sqlLower = this.sql.toLowerCase()
     const tableName = this.extractTableName(sqlLower, 'select')
 
     if (tableName) {
       const data = this.db.getTableData(tableName)
+
+      // Handle WHERE clause if present
+      if (sqlLower.includes('where') && params.length > 0) {
+        // Extract column name from WHERE clause (e.g., "WHERE id = ?" -> "id")
+        const whereMatch = this.sql.match(/where\s+(\w+)\s*=\s*\?/i)
+        if (whereMatch) {
+          const columnName = whereMatch[1]
+          const searchValue = params[0]
+
+          // Find matching row
+          const found = data.find((row) => row[columnName] === searchValue)
+          return found
+        }
+      }
+
+      // Return first row if no WHERE clause
       return data.length > 0 ? data[0] : undefined
     }
 
@@ -66,12 +140,73 @@ class MockStatement {
   }
 
   all(...params: any[]): MockRow[] {
-    // Return all rows
+    // Return all rows matching WHERE clause
     const sqlLower = this.sql.toLowerCase()
     const tableName = this.extractTableName(sqlLower, 'select')
 
     if (tableName) {
-      return this.db.getTableData(tableName)
+      let data = this.db.getTableData(tableName)
+      let paramIndex = 0
+
+      // Handle WHERE clause if present
+      if (sqlLower.includes('where')) {
+        // Handle date range queries first (WHERE timestamp >= ? AND timestamp <= ?)
+        const rangeMatch = this.sql.match(/where\s+(\w+)\s*>=\s*\?\s+and\s+\1\s*<=\s*\?/i)
+        if (
+          rangeMatch &&
+          params[paramIndex] !== undefined &&
+          params[paramIndex + 1] !== undefined
+        ) {
+          const columnName = rangeMatch[1]
+          const startValue = params[paramIndex]
+          const endValue = params[paramIndex + 1]
+          data = data.filter((row) => row[columnName] >= startValue && row[columnName] <= endValue)
+          paramIndex += 2
+        } else {
+          // Handle multiple WHERE conditions with AND
+          const whereConditions = this.sql.match(/where\s+([\s\S]+?)(?:order by|limit|$)/i)
+          if (whereConditions) {
+            const conditions = whereConditions[1].split(/\s+and\s+/i)
+
+            conditions.forEach((condition) => {
+              const condMatch = condition.match(/(\w+)\s*=\s*\?/)
+              if (condMatch && params[paramIndex] !== undefined) {
+                const columnName = condMatch[1]
+                const searchValue = params[paramIndex]
+                data = data.filter((row) => row[columnName] === searchValue)
+                paramIndex++
+              }
+            })
+          }
+        }
+      }
+
+      // Handle ORDER BY DESC (most recent first)
+      if (sqlLower.includes('order by') && sqlLower.includes('desc')) {
+        const orderMatch = this.sql.match(/order\s+by\s+(\w+)\s+desc/i)
+        if (orderMatch) {
+          const columnName = orderMatch[1]
+          data = [...data].sort((a, b) => {
+            const aVal = a[columnName] || 0
+            const bVal = b[columnName] || 0
+            // If values are equal, use insertion order (higher insertion order = more recent)
+            if (aVal === bVal) {
+              return (b._insertionOrder || 0) - (a._insertionOrder || 0)
+            }
+            return bVal - aVal // DESC order
+          })
+        }
+      }
+
+      // Handle LIMIT - the limit param is after WHERE params
+      if (sqlLower.includes('limit')) {
+        const limitValue = params[paramIndex]
+        if (typeof limitValue === 'number' && limitValue > 0) {
+          data = data.slice(0, limitValue)
+        }
+      }
+
+      return data
     }
 
     return []
@@ -93,9 +228,10 @@ class MockStatement {
 class MockDatabase {
   private tables = new Map<string, MockRow[]>()
   private isOpen = true
+  private insertionCounter = 0 // Track insertion order
   private pragmaSettings = {
-    journal_mode: 'delete',
-    foreign_keys: 0
+    journal_mode: 'WAL', // Default to WAL mode
+    foreign_keys: 1 // Default foreign keys enabled
   }
 
   constructor(filename: string, options?: any) {
@@ -166,6 +302,8 @@ class MockDatabase {
     if (!this.tables.has(tableName)) {
       this.tables.set(tableName, [])
     }
+    // Add insertion order for sorting stability
+    row._insertionOrder = this.insertionCounter++
     this.tables.get(tableName)!.push(row)
   }
 

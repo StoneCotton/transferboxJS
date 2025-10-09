@@ -4,8 +4,11 @@
  */
 
 import { createReadStream, createWriteStream } from 'fs'
-import { stat, mkdir, rename, unlink, chmod, access, constants } from 'fs/promises'
+import { stat, mkdir, rename, unlink, chmod, access, constants, readdir } from 'fs/promises'
 import * as path from 'path'
+import { TransferError, wrapError } from './errors/TransferError'
+import { TransferErrorType } from '../shared/types'
+import { getLogger } from './logger'
 
 export interface TransferProgress {
   bytesTransferred: number
@@ -20,6 +23,8 @@ export interface TransferOptions {
   overwrite?: boolean // Allow overwriting existing files
   continueOnError?: boolean // Continue batch transfer on error
   preservePermissions?: boolean // Preserve file permissions (default: true)
+  maxRetries?: number // Maximum retry attempts (default: 3)
+  retryDelay?: number // Delay between retries in ms (default: 1000)
   onProgress?: (progress: TransferProgress) => void
   onBatchProgress?: (completed: number, total: number) => void
   onChecksumProgress?: (
@@ -40,6 +45,8 @@ export interface TransferResult {
   sourceChecksum?: string
   destChecksum?: string
   error?: string
+  errorType?: TransferErrorType
+  skipped?: boolean
   duration: number // milliseconds
 }
 
@@ -52,6 +59,26 @@ const DEFAULT_BUFFER_SIZE = 4 * 1024 * 1024 // 4MB - optimized for modern SSDs
 export class FileTransferEngine {
   private stopped = false
   private currentTransfer: { abort: () => void } | null = null
+
+  /**
+   * Calculate optimal progress reporting throttle based on file size
+   * Larger files get less frequent updates to prevent UI lag
+   */
+  private calculateProgressThrottle(fileSize: number): { interval: number; minBytes: number } {
+    if (fileSize < 100 * 1024 * 1024) {
+      // < 100MB
+      return { interval: 200, minBytes: 2 * 1024 * 1024 } // 200ms, 2MB
+    } else if (fileSize < 1024 * 1024 * 1024) {
+      // < 1GB
+      return { interval: 500, minBytes: 10 * 1024 * 1024 } // 500ms, 10MB
+    } else if (fileSize < 10 * 1024 * 1024 * 1024) {
+      // < 10GB
+      return { interval: 1000, minBytes: 50 * 1024 * 1024 } // 1s, 50MB
+    } else {
+      // >= 10GB
+      return { interval: 2000, minBytes: 100 * 1024 * 1024 } // 2s, 100MB
+    }
+  }
 
   /**
    * Transfer a single file with atomic operations
@@ -119,7 +146,7 @@ export class FileTransferEngine {
         result.destChecksum = destChecksum
 
         if (sourceChecksum !== destChecksum) {
-          throw new Error('Checksum verification failed')
+          throw TransferError.fromChecksumMismatch(sourceChecksum, destChecksum)
         }
 
         result.checksumVerified = true
@@ -140,7 +167,9 @@ export class FileTransferEngine {
 
       result.success = true
     } catch (error) {
-      result.error = error instanceof Error ? error.message : 'Unknown error'
+      const transferError = wrapError(error)
+      result.error = transferError.message
+      result.errorType = transferError.errorType
 
       // Cleanup .TBPART file on error
       try {
@@ -149,7 +178,7 @@ export class FileTransferEngine {
         // Ignore cleanup errors
       }
 
-      throw error
+      throw transferError
     } finally {
       result.duration = Date.now() - startTime
       this.currentTransfer = null
@@ -334,13 +363,15 @@ export class FileTransferEngine {
           const endTime = Date.now()
           const duration = startTime ? (endTime - startTime) / 1000 : 0 // seconds
 
+          const transferError = wrapError(error)
           const errorResult: TransferResult = {
             success: false,
             sourcePath: file.source,
             destPath: file.dest,
             bytesTransferred: 0,
             checksumVerified: false,
-            error: error instanceof Error ? error.message : 'Unknown error',
+            error: transferError.message,
+            errorType: transferError.errorType,
             duration: duration * 1000 // Convert to milliseconds for consistency
           }
 
@@ -426,8 +457,10 @@ export class FileTransferEngine {
       let bytesTransferred = 0
       let lastProgressTime = Date.now()
       let lastBytesTransferred = 0
-      const PROGRESS_INTERVAL = 200 // Report progress every 200ms
-      const MIN_BYTES_FOR_PROGRESS = 2 * 1024 * 1024 // Report every 2MB minimum
+
+      // Dynamic throttling based on file size
+      const { interval: PROGRESS_INTERVAL, minBytes: MIN_BYTES_FOR_PROGRESS } =
+        this.calculateProgressThrottle(totalBytes)
 
       // Import XXHash64 for streaming checksum
       const { XXHash64 } = require('xxhash-addon') // eslint-disable-line @typescript-eslint/no-require-imports
@@ -461,6 +494,14 @@ export class FileTransferEngine {
         const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
         bytesTransferred += buf.length
 
+        // Detect if we're reading more than file size (corruption indicator)
+        if (bytesTransferred > totalBytes) {
+          readStream.destroy()
+          writeStream.destroy()
+          reject(TransferError.fromValidation('File size mismatch - possible source corruption'))
+          return
+        }
+
         // Update both hashers with the same data
         sourceHasher.update(buf)
         destHasher.update(buf)
@@ -490,12 +531,26 @@ export class FileTransferEngine {
 
       readStream.on('error', (error) => {
         writeStream.destroy()
-        reject(new Error(`Read error: ${error.message}`))
+        const nodeError = error as NodeJS.ErrnoException
+        reject(TransferError.fromNodeError(nodeError))
       })
 
       writeStream.on('error', (error) => {
         readStream.destroy()
-        reject(new Error(`Write error: ${error.message}`))
+        const nodeError = error as NodeJS.ErrnoException
+        reject(TransferError.fromNodeError(nodeError))
+      })
+
+      readStream.on('end', () => {
+        // Verify we read exactly what we expected
+        if (bytesTransferred !== totalBytes) {
+          writeStream.destroy()
+          reject(
+            TransferError.fromValidation(
+              `Incomplete read: expected ${totalBytes} bytes, got ${bytesTransferred} bytes`
+            )
+          )
+        }
       })
 
       writeStream.on('finish', () => {
@@ -534,8 +589,10 @@ export class FileTransferEngine {
       let bytesTransferred = 0
       let lastProgressTime = Date.now()
       let lastBytesTransferred = 0
-      const PROGRESS_INTERVAL = 200 // Report progress every 200ms
-      const MIN_BYTES_FOR_PROGRESS = 2 * 1024 * 1024 // Report every 2MB minimum
+
+      // Dynamic throttling based on file size
+      const { interval: PROGRESS_INTERVAL, minBytes: MIN_BYTES_FOR_PROGRESS } =
+        this.calculateProgressThrottle(totalBytes)
 
       const readStream = createReadStream(sourcePath, {
         highWaterMark: bufferSize
@@ -563,6 +620,14 @@ export class FileTransferEngine {
         const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
         bytesTransferred += buf.length
 
+        // Detect if we're reading more than file size (corruption indicator)
+        if (bytesTransferred > totalBytes) {
+          readStream.destroy()
+          writeStream.destroy()
+          reject(TransferError.fromValidation('File size mismatch - possible source corruption'))
+          return
+        }
+
         // Report progress only if enough time has passed AND enough bytes transferred
         if (options?.onProgress) {
           const now = Date.now()
@@ -588,12 +653,26 @@ export class FileTransferEngine {
 
       readStream.on('error', (error) => {
         writeStream.destroy()
-        reject(new Error(`Read error: ${error.message}`))
+        const nodeError = error as NodeJS.ErrnoException
+        reject(TransferError.fromNodeError(nodeError))
       })
 
       writeStream.on('error', (error) => {
         readStream.destroy()
-        reject(new Error(`Write error: ${error.message}`))
+        const nodeError = error as NodeJS.ErrnoException
+        reject(TransferError.fromNodeError(nodeError))
+      })
+
+      readStream.on('end', () => {
+        // Verify we read exactly what we expected
+        if (bytesTransferred !== totalBytes) {
+          writeStream.destroy()
+          reject(
+            TransferError.fromValidation(
+              `Incomplete read: expected ${totalBytes} bytes, got ${bytesTransferred} bytes`
+            )
+          )
+        }
       })
 
       writeStream.on('finish', () => {
@@ -635,4 +714,77 @@ export async function transferFiles(
 ): Promise<TransferResult[]> {
   const engine = new FileTransferEngine()
   return engine.transferFiles(files, options)
+}
+
+/**
+ * Clean up orphaned .TBPART files in a directory
+ * These are partial files left over from failed or interrupted transfers
+ */
+export async function cleanupOrphanedPartFiles(directory: string): Promise<number> {
+  const logger = getLogger()
+  let cleaned = 0
+
+  try {
+    // Check if directory exists
+    await access(directory, constants.R_OK)
+
+    // Recursively scan for .TBPART files
+    const partFiles = await findPartFiles(directory)
+
+    for (const file of partFiles) {
+      try {
+        await unlink(file)
+        cleaned++
+        logger.info('Cleaned orphaned .TBPART file', { path: file })
+      } catch (error) {
+        logger.warn('Failed to clean .TBPART file', {
+          file,
+          error: error instanceof Error ? error.message : String(error)
+        })
+      }
+    }
+
+    if (cleaned > 0) {
+      logger.info('Cleanup complete', { count: cleaned, directory })
+    }
+  } catch (error) {
+    logger.error('Failed to cleanup orphaned files', {
+      directory,
+      error: error instanceof Error ? error.message : String(error)
+    })
+  }
+
+  return cleaned
+}
+
+/**
+ * Recursively find .TBPART files in a directory
+ */
+async function findPartFiles(dirPath: string): Promise<string[]> {
+  const partFiles: string[] = []
+
+  try {
+    const entries = await readdir(dirPath, { withFileTypes: true })
+
+    for (const entry of entries) {
+      const fullPath = path.join(dirPath, entry.name)
+
+      try {
+        if (entry.isDirectory()) {
+          // Recursively scan subdirectories
+          const subFiles = await findPartFiles(fullPath)
+          partFiles.push(...subFiles)
+        } else if (entry.isFile() && entry.name.endsWith('.TBPART')) {
+          partFiles.push(fullPath)
+        }
+      } catch {
+        // Skip files/directories that can't be accessed
+        continue
+      }
+    }
+  } catch {
+    // Skip directories that can't be accessed
+  }
+
+  return partFiles
 }

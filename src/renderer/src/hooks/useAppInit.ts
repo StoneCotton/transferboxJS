@@ -12,6 +12,7 @@ import {
   playSuccessSound,
   cleanupSoundManager
 } from '../utils/soundManager'
+import { TransferErrorType } from '../../../shared/types'
 
 /**
  * Hook to initialize the app
@@ -27,13 +28,15 @@ export function useAppInit(): null {
     // Load initial configuration
     const loadConfig = async (): Promise<void> => {
       const store = useStore.getState()
-      store.setLoading(true)
+      store.setConfigLoading(true)
       try {
         const config = await ipc.getConfig()
         store.setConfig(config)
       } catch (error) {
         console.error('Failed to load config:', error)
-        store.setError(error instanceof Error ? error.message : 'Failed to load configuration')
+        store.setConfigError(
+          error instanceof Error ? error.message : 'Failed to load configuration'
+        )
       }
     }
 
@@ -224,7 +227,31 @@ export function useAppInit(): null {
     })
 
     const unsubTransferProgress = ipc.onTransferProgress((progress) => {
-      useStore.getState().updateProgress(progress)
+      const store = useStore.getState()
+      store.updateProgress(progress)
+
+      // Track file-level errors from completed files
+      if (progress.completedFiles) {
+        progress.completedFiles.forEach((file) => {
+          if (file.status === 'error' && file.errorType) {
+            store.setFileError(file.sourcePath, file.error || 'Unknown error', file.errorType)
+
+            // Add to error list if critical
+            if (
+              [
+                TransferErrorType.INSUFFICIENT_SPACE,
+                TransferErrorType.DRIVE_DISCONNECTED,
+                TransferErrorType.PERMISSION_DENIED
+              ].includes(file.errorType)
+            ) {
+              store.addTransferError(file.error || 'Transfer error', file.errorType, {
+                filename: file.fileName,
+                path: file.sourcePath
+              })
+            }
+          }
+        })
+      }
     })
 
     const unsubTransferComplete = ipc.onTransferComplete((data) => {
@@ -253,7 +280,19 @@ export function useAppInit(): null {
 
     const unsubTransferError = ipc.onTransferError((error) => {
       console.error('Transfer error:', error)
-      useStore.getState().failTransfer(error)
+      const store = useStore.getState()
+
+      // Try to categorize error from message
+      const errorType = categorizeErrorFromMessage(error)
+      store.failTransfer(error, errorType || undefined)
+
+      if (errorType) {
+        store.setErrorDetails({
+          type: errorType,
+          retryable: isErrorRetryable(errorType),
+          affectedFiles: []
+        })
+      }
 
       // Play error sound when transfer fails
       console.log('[SoundManager] Transfer failed - playing error sound')
@@ -262,6 +301,35 @@ export function useAppInit(): null {
 
     const unsubLogEntry = ipc.onLogEntry((entry) => {
       useStore.getState().addLog(entry)
+    })
+
+    const unsubSystemSuspend = ipc.onSystemSuspend(() => {
+      console.log('[useAppInit] System suspending')
+      const store = useStore.getState()
+      store.setSystemSleeping(true)
+
+      // Show warning if transfer is active
+      if (store.isTransferring) {
+        console.log('[useAppInit] Transfer active during suspend - warning user')
+        store.addToast({
+          type: 'warning',
+          message: 'System is suspending - transfer may be interrupted',
+          duration: 5000
+        })
+      }
+    })
+
+    const unsubSystemResume = ipc.onSystemResume(() => {
+      console.log('[useAppInit] System resumed')
+      const store = useStore.getState()
+      store.setSystemSleeping(false)
+
+      // Notify user that system resumed
+      store.addToast({
+        type: 'info',
+        message: 'System resumed - checking transfer status',
+        duration: 5000
+      })
     })
 
     // Cleanup on unmount
@@ -273,10 +341,59 @@ export function useAppInit(): null {
       unsubTransferComplete()
       unsubTransferError()
       unsubLogEntry()
+      unsubSystemSuspend()
+      unsubSystemResume()
       cleanupSoundManager()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []) // Only run once on mount
 
   return null
+}
+
+/**
+ * Helper function to categorize errors from error messages
+ */
+function categorizeErrorFromMessage(message: string): TransferErrorType | null {
+  const lowerMessage = message.toLowerCase()
+
+  if (lowerMessage.includes('space') || lowerMessage.includes('enospc')) {
+    return TransferErrorType.INSUFFICIENT_SPACE
+  }
+  if (
+    lowerMessage.includes('permission') ||
+    lowerMessage.includes('eacces') ||
+    lowerMessage.includes('eperm')
+  ) {
+    return TransferErrorType.PERMISSION_DENIED
+  }
+  if (lowerMessage.includes('checksum')) {
+    return TransferErrorType.CHECKSUM_MISMATCH
+  }
+  if (
+    lowerMessage.includes('disconnected') ||
+    lowerMessage.includes('enoent') ||
+    lowerMessage.includes('eio')
+  ) {
+    return TransferErrorType.DRIVE_DISCONNECTED
+  }
+  if (
+    lowerMessage.includes('network') ||
+    lowerMessage.includes('etimedout') ||
+    lowerMessage.includes('econnreset')
+  ) {
+    return TransferErrorType.NETWORK_ERROR
+  }
+  if (lowerMessage.includes('cancel')) {
+    return TransferErrorType.CANCELLED
+  }
+
+  return null
+}
+
+/**
+ * Helper function to determine if an error type is retryable
+ */
+function isErrorRetryable(errorType: TransferErrorType): boolean {
+  return errorType === TransferErrorType.NETWORK_ERROR
 }

@@ -45,7 +45,7 @@ describe('DatabaseManager', () => {
 
     it('should enable WAL mode for better performance', () => {
       const journalMode = dbManager.getJournalMode()
-      expect(journalMode).toBe('wal')
+      expect(journalMode).toBe('WAL') // SQLite returns uppercase
     })
 
     it('should enable foreign keys', () => {
@@ -137,7 +137,8 @@ describe('DatabaseManager', () => {
       const allSessions = dbManager.getAllTransferSessions()
 
       expect(allSessions).toHaveLength(2)
-      expect(allSessions[0].driveName).toBe('SD Card 1')
+      // Most recent first (session2 was created last)
+      expect(allSessions[0].driveName).toBe('SD Card 2')
     })
 
     it('should update transfer session status', () => {

@@ -4,13 +4,14 @@
  */
 
 import * as drivelist from 'drivelist'
-import { readdir, stat } from 'fs/promises'
+import { readdir, stat, lstat } from 'fs/promises'
 import * as path from 'path'
 import { exec } from 'child_process'
 import { promisify } from 'util'
 import { DriveInfo, DriveStats, ScannedMedia } from '../shared/types'
 import { getConfig } from './configManager'
 import { checkDiskSpace } from './pathValidator'
+import { getLogger } from './logger'
 
 const execAsync = promisify(exec)
 
@@ -234,11 +235,13 @@ export class DriveMonitor {
 
   /**
    * Recursively scan directory for media files
+   * Skips symlinks and special files to prevent loops and errors
    */
   private async scanDirectory(
     dirPath: string,
     files: string[],
-    mediaExtensions: string[]
+    mediaExtensions: string[],
+    visitedInodes = new Set<string>()
   ): Promise<void> {
     try {
       const entries = await readdir(dirPath, { withFileTypes: true })
@@ -247,11 +250,45 @@ export class DriveMonitor {
         const fullPath = path.join(dirPath, entry.name)
 
         try {
-          if (entry.isDirectory()) {
+          // Use lstat to not follow symlinks
+          const stats = await lstat(fullPath)
+
+          // Skip symlinks to prevent infinite loops
+          if (stats.isSymbolicLink()) {
+            getLogger().debug('Skipping symlink during scan', { path: fullPath })
+            continue
+          }
+
+          // Skip special files (devices, pipes, sockets)
+          if (!stats.isFile() && !stats.isDirectory()) {
+            getLogger().debug('Skipping special file during scan', {
+              path: fullPath,
+              type: stats.isBlockDevice()
+                ? 'block-device'
+                : stats.isCharacterDevice()
+                  ? 'char-device'
+                  : stats.isFIFO()
+                    ? 'pipe'
+                    : stats.isSocket()
+                      ? 'socket'
+                      : 'unknown'
+            })
+            continue
+          }
+
+          // Track visited inodes to prevent loops with hard links
+          const inode = `${stats.dev}:${stats.ino}`
+          if (visitedInodes.has(inode)) {
+            getLogger().debug('Skipping already visited inode', { path: fullPath })
+            continue
+          }
+          visitedInodes.add(inode)
+
+          if (stats.isDirectory()) {
             // Recursively scan subdirectory
             console.log('[DriveMonitor] Scanning subdirectory:', fullPath)
-            await this.scanDirectory(fullPath, files, mediaExtensions)
-          } else if (entry.isFile()) {
+            await this.scanDirectory(fullPath, files, mediaExtensions, visitedInodes)
+          } else if (stats.isFile()) {
             // Check if file has media extension
             const ext = path.extname(entry.name).toLowerCase()
             if (mediaExtensions.includes(ext)) {
@@ -294,8 +331,12 @@ export class DriveMonitor {
     }
 
     // Only include drives that are explicitly USB, card-based, or have mountable interfaces
-    return drive.isUSB || drive.isCard || drive.isUAS || 
-           (drive.busType && !['SATA', 'ATA', 'SCSI'].includes(drive.busType))
+    return (
+      drive.isUSB ||
+      drive.isCard ||
+      drive.isUAS ||
+      (drive.busType && !['SATA', 'ATA', 'SCSI'].includes(drive.busType))
+    )
   }
 
   /**

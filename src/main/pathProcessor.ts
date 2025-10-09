@@ -6,6 +6,8 @@
 import { stat } from 'fs/promises'
 import * as path from 'path'
 import type { AppConfig } from '../shared/types'
+import { FilenameUtils } from './utils/filenameUtils'
+import { getLogger } from './logger'
 
 /**
  * Interface for file information needed for processing
@@ -38,9 +40,11 @@ export interface ProcessedPath {
  */
 export class PathProcessor {
   private config: AppConfig
+  private filenameUtils: FilenameUtils
 
   constructor(config: AppConfig) {
     this.config = config
+    this.filenameUtils = new FilenameUtils()
   }
 
   /**
@@ -140,6 +144,17 @@ export class PathProcessor {
           this.config.filenameTemplate.replace('{original}', '').replace('{timestamp}', timestamp) +
           fileInfo.extension
       }
+    }
+
+    // Sanitize filename for cross-platform compatibility
+    const originalFilename = fileName
+    fileName = this.filenameUtils.sanitize(fileName)
+
+    if (originalFilename !== fileName) {
+      getLogger().warn('Filename sanitized for cross-platform compatibility', {
+        original: originalFilename,
+        sanitized: fileName
+      })
     }
 
     return fileName

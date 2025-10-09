@@ -565,13 +565,9 @@ export class DatabaseManager {
    * Get database statistics
    */
   getDatabaseStats(): DatabaseStats {
-    const sessions = this.db.prepare('SELECT COUNT(*) as count FROM transfer_sessions').get() as {
-      count: number
-    }
-    const files = this.db.prepare('SELECT COUNT(*) as count FROM transfer_files').get() as {
-      count: number
-    }
-    const logs = this.db.prepare('SELECT COUNT(*) as count FROM logs').get() as { count: number }
+    const sessions = this.db.prepare('SELECT COUNT(*) as count FROM transfer_sessions').get() as any
+    const files = this.db.prepare('SELECT COUNT(*) as count FROM transfer_files').get() as any
+    const logs = this.db.prepare('SELECT COUNT(*) as count FROM logs').get() as any
 
     // Get database file size
     let dbSize = 0
@@ -583,9 +579,9 @@ export class DatabaseManager {
     }
 
     return {
-      totalSessions: sessions.count,
-      totalFiles: files.count,
-      totalLogs: logs.count,
+      totalSessions: sessions?.count || 0,
+      totalFiles: files?.count || 0,
+      totalLogs: logs?.count || 0,
       databaseSize: dbSize
     }
   }

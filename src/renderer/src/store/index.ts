@@ -10,9 +10,10 @@ import { createTransferSlice, type TransferSlice } from './slices/transferSlice'
 import { createConfigSlice, type ConfigSlice } from './slices/configSlice'
 import { createLogSlice, type LogSlice } from './slices/logSlice'
 import { createUISlice, type UISlice } from './slices/uiSlice'
+import { createErrorSlice, type ErrorSlice } from './slices/errorSlice'
 
 // Combined store type
-export type AppStore = DriveSlice & TransferSlice & ConfigSlice & LogSlice & UISlice
+export type AppStore = DriveSlice & TransferSlice & ConfigSlice & LogSlice & UISlice & ErrorSlice
 
 // Create the store
 export const useStore = create<AppStore>()(
@@ -22,7 +23,8 @@ export const useStore = create<AppStore>()(
       ...createTransferSlice(...args),
       ...createConfigSlice(...args),
       ...createLogSlice(...args),
-      ...createUISlice(...args)
+      ...createUISlice(...args),
+      ...createErrorSlice(...args)
     }),
     {
       name: 'TransferBox Store'
@@ -109,8 +111,8 @@ export const useConfigStore = () => {
   const error = useStore((state) => state.error)
   const setConfig = useStore((state) => state.setConfig)
   const updateConfig = useStore((state) => state.updateConfig)
-  const setLoading = useStore((state) => state.setLoading)
-  const setError = useStore((state) => state.setError)
+  const setConfigLoading = useStore((state) => state.setConfigLoading)
+  const setConfigError = useStore((state) => state.setConfigError)
 
   return {
     config,
@@ -118,8 +120,8 @@ export const useConfigStore = () => {
     error,
     setConfig,
     updateConfig,
-    setLoading,
-    setError
+    setConfigLoading,
+    setConfigError
   }
 }
 

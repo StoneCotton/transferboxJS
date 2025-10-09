@@ -46,6 +46,8 @@ export const IPC_CHANNELS = {
 
   // System
   SYSTEM_SHUTDOWN: 'system:shutdown',
+  SYSTEM_SUSPEND: 'system:suspend', // Event from main to renderer
+  SYSTEM_RESUME: 'system:resume', // Event from main to renderer
   APP_VERSION: 'app:version'
 } as const
 
@@ -116,4 +118,6 @@ export interface IpcEvents {
   [IPC_CHANNELS.TRANSFER_COMPLETE]: (session: TransferSession) => void
   [IPC_CHANNELS.TRANSFER_ERROR]: (error: string) => void
   [IPC_CHANNELS.LOG_ENTRY]: (entry: LogEntry) => void
+  [IPC_CHANNELS.SYSTEM_SUSPEND]: () => void
+  [IPC_CHANNELS.SYSTEM_RESUME]: () => void
 }

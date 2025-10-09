@@ -70,6 +70,16 @@ const api = {
     const listener = (_event: any, entry: any) => callback(entry)
     ipcRenderer.on(IPC_CHANNELS.LOG_ENTRY, listener)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.LOG_ENTRY, listener)
+  },
+  onSystemSuspend: (callback: () => void) => {
+    const listener = () => callback()
+    ipcRenderer.on(IPC_CHANNELS.SYSTEM_SUSPEND, listener)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.SYSTEM_SUSPEND, listener)
+  },
+  onSystemResume: (callback: () => void) => {
+    const listener = () => callback()
+    ipcRenderer.on(IPC_CHANNELS.SYSTEM_RESUME, listener)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.SYSTEM_RESUME, listener)
   }
 }
 

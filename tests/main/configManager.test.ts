@@ -38,8 +38,8 @@ describe('ConfigManager', () => {
     it('should initialize with default config', () => {
       const config = configManager.getConfig()
 
-      expect(config.transferMode).toBe('manual')
-      expect(config.folderStructure).toBe('date-based')
+      expect(config.transferMode).toBe('auto-transfer')
+      expect(config.folderStructure).toBe('preserve-source')
       expect(config.verifyChecksums).toBe(true)
       expect(config.checksumAlgorithm).toBe('xxhash64')
     })
@@ -48,7 +48,7 @@ describe('ConfigManager', () => {
       const config = configManager.getConfig()
 
       expect(config).toBeDefined()
-      expect(config.transferMode).toBe('manual')
+      expect(config.transferMode).toBe('auto-transfer')
       expect(config.mediaExtensions).toContain('.mp4')
       expect(config.bufferSize).toBeGreaterThan(0)
     })
@@ -59,7 +59,7 @@ describe('ConfigManager', () => {
       const config = configManager.getConfig()
       expect(config.transferMode).toBe('fully-autonomous')
       // Other values should remain default
-      expect(config.folderStructure).toBe('date-based')
+      expect(config.folderStructure).toBe('preserve-source')
     })
 
     it('should update multiple config values', () => {
@@ -94,8 +94,8 @@ describe('ConfigManager', () => {
       configManager.resetConfig()
       const config = configManager.getConfig()
 
-      expect(config.transferMode).toBe('manual')
-      expect(config.folderStructure).toBe('date-based')
+      expect(config.transferMode).toBe('auto-transfer')
+      expect(config.folderStructure).toBe('preserve-source')
     })
 
     it('should validate config before updating', () => {
@@ -144,7 +144,7 @@ describe('ConfigManager', () => {
       updateConfig({ transferMode: 'fully-autonomous' })
       resetConfig()
       const config = getConfig()
-      expect(config.transferMode).toBe('manual')
+      expect(config.transferMode).toBe('auto-transfer')
     })
   })
 

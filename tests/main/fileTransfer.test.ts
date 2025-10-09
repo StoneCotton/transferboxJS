@@ -309,16 +309,16 @@ describe('FileTransferEngine', () => {
       const sourceFile = path.join(sourceDir, 'large-file.bin')
       const destFile = path.join(destDir, 'large-file.bin')
 
-      // Create a large file (10MB)
-      const buffer = Buffer.alloc(10 * 1024 * 1024, 'x')
+      // Create a large file (50MB to ensure transfer takes some time)
+      const buffer = Buffer.alloc(50 * 1024 * 1024, 'x')
       await fs.writeFile(sourceFile, buffer)
 
       const transferPromise = engine.transferFile(sourceFile, destFile)
 
-      // Stop after a short delay
-      setTimeout(() => {
+      // Stop immediately in next tick
+      setImmediate(() => {
         engine.stop()
-      }, 10)
+      })
 
       await expect(transferPromise).rejects.toThrow(/cancelled|stopped/i)
 
@@ -335,16 +335,16 @@ describe('FileTransferEngine', () => {
 
       // Create larger source files to ensure transfer takes time
       for (const file of files) {
-        const buffer = Buffer.alloc(5 * 1024 * 1024, 'y') // 5MB each
+        const buffer = Buffer.alloc(10 * 1024 * 1024, 'y') // 10MB each
         await fs.writeFile(file.source, buffer)
       }
 
       const transferPromise = engine.transferFiles(files)
 
-      // Stop immediately
-      setTimeout(() => {
+      // Stop immediately in next tick
+      setImmediate(() => {
         engine.stop()
-      }, 5)
+      })
 
       await expect(transferPromise).rejects.toThrow(/cancelled|stopped/i)
 

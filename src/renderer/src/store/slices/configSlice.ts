@@ -11,8 +11,8 @@ export interface ConfigSlice extends ConfigState {
   // Actions
   setConfig: (config: AppConfig) => void
   updateConfig: (updates: Partial<AppConfig>) => void
-  setLoading: (isLoading: boolean) => void
-  setError: (error: string | null) => void
+  setConfigLoading: (isLoading: boolean) => void
+  setConfigError: (error: string | null) => void
 }
 
 export const createConfigSlice: StateCreator<ConfigSlice> = (set) => ({
@@ -110,7 +110,7 @@ export const createConfigSlice: StateCreator<ConfigSlice> = (set) => ({
       config: { ...state.config, ...updates }
     })),
 
-  setLoading: (isLoading) => set({ isLoading }),
+  setConfigLoading: (isLoading) => set({ isLoading }),
 
-  setError: (error) => set({ error, isLoading: false })
+  setConfigError: (error) => set({ error, isLoading: false })
 })

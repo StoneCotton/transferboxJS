@@ -42,17 +42,14 @@ module.exports = {
         '^.+\\.tsx?$': [
           'ts-jest',
           {
-            tsconfig: {
-              esModuleInterop: true,
-              allowSyntheticDefaultImports: true,
-              jsx: 'react'
-            }
+            tsconfig: '<rootDir>/tsconfig.web.json'
           }
         ]
       },
       moduleNameMapper: {
         '^~/(.*)$': '<rootDir>/src/renderer/src/$1',
-        '\\.(css|less|scss|sass)$': 'identity-obj-proxy'
+        '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
+        '\\.(jpg|jpeg|png|gif|svg|webp|mp3|wav)$': '<rootDir>/tests/__mocks__/fileMock.js'
       },
       transformIgnorePatterns: [
         'node_modules/(?!(electron-store|conf|atomically|dot-prop|env-paths|type-fest|pkg-up|find-up|locate-path|p-locate|path-exists)/)'

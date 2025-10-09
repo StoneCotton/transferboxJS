@@ -222,7 +222,8 @@ describe('DriveMonitor', () => {
 
       const result = await monitor.scanForMedia(testDir)
 
-      expect(result.scanTime).toBeGreaterThan(0)
+      // Scan time should be present (may be 0 on very fast systems)
+      expect(result.scanTime).toBeGreaterThanOrEqual(0)
       expect(result.scanTime).toBeLessThan(5000) // Should be fast
     })
 

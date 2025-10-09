@@ -52,7 +52,7 @@ export const createLogSlice: StateCreator<LogSlice> = (set, get) => ({
       filtered = filtered.filter(
         (log) =>
           log.message.toLowerCase().includes(searchTerm) ||
-          JSON.stringify(log.context).toLowerCase().includes(searchTerm)
+          (log.context && JSON.stringify(log.context).toLowerCase().includes(searchTerm))
       )
     }
 
