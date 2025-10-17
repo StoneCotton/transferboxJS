@@ -4,7 +4,7 @@
  */
 
 import { createReadStream, createWriteStream } from 'fs'
-import { stat, mkdir, rename, unlink, chmod, access, constants, readdir } from 'fs/promises'
+import { stat, mkdir, rename, unlink, chmod, access, constants, readdir, utimes } from 'fs/promises'
 import * as path from 'path'
 import { TransferError, wrapError } from './errors/TransferError'
 import { TransferErrorType } from '../shared/types'
@@ -161,6 +161,11 @@ export class FileTransferEngine {
       if (options?.preservePermissions !== false && process.platform !== 'win32') {
         await chmod(tempPath, sourceStats.mode)
       }
+
+      // Preserve file timestamps (access and modification times)
+      // This ensures creation date, modified date, and last accessed date are preserved
+      // Note: birthtime (creation time) cannot be set via utimes, but atime/mtime are preserved
+      await utimes(tempPath, sourceStats.atime, sourceStats.mtime)
 
       // Atomic rename: .TBPART -> final file
       await rename(tempPath, destPath)
