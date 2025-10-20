@@ -14,6 +14,10 @@ export const IPC_CHANNELS = {
   CONFIG_UPDATE: 'config:update',
   CONFIG_RESET: 'config:reset',
   CONFIG_MIGRATE: 'config:migrate',
+  CONFIG_VERSION_INFO: 'config:version-info',
+  CONFIG_NEWER_WARNING: 'config:newer-warning',
+  CONFIG_HANDLE_NEWER: 'config:handle-newer',
+  CONFIG_CLEAR_NEWER_WARNING: 'config:clear-newer-warning',
 
   // Path validation
   PATH_VALIDATE: 'path:validate',
@@ -92,6 +96,20 @@ export interface IpcHandlers {
   [IPC_CHANNELS.CONFIG_UPDATE]: (config: Partial<AppConfig>) => Promise<AppConfig>
   [IPC_CHANNELS.CONFIG_RESET]: () => Promise<AppConfig>
   [IPC_CHANNELS.CONFIG_MIGRATE]: () => Promise<AppConfig>
+  [IPC_CHANNELS.CONFIG_VERSION_INFO]: () => Promise<{
+    appVersion: string
+    configVersion: string
+    isUpToDate: boolean
+    needsMigration: boolean
+    hasNewerConfigWarning: boolean
+  }>
+  [IPC_CHANNELS.CONFIG_NEWER_WARNING]: () => Promise<{
+    configVersion: string
+    appVersion: string
+    timestamp: number
+  } | null>
+  [IPC_CHANNELS.CONFIG_HANDLE_NEWER]: (choice: 'continue' | 'reset') => Promise<AppConfig>
+  [IPC_CHANNELS.CONFIG_CLEAR_NEWER_WARNING]: () => Promise<void>
 
   [IPC_CHANNELS.PATH_VALIDATE]: (request: PathValidationRequest) => Promise<PathValidationResponse>
   [IPC_CHANNELS.PATH_SELECT_FOLDER]: () => Promise<string | null>

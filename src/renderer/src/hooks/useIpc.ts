@@ -48,6 +48,22 @@ export interface IpcApi {
   // App info
   getAppVersion: () => Promise<string>
 
+  // Config version management
+  getVersionInfo: () => Promise<{
+    appVersion: string
+    configVersion: string
+    isUpToDate: boolean
+    needsMigration: boolean
+    hasNewerConfigWarning: boolean
+  }>
+  getNewerConfigWarning: () => Promise<{
+    configVersion: string
+    appVersion: string
+    timestamp: number
+  } | null>
+  handleNewerConfigChoice: (choice: 'continue' | 'reset') => Promise<AppConfig>
+  clearNewerConfigWarning: () => Promise<void>
+
   // Event listeners
   onDriveDetected: (callback: (drive: DriveInfo) => void) => () => void
   onDriveRemoved: (callback: (device: string) => void) => () => void
@@ -135,6 +151,23 @@ export function useIpc(): IpcApi {
     return await window.api.getAppVersion()
   }, [])
 
+  // Config version management
+  const getVersionInfo = useCallback(async () => {
+    return await window.api.getVersionInfo()
+  }, [])
+
+  const getNewerConfigWarning = useCallback(async () => {
+    return await window.api.getNewerConfigWarning()
+  }, [])
+
+  const handleNewerConfigChoice = useCallback(async (choice: 'continue' | 'reset') => {
+    return await window.api.handleNewerConfigChoice(choice)
+  }, [])
+
+  const clearNewerConfigWarning = useCallback(async () => {
+    return await window.api.clearNewerConfigWarning()
+  }, [])
+
   // Event listeners
   const onDriveDetected = useCallback((callback: (drive: DriveInfo) => void) => {
     return window.api.onDriveDetected(callback)
@@ -189,6 +222,10 @@ export function useIpc(): IpcApi {
     getRecentLogs,
     clearLogs,
     getAppVersion,
+    getVersionInfo,
+    getNewerConfigWarning,
+    handleNewerConfigChoice,
+    clearNewerConfigWarning,
     onDriveDetected,
     onDriveRemoved,
     onDriveUnmounted,

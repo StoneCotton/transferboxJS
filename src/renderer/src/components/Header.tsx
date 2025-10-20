@@ -12,7 +12,7 @@ import logoImage from '../assets/logo.png'
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export function Header() {
   const { toggleSettings, toggleHistory, toggleLogs } = useUIStore()
-  const [appVersion, setAppVersion] = useState<string>('1.0.0')
+  const [appVersion, setAppVersion] = useState<string>('2.0.0')
   const ipc = useIpc()
 
   useEffect(() => {
@@ -24,7 +24,7 @@ export function Header() {
       })
       .catch(() => {
         // Fallback to package.json version if IPC fails
-        setAppVersion('1.0.0')
+        setAppVersion('2.0.0')
       })
   }, [ipc])
 

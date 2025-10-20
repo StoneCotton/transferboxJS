@@ -36,6 +36,13 @@ const api = {
   // App info
   getAppVersion: () => ipcRenderer.invoke(IPC_CHANNELS.APP_VERSION),
 
+  // Config version management
+  getVersionInfo: () => ipcRenderer.invoke(IPC_CHANNELS.CONFIG_VERSION_INFO),
+  getNewerConfigWarning: () => ipcRenderer.invoke(IPC_CHANNELS.CONFIG_NEWER_WARNING),
+  handleNewerConfigChoice: (choice: 'continue' | 'reset') =>
+    ipcRenderer.invoke(IPC_CHANNELS.CONFIG_HANDLE_NEWER, choice),
+  clearNewerConfigWarning: () => ipcRenderer.invoke(IPC_CHANNELS.CONFIG_CLEAR_NEWER_WARNING),
+
   // Event listeners
   onDriveDetected: (callback: (drive: any) => void) => {
     const listener = (_event: any, drive: any) => callback(drive)

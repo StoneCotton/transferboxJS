@@ -14,6 +14,7 @@ import { SettingsModal } from './components/SettingsModal'
 import { ModeIndicator } from './components/ModeIndicator'
 import { LogViewer } from './components/LogViewer'
 import { HistoryViewer } from './components/HistoryViewer'
+import { NewerConfigDialog } from './components/NewerConfigDialog'
 import { ToastContainer } from './components/ui/Toast'
 import { useDriveStore, useUIStore, useTransferStore, useConfigStore } from './store'
 import { CheckCircle2, Circle, CircleDot } from 'lucide-react'
@@ -199,6 +200,7 @@ function App() {
 
       {/* Modals */}
       <SettingsModal />
+      <NewerConfigDialog />
 
       {/* Logs and History Viewers */}
       {showLogs && <LogViewer onClose={() => closeAllModals()} />}

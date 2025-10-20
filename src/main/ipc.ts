@@ -7,7 +7,16 @@ import { ipcMain, dialog } from 'electron'
 import { stat } from 'fs/promises'
 import { IPC_CHANNELS, PathValidationRequest, TransferStartRequest } from '../shared/types'
 import { validatePath, hasEnoughSpace, checkDiskSpace } from './pathValidator'
-import { getConfig, updateConfig, resetConfig, forceMigration } from './configManager'
+import {
+  getConfig,
+  updateConfig,
+  resetConfig,
+  forceMigration,
+  getVersionInfo,
+  getNewerConfigWarning,
+  handleNewerConfigChoice,
+  clearNewerConfigWarning
+} from './configManager'
 import { DriveMonitor } from './driveMonitor'
 import { FileTransferEngine } from './fileTransfer'
 import { getDatabaseManager } from './databaseManager'
@@ -40,6 +49,22 @@ export function setupIpcHandlers(): void {
 
   ipcMain.handle(IPC_CHANNELS.CONFIG_MIGRATE, async () => {
     return forceMigration()
+  })
+
+  ipcMain.handle(IPC_CHANNELS.CONFIG_VERSION_INFO, async () => {
+    return getVersionInfo()
+  })
+
+  ipcMain.handle(IPC_CHANNELS.CONFIG_NEWER_WARNING, async () => {
+    return getNewerConfigWarning()
+  })
+
+  ipcMain.handle(IPC_CHANNELS.CONFIG_HANDLE_NEWER, async (_, choice: 'continue' | 'reset') => {
+    return handleNewerConfigChoice(choice)
+  })
+
+  ipcMain.handle(IPC_CHANNELS.CONFIG_CLEAR_NEWER_WARNING, async () => {
+    clearNewerConfigWarning()
   })
 
   // Path validation handlers

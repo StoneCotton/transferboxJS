@@ -4,6 +4,9 @@
  */
 
 import Store from 'electron-store'
+import { app } from 'electron'
+import { writeFileSync, existsSync, mkdirSync } from 'fs'
+import { join } from 'path'
 import {
   AppConfig,
   DEFAULT_CONFIG,
@@ -11,6 +14,17 @@ import {
   FolderStructure,
   ChecksumAlgorithm
 } from '../shared/types'
+import { CONFIG_VERSION, isCompatible, VersionUtils } from './constants/version'
+
+/**
+ * Get default config with current version from package.json
+ */
+function getDefaultConfig(): AppConfig {
+  return {
+    ...DEFAULT_CONFIG,
+    configVersion: CONFIG_VERSION
+  }
+}
 
 /**
  * Configuration Manager Class
@@ -25,7 +39,7 @@ export class ConfigManager {
     this.store = new ElectronStore({
       name: 'transferbox-config',
       cwd: configPath,
-      defaults: DEFAULT_CONFIG
+      defaults: getDefaultConfig()
     })
 
     // Migrate config to ensure new extensions are added
@@ -37,25 +51,116 @@ export class ConfigManager {
    */
   private migrateConfig(): void {
     const currentConfig = this.getConfig()
-    const currentVersion = currentConfig.configVersion || 0
-    const targetVersion = DEFAULT_CONFIG.configVersion
+    const currentVersion = currentConfig.configVersion || '0.0.0'
+    const targetVersion = CONFIG_VERSION
 
     console.log(
-      `[ConfigManager] Migrating config from version ${currentVersion} to ${targetVersion}`
+      `[ConfigManager] Checking config version ${currentVersion} against app version ${targetVersion}`
     )
 
-    // If no version or version 0, this is an old config
-    if (currentVersion < 1) {
-      this.migrateFromVersion0()
+    // Check if config is too old to be compatible
+    if (!isCompatible(currentVersion)) {
+      console.log(
+        `[ConfigManager] Config version ${currentVersion} is too old, resetting to defaults`
+      )
+      this.createConfigBackup('incompatible-version')
+      this.store.store = getDefaultConfig()
+      return
     }
 
-    // Update config version to current
-    if (currentVersion < targetVersion) {
+    // Check if config is newer than app version
+    if (VersionUtils.compare(currentVersion, targetVersion) > 0) {
+      console.log(
+        `[ConfigManager] Config version ${currentVersion} is newer than app version ${targetVersion}`
+      )
+      this.handleNewerConfigVersion(currentVersion, targetVersion)
+      return
+    }
+
+    // Only migrate if config version is older than app version
+    if (VersionUtils.compare(currentVersion, targetVersion) < 0) {
+      console.log(
+        `[ConfigManager] Migrating config from version ${currentVersion} to ${targetVersion}`
+      )
+      // Create backup before migration
+      this.createConfigBackup('before-migration')
+
+      // Run version-specific migrations
+      this.runVersionMigrations(currentVersion, targetVersion)
+
+      // Update config version to current
       this.store.set('configVersion', targetVersion)
+    } else {
+      console.log('[ConfigManager] Config version is up to date, no migration needed')
     }
 
     // Always ensure media extensions are up to date
     this.migrateMediaExtensions()
+  }
+
+  /**
+   * Handle when config version is newer than app version
+   */
+  private handleNewerConfigVersion(configVersion: string, appVersion: string): void {
+    // Create backup of the newer config
+    this.createConfigBackup('newer-config-version')
+
+    // Set a flag to show dialog to user
+    this.store.set('_newerConfigWarning', {
+      configVersion,
+      appVersion,
+      timestamp: Date.now()
+    })
+
+    console.log(
+      `[ConfigManager] Config version ${configVersion} is newer than app version ${appVersion}. ` +
+        `User will be prompted to choose action.`
+    )
+  }
+
+  /**
+   * Create a backup of the current config
+   */
+  private createConfigBackup(reason: string): void {
+    try {
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+      const backupDir = join(app.getPath('userData'), 'config-backups')
+
+      // Ensure backup directory exists
+      if (!existsSync(backupDir)) {
+        mkdirSync(backupDir, { recursive: true })
+      }
+
+      const backupPath = join(backupDir, `transferbox-config-${reason}-${timestamp}.json`)
+      const currentConfig = this.getConfig()
+
+      writeFileSync(backupPath, JSON.stringify(currentConfig, null, 2))
+      console.log(`[ConfigManager] Config backed up to: ${backupPath}`)
+    } catch (error) {
+      console.error('[ConfigManager] Failed to create config backup:', error)
+    }
+  }
+
+  /**
+   * Run version-specific migrations
+   */
+  private runVersionMigrations(fromVersion: string, toVersion: string): void {
+    console.log(`[ConfigManager] Running migrations from ${fromVersion} to ${toVersion}`)
+
+    // Migration from 0.x to 1.x
+    if (VersionUtils.compare(fromVersion, '1.0') < 0) {
+      this.migrateFromVersion0()
+    }
+
+    // Migration from 1.x to 2.x
+    if (
+      VersionUtils.compare(fromVersion, '2.0') < 0 &&
+      VersionUtils.compare(toVersion, '2.0') >= 0
+    ) {
+      this.migrateFromVersion1()
+    }
+
+    // Add more migrations as needed for future versions
   }
 
   /**
@@ -73,6 +178,23 @@ export class ConfigManager {
     ) {
       console.log('[ConfigManager] Fixing keepOriginalFilename dependency - setting to false')
       this.store.set('keepOriginalFilename', false)
+    }
+  }
+
+  /**
+   * Migrate from version 1.x to version 2.x
+   */
+  private migrateFromVersion1(): void {
+    console.log('[ConfigManager] Migrating from version 1.x to version 2.x')
+
+    // Add any new config options introduced in version 2.x
+    // This is where you'd add new fields, modify existing ones, etc.
+
+    // Example: Add new field if it doesn't exist
+    const currentConfig = this.getConfig()
+    if (currentConfig.unitSystem === undefined) {
+      console.log('[ConfigManager] Adding unitSystem field')
+      this.store.set('unitSystem', 'decimal')
     }
   }
 
@@ -144,8 +266,9 @@ export class ConfigManager {
    * Resets configuration to defaults
    */
   resetConfig(): AppConfig {
-    this.store.store = DEFAULT_CONFIG
-    return DEFAULT_CONFIG
+    const defaultConfig = getDefaultConfig()
+    this.store.store = defaultConfig
+    return defaultConfig
   }
 
   /**
@@ -155,14 +278,17 @@ export class ConfigManager {
   forceMigration(): AppConfig {
     console.log('[ConfigManager] Forcing complete config migration')
 
+    // Create backup before forced migration
+    this.createConfigBackup('forced-migration')
+
     // Get current config
     const currentConfig = this.getConfig()
 
     // Create a new config by merging current with defaults
     const migratedConfig: AppConfig = {
-      ...DEFAULT_CONFIG,
+      ...getDefaultConfig(),
       ...currentConfig,
-      configVersion: DEFAULT_CONFIG.configVersion
+      configVersion: CONFIG_VERSION
     }
 
     // Fix any known issues
@@ -182,10 +308,78 @@ export class ConfigManager {
   }
 
   /**
+   * Get version information for the current config and app
+   */
+  getVersionInfo(): {
+    appVersion: string
+    configVersion: string
+    isUpToDate: boolean
+    needsMigration: boolean
+    hasNewerConfigWarning: boolean
+  } {
+    const currentConfig = this.getConfig()
+    const currentVersion = currentConfig.configVersion || '0.0.0'
+    const targetVersion = CONFIG_VERSION
+    const newerConfigWarning = currentConfig._newerConfigWarning
+
+    return {
+      appVersion: CONFIG_VERSION,
+      configVersion: currentVersion,
+      isUpToDate: VersionUtils.compare(currentVersion, targetVersion) === 0,
+      needsMigration: VersionUtils.compare(currentVersion, targetVersion) < 0,
+      hasNewerConfigWarning: !!newerConfigWarning
+    }
+  }
+
+  /**
+   * Get newer config warning details
+   */
+  getNewerConfigWarning(): {
+    configVersion: string
+    appVersion: string
+    timestamp: number
+  } | null {
+    const currentConfig = this.getConfig()
+    return currentConfig._newerConfigWarning || null
+  }
+
+  /**
+   * Handle user choice for newer config version
+   */
+  handleNewerConfigChoice(choice: 'continue' | 'reset'): AppConfig {
+    const warning = this.getNewerConfigWarning()
+    if (!warning) {
+      throw new Error('No newer config warning found')
+    }
+
+    if (choice === 'continue') {
+      // User wants to continue with the newer config
+      console.log('[ConfigManager] User chose to continue with newer config version')
+      this.store.delete('_newerConfigWarning')
+      return this.getConfig()
+    } else {
+      // User wants to reset to defaults
+      console.log('[ConfigManager] User chose to reset config to defaults')
+      this.createConfigBackup('user-reset-newer-config')
+      this.store.delete('_newerConfigWarning')
+      const defaultConfig = getDefaultConfig()
+      this.store.store = defaultConfig
+      return defaultConfig
+    }
+  }
+
+  /**
+   * Clear newer config warning without action
+   */
+  clearNewerConfigWarning(): void {
+    this.store.delete('_newerConfigWarning')
+  }
+
+  /**
    * Clears all configuration
    */
   clearConfig(): void {
-    this.store.store = DEFAULT_CONFIG
+    this.store.store = getDefaultConfig()
   }
 
   /**
@@ -235,6 +429,44 @@ export function resetConfig(): AppConfig {
  */
 export function forceMigration(): AppConfig {
   return getConfigManager().forceMigration()
+}
+
+/**
+ * Gets version information (convenience function)
+ */
+export function getVersionInfo(): {
+  appVersion: string
+  configVersion: string
+  isUpToDate: boolean
+  needsMigration: boolean
+  hasNewerConfigWarning: boolean
+} {
+  return getConfigManager().getVersionInfo()
+}
+
+/**
+ * Gets newer config warning details (convenience function)
+ */
+export function getNewerConfigWarning(): {
+  configVersion: string
+  appVersion: string
+  timestamp: number
+} | null {
+  return getConfigManager().getNewerConfigWarning()
+}
+
+/**
+ * Handles user choice for newer config version (convenience function)
+ */
+export function handleNewerConfigChoice(choice: 'continue' | 'reset'): AppConfig {
+  return getConfigManager().handleNewerConfigChoice(choice)
+}
+
+/**
+ * Clears newer config warning (convenience function)
+ */
+export function clearNewerConfigWarning(): void {
+  return getConfigManager().clearNewerConfigWarning()
 }
 
 /**

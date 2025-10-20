@@ -11,8 +11,9 @@ export type ChecksumAlgorithm = 'xxhash64'
 export type UnitSystem = 'binary' | 'decimal'
 
 export interface AppConfig {
-  // Config version for migration purposes
-  configVersion: number
+  // Config version for migration purposes (semantic versioning)
+  // Set automatically from package.json by the config manager
+  configVersion: string
 
   // Transfer modes
   // 'auto-transfer' = Mode 1: Auto-start when drive detected, ask for destination each time
@@ -61,10 +62,21 @@ export interface AppConfig {
   autoCleanupLogs: boolean
   logRetentionDays: number
   unitSystem: UnitSystem // 'binary' for GiB/KiB/MiB (1024-based), 'decimal' for GB/KB/MB (1000-based)
+
+  // Internal properties (not user-configurable)
+  _newerConfigWarning?: {
+    configVersion: string
+    appVersion: string
+    timestamp: number
+  }
 }
 
+/**
+ * Default configuration template
+ * Note: configVersion will be set dynamically by ConfigManager from package.json
+ */
 export const DEFAULT_CONFIG: AppConfig = {
-  configVersion: 1, // Current config version
+  configVersion: '0.0.0', // Placeholder - will be replaced by ConfigManager with actual version from package.json
   transferMode: 'auto-transfer', // Default to Mode 1
   defaultDestination: null,
 
