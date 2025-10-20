@@ -30,6 +30,7 @@ export const IPC_CHANNELS = {
   // Transfer operations
   TRANSFER_START: 'transfer:start',
   TRANSFER_STOP: 'transfer:stop',
+  TRANSFER_STATUS: 'transfer:status',
   TRANSFER_PROGRESS: 'transfer:progress', // Event from main to renderer
   TRANSFER_COMPLETE: 'transfer:complete', // Event from main to renderer
   TRANSFER_ERROR: 'transfer:error', // Event from main to renderer
@@ -74,6 +75,10 @@ export interface TransferStartRequest {
   files: string[]
 }
 
+export interface TransferStatusResponse {
+  isTransferring: boolean
+}
+
 export interface LogEntry {
   timestamp: number
   level: 'info' | 'warn' | 'error' | 'debug'
@@ -97,6 +102,7 @@ export interface IpcHandlers {
 
   [IPC_CHANNELS.TRANSFER_START]: (request: TransferStartRequest) => Promise<void>
   [IPC_CHANNELS.TRANSFER_STOP]: () => Promise<void>
+  [IPC_CHANNELS.TRANSFER_STATUS]: () => Promise<TransferStatusResponse>
 
   [IPC_CHANNELS.HISTORY_GET_ALL]: () => Promise<TransferSession[]>
   [IPC_CHANNELS.HISTORY_GET_BY_ID]: (id: string) => Promise<TransferSession | null>

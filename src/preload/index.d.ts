@@ -5,6 +5,7 @@ import type {
   PathValidationResponse,
   TransferStartRequest,
   TransferSession,
+  TransferStatusResponse,
   LogEntry,
   DriveInfo
 } from '../shared/types'
@@ -30,6 +31,7 @@ interface IpcApi {
   // Transfer operations
   startTransfer: (request: TransferStartRequest) => Promise<void>
   stopTransfer: () => Promise<void>
+  getTransferStatus: () => Promise<TransferStatusResponse>
 
   // History
   getHistory: () => Promise<TransferSession[]>

@@ -22,6 +22,7 @@ const api = {
   // Transfer operations
   startTransfer: (request: any) => ipcRenderer.invoke(IPC_CHANNELS.TRANSFER_START, request),
   stopTransfer: () => ipcRenderer.invoke(IPC_CHANNELS.TRANSFER_STOP),
+  getTransferStatus: () => ipcRenderer.invoke(IPC_CHANNELS.TRANSFER_STATUS),
 
   // History
   getHistory: () => ipcRenderer.invoke(IPC_CHANNELS.HISTORY_GET_ALL),

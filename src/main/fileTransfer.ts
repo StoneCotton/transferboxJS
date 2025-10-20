@@ -59,6 +59,7 @@ const DEFAULT_BUFFER_SIZE = 4 * 1024 * 1024 // 4MB - optimized for modern SSDs
 export class FileTransferEngine {
   private stopped = false
   private currentTransfer: { abort: () => void } | null = null
+  private activeTempFiles: Set<string> = new Set()
 
   /**
    * Calculate optimal progress reporting throttle based on file size
@@ -91,6 +92,9 @@ export class FileTransferEngine {
     const startTime = Date.now()
     const bufferSize = options?.bufferSize || DEFAULT_BUFFER_SIZE
     const tempPath = destPath + '.TBPART'
+
+    // Track this temp file for cleanup
+    this.activeTempFiles.add(tempPath)
 
     const result: TransferResult = {
       success: false,
@@ -170,6 +174,9 @@ export class FileTransferEngine {
       // Atomic rename: .TBPART -> final file
       await rename(tempPath, destPath)
 
+      // Remove from tracking since it's now completed
+      this.activeTempFiles.delete(tempPath)
+
       result.success = true
     } catch (error) {
       const transferError = wrapError(error)
@@ -179,6 +186,8 @@ export class FileTransferEngine {
       // Cleanup .TBPART file on error
       try {
         await unlink(tempPath)
+        // Remove from tracking since it's been cleaned up
+        this.activeTempFiles.delete(tempPath)
       } catch {
         // Ignore cleanup errors
       }
@@ -433,11 +442,31 @@ export class FileTransferEngine {
   /**
    * Stop ongoing transfer
    */
-  stop(): void {
+  async stop(): Promise<void> {
     this.stopped = true
     if (this.currentTransfer) {
       this.currentTransfer.abort()
+      this.currentTransfer = null
     }
+
+    // Clean up all active temp files
+    const tempFilesToClean = Array.from(this.activeTempFiles)
+    this.activeTempFiles.clear()
+
+    for (const tempFile of tempFilesToClean) {
+      try {
+        await unlink(tempFile)
+        getLogger().info('Cleaned up partial file during transfer stop', { path: tempFile })
+      } catch (error) {
+        getLogger().warn('Failed to clean up partial file', {
+          path: tempFile,
+          error: error instanceof Error ? error.message : String(error)
+        })
+      }
+    }
+
+    // Give a brief moment for any ongoing file operations to complete their cleanup
+    await new Promise((resolve) => setTimeout(resolve, 50))
   }
 
   /**
@@ -446,6 +475,14 @@ export class FileTransferEngine {
   reset(): void {
     this.stopped = false
     this.currentTransfer = null
+    this.activeTempFiles.clear()
+  }
+
+  /**
+   * Check if transfers are currently in progress
+   */
+  isTransferring(): boolean {
+    return this.currentTransfer !== null && !this.stopped
   }
 
   /**

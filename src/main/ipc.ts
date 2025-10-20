@@ -557,8 +557,14 @@ export function setupIpcHandlers(): void {
 
   ipcMain.handle(IPC_CHANNELS.TRANSFER_STOP, async () => {
     if (transferEngine) {
-      transferEngine.stop()
+      await transferEngine.stop()
       getLogger().info('Transfer stopped by user')
+    }
+  })
+
+  ipcMain.handle(IPC_CHANNELS.TRANSFER_STATUS, async () => {
+    return {
+      isTransferring: transferEngine ? transferEngine.isTransferring() : false
     }
   })
 
@@ -627,11 +633,15 @@ export function startDriveMonitoring(window: Electron.BrowserWindow): void {
       pollingInterval: 2000,
       onDriveAdded: (drive) => {
         getLogger().logDriveDetected(drive.device, drive.displayName)
-        window.webContents.send(IPC_CHANNELS.DRIVE_DETECTED, drive)
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send(IPC_CHANNELS.DRIVE_DETECTED, drive)
+        }
       },
       onDriveRemoved: (device) => {
         getLogger().logDriveRemoved(device)
-        window.webContents.send(IPC_CHANNELS.DRIVE_REMOVED, device)
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send(IPC_CHANNELS.DRIVE_REMOVED, device)
+        }
       }
     })
     .catch((error) => {
@@ -644,20 +654,33 @@ export function startDriveMonitoring(window: Electron.BrowserWindow): void {
  */
 export function stopDriveMonitoring(): void {
   if (driveMonitor) {
-    driveMonitor.stop()
+    try {
+      driveMonitor.stop()
+    } catch (error) {
+      getLogger().warn('Error stopping drive monitor', {
+        error: error instanceof Error ? error.message : String(error)
+      })
+    }
     driveMonitor = null
   }
+}
+
+/**
+ * Check if transfers are currently in progress
+ */
+export function isTransferInProgress(): boolean {
+  return transferEngine ? transferEngine.isTransferring() : false
 }
 
 /**
  * Cleanup IPC handlers
  * Call this when the app is closing
  */
-export function cleanupIpc(): void {
+export async function cleanupIpc(): Promise<void> {
   stopDriveMonitoring()
 
   if (transferEngine) {
-    transferEngine.stop()
+    await transferEngine.stop()
     transferEngine = null
   }
 
