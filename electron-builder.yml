@@ -15,6 +15,10 @@ asarUnpack:
 win:
   executableName: TransferBox
   icon: build/icon.png
+  target:
+    - nsis
+    - portable
+  artifactName: ${name}-${version}-${arch}.${ext}
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}
@@ -29,16 +33,21 @@ mac:
     - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
     - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
   notarize: false
+  target:
+    - dmg
+    - zip
+  artifactName: ${name}-${version}-${arch}.${ext}
 dmg:
   artifactName: ${name}-${version}.${ext}
 linux:
   icon: build/icon.png
   target:
     - AppImage
-    - snap
     - deb
+    - rpm
   maintainer: electronjs.org
   category: Utility
+  artifactName: ${name}-${version}-${arch}.${ext}
 appImage:
   artifactName: ${name}-${version}.${ext}
 npmRebuild: false

@@ -26,6 +26,9 @@ module.exports = {
           }
         ]
       },
+      moduleNameMapper: {
+        '^electron$': '<rootDir>/tests/__mocks__/electron.ts'
+      },
       transformIgnorePatterns: [
         'node_modules/(?!(electron-store|conf|atomically|dot-prop|env-paths|type-fest|pkg-up|find-up|locate-path|p-locate|path-exists)/)'
       ]

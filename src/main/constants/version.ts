@@ -1,29 +1,28 @@
 /**
  * Version constants for main process
- * Single source of truth: reads from package.json
+ * Single source of truth: uses Electron's app.getVersion()
  */
 
-import { readFileSync } from 'fs'
-import { join } from 'path'
+import { app } from 'electron'
 import { VersionUtils } from '../../shared/utils/versionUtils'
 
 /**
- * Read package.json to get the current app version
- * This is the single source of truth for all version numbers
+ * Get the current app version from Electron
+ * This works in both development and production builds
+ * In production: reads from app metadata set by electron-builder
+ * In development: reads from package.json via electron-vite
  */
 function getPackageVersion(): string {
   try {
-    const packageJsonPath = join(process.cwd(), 'package.json')
-    const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'))
-    return packageJson.version
+    return app.getVersion()
   } catch (error) {
-    console.error('[Version] Failed to read package.json:', error)
+    console.error('[Version] Failed to get app version:', error)
     throw new Error('Unable to determine application version')
   }
 }
 
 /**
- * Application version from package.json
+ * Application version from Electron
  * Format: major.minor.patch[-prerelease]
  * Example: "2.0.1-alpha.2"
  */

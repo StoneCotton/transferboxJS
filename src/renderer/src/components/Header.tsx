@@ -13,7 +13,86 @@ import logoImage from '../assets/logo.png'
 export function Header() {
   const { toggleSettings, toggleHistory, toggleLogs } = useUIStore()
   const [appVersion, setAppVersion] = useState<string>('2.0.0')
+  const [sloganIndex, setSloganIndex] = useState<number>(0)
   const ipc = useIpc()
+
+  const slogans = [
+    'Offload your footage—no takes needed!',
+    "Transfer so fast, you'll think it's rendered in RAM.",
+    'Checksum jokes always land—no bit flips.',
+    'Lights, Camera, Action... File Copy!',
+    'No more dropped frames—just dropped files (where you want them!)',
+    "Ingest speed that's Oscar-worthy.",
+    'For those who like all their data in the final cut.',
+    "Making sure your media doesn't ghost on you.",
+    'Playback error? Not on my watch.',
+    'I like my bits unflipped and my jokes unmuted.',
+    'The only latency here is your laughter.',
+    'Frame-accurate, joke-approximate.',
+    'Media so secure, not even spoilers can leak.',
+    'Encoding at the speed of laughter.',
+    'You bring the footage, I’ll bring the puns.',
+    'Making your workflow less like work, more like play.',
+    'More reliable than a director’s schedule.',
+    'My logs never forget—unlike some editors.',
+    'Cut, copy, and crack a smile.',
+    'Rolling out features like rolling takes.',
+    'The only phantom power here is in my punchlines.',
+    'I trim errors better than you trim B-roll.',
+    'Your backups, as tight as your editing.',
+    '3200 ISO? Never that noisy.',
+    'Filmmakers approve my export times. And my puns.',
+    'Less downtime than a gaffer with coffee.',
+    'Slates clap for me (not just the crew).',
+    'Dailies? How about hourlies.',
+    'Even your metadata laughs at these jokes.',
+    'Finishing your day before the render bar does.',
+    'Grip-tested for maximum stability.',
+    'No drama, just data.',
+    'Checksum errors are just deleted scenes here.',
+    'Ingest your media, digest these puns.',
+    'Less drag than a green screen.',
+    'Not a single dropped pixel.',
+    'No bogus proxies—just real jokes.',
+    'More flexible than a jib arm.',
+    'My transfer speeds break the fourth wall.',
+    'I don’t render, I transcend.',
+    'Final Cut? I’m just getting started.',
+    'C-stands envy my uptime.',
+    'The only wrap I want is a pun wrap-up.',
+    'Slate, camera, copy, laugh.',
+    'Double-checking? I call it a punchline.',
+    'No director’s cut could improve this transfer.',
+    'Cue the confetti—files moved in record time.',
+    'Your media’s new best friend on set.',
+    'Take five—your files are already here.',
+    'Like a steady dolly shot—smooth all the way.',
+    'Even your assistant editor will crack up.',
+    'The only crash is a joke landing.',
+    'Copy that? Copy this: TransferBox rules.',
+    'Keeping your rough cuts rough—not your transfers.',
+    'Script supervisors approve this message.',
+    'No wrap party is complete without me.',
+    'Color grading jokes dark, but transfers bright.',
+    'Never take a rain check on these checksums.',
+    'Drop your files—not your standards.',
+    'My punchlines have more effects than After Effects.',
+    'Fast, funny, and always in focus.',
+    'Born to run—files, not marathons.',
+    'Transfer envy is real.',
+    'Lights out? Transfers done.',
+    'Who needs Adobe Media Encoder amirite',
+    'Shut up, Meg',
+    'Click around and find out!',
+    'I like my bits unflipped and my jokes unmuted.',
+    'The only latency here is your laughter.',
+    'Frame-accurate, joke-approximate.',
+    'Media so secure, not even spoilers can leak.',
+    'Encoding at the speed of laughter.',
+    'You bring the footage, I’ll bring the puns.',
+    'Making your workflow less like work, more like play.',
+    'More reliable than a director’s schedule.'
+  ]
 
   useEffect(() => {
     // Get app version from main process
@@ -27,6 +106,23 @@ export function Header() {
         setAppVersion('2.0.0')
       })
   }, [ipc])
+
+  useEffect(() => {
+    // Choose and persist a random slogan per app launch
+    const storedIndex = sessionStorage.getItem('tb:sloganIndex')
+    if (storedIndex !== null) {
+      const index = parseInt(storedIndex, 10)
+      if (Number.isInteger(index) && index >= 0 && index < slogans.length) {
+        setSloganIndex(index)
+        return
+      }
+    }
+
+    // Generate new random index and store it
+    const randomIndex = Math.floor(Math.random() * slogans.length)
+    setSloganIndex(randomIndex)
+    sessionStorage.setItem('tb:sloganIndex', String(randomIndex))
+  }, [slogans.length])
 
   return (
     <header className="relative border-b border-white/20 bg-white/80 px-6 py-4 backdrop-blur-xl dark:border-gray-800/50 dark:bg-gray-900/80">
@@ -48,7 +144,7 @@ export function Header() {
               TransferBox
             </h1>
             <p className="text-xs font-medium text-slate-600 dark:text-slate-400">
-              Professional Media Transfer Tool | v{appVersion}
+              {slogans[sloganIndex]} · v{appVersion}
             </p>
           </div>
         </div>
