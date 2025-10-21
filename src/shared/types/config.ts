@@ -77,7 +77,7 @@ export interface AppConfig {
  */
 export const DEFAULT_CONFIG: AppConfig = {
   configVersion: '0.0.0', // Placeholder - will be replaced by ConfigManager with actual version from package.json
-  transferMode: 'auto-transfer', // Default to Mode 1
+  transferMode: 'manual', // Default to Mode 4
   defaultDestination: null,
 
   // File naming settings
@@ -93,7 +93,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   createDeviceBasedFolders: false,
   deviceFolderTemplate: '{device_name}',
   folderStructure: 'preserve-source', // Legacy setting
-  keepFolderStructure: true,
+  keepFolderStructure: false,
 
   // Media file filtering
   transferOnlyMediaFiles: false,

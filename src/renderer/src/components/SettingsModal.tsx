@@ -8,7 +8,7 @@ import { useState, useEffect } from 'react'
 import type { TransferMode, AppConfig } from '../../../shared/types'
 import { Modal } from './ui/Modal'
 import { Button } from './ui/Button'
-import { useConfigStore, useUIStore } from '../store'
+import { useConfigStore, useUIStore, useTransferStore } from '../store'
 import { useIpc } from '../hooks/useIpc'
 import { cn } from '../lib/utils'
 
@@ -16,6 +16,7 @@ import { cn } from '../lib/utils'
 export function SettingsModal() {
   const { showSettings, toggleSettings } = useUIStore()
   const { config, setConfig } = useConfigStore()
+  const { isTransferring } = useTransferStore()
   const ipc = useIpc()
 
   const [transferMode, setTransferMode] = useState<TransferMode>(config.transferMode)
@@ -66,6 +67,9 @@ export function SettingsModal() {
   const [unitSystem, setUnitSystem] = useState(config.unitSystem)
 
   const [isSaving, setIsSaving] = useState(false)
+
+  // Disable form controls during transfers
+  const isFormDisabled = isTransferring || isSaving
 
   // Sync local state with config changes
   useEffect(() => {
@@ -204,6 +208,15 @@ export function SettingsModal() {
   return (
     <Modal isOpen={showSettings} onClose={toggleSettings} title="Settings" size="xl">
       <div className="flex max-h-[80vh] flex-col">
+        {/* Transfer in progress warning */}
+        {isTransferring && (
+          <div className="mb-4 rounded-lg border-2 border-yellow-400 bg-yellow-50 p-3 dark:border-yellow-600 dark:bg-yellow-950/50">
+            <p className="text-sm font-medium text-yellow-900 dark:text-yellow-100">
+              ⚠️ Transfer in progress - Settings are disabled to prevent conflicts
+            </p>
+          </div>
+        )}
+
         <div className="flex-1 overflow-y-auto">
           <div className="space-y-8">
             {/* Transfer Modes */}
@@ -216,11 +229,13 @@ export function SettingsModal() {
                   <button
                     key={mode.id}
                     onClick={() => setTransferMode(mode.id)}
+                    disabled={isFormDisabled}
                     className={cn(
                       'w-full rounded-xl border-2 p-4 text-left transition-all',
                       transferMode === mode.id
                         ? 'border-brand-500 bg-brand-50 dark:border-brand-400 dark:bg-brand-950/50'
-                        : 'border-gray-200 bg-white hover:border-brand-300 dark:border-gray-700 dark:bg-gray-800/50'
+                        : 'border-gray-200 bg-white hover:border-brand-300 dark:border-gray-700 dark:bg-gray-800/50',
+                      isFormDisabled && 'opacity-50 cursor-not-allowed'
                     )}
                   >
                     <div className="flex items-start gap-3">
@@ -280,6 +295,7 @@ export function SettingsModal() {
                   )}
                   <Button
                     onClick={handleSelectDestination}
+                    disabled={isFormDisabled}
                     className="w-full bg-gradient-to-r from-slate-600 to-slate-700"
                   >
                     <FolderOpen className="mr-2 h-4 w-4" />
@@ -300,6 +316,7 @@ export function SettingsModal() {
                     type="checkbox"
                     checked={addTimestampToFilename}
                     onChange={(e) => setAddTimestampToFilename(e.target.checked)}
+                    disabled={isFormDisabled}
                     className="h-5 w-5 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
                   />
                   <div>
@@ -320,6 +337,7 @@ export function SettingsModal() {
                         type="checkbox"
                         checked={keepOriginalFilename}
                         onChange={(e) => setKeepOriginalFilename(e.target.checked)}
+                        disabled={isFormDisabled}
                         className="h-5 w-5 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
                       />
                       <div>
@@ -341,7 +359,8 @@ export function SettingsModal() {
                         value={filenameTemplate}
                         onChange={(e) => setFilenameTemplate(e.target.value)}
                         placeholder="{original}_{timestamp}"
-                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-brand-500 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                        disabled={isFormDisabled}
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-brand-500 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                       />
                       <p className="text-xs text-gray-600 dark:text-gray-400">
                         Use {'{original}'} for original name and {'{timestamp}'} for timestamp
@@ -357,7 +376,8 @@ export function SettingsModal() {
                         value={timestampFormat}
                         onChange={(e) => setTimestampFormat(e.target.value)}
                         placeholder="%Y%m%d_%H%M%S"
-                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-brand-500 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                        disabled={isFormDisabled}
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-brand-500 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                       />
                       <p className="text-xs text-gray-600 dark:text-gray-400">
                         Format: %Y (year), %m (month), %d (day), %H (hour), %M (minute), %S (second)
@@ -379,6 +399,7 @@ export function SettingsModal() {
                     type="checkbox"
                     checked={keepFolderStructure}
                     onChange={(e) => setKeepFolderStructure(e.target.checked)}
+                    disabled={isFormDisabled}
                     className="h-5 w-5 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
                   />
                   <div>
@@ -396,6 +417,7 @@ export function SettingsModal() {
                     type="checkbox"
                     checked={createDateBasedFolders}
                     onChange={(e) => setCreateDateBasedFolders(e.target.checked)}
+                    disabled={isFormDisabled}
                     className="h-5 w-5 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
                   />
                   <div>
@@ -418,7 +440,8 @@ export function SettingsModal() {
                       value={dateFolderFormat}
                       onChange={(e) => setDateFolderFormat(e.target.value)}
                       placeholder="%Y/%m/%d"
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-brand-500 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                      disabled={isFormDisabled}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-brand-500 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                     <p className="text-xs text-gray-600 dark:text-gray-400">
                       Example: %Y/%m/%d creates YYYY/MM/DD folder structure
@@ -431,6 +454,7 @@ export function SettingsModal() {
                     type="checkbox"
                     checked={createDeviceBasedFolders}
                     onChange={(e) => setCreateDeviceBasedFolders(e.target.checked)}
+                    disabled={isFormDisabled}
                     className="h-5 w-5 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
                   />
                   <div>
@@ -453,7 +477,8 @@ export function SettingsModal() {
                       value={deviceFolderTemplate}
                       onChange={(e) => setDeviceFolderTemplate(e.target.value)}
                       placeholder="{device_name}"
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-brand-500 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                      disabled={isFormDisabled}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-brand-500 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                     <p className="text-xs text-gray-600 dark:text-gray-400">
                       Use {'{device_name}'} for the device name
@@ -474,6 +499,7 @@ export function SettingsModal() {
                     type="checkbox"
                     checked={transferOnlyMediaFiles}
                     onChange={(e) => setTransferOnlyMediaFiles(e.target.checked)}
+                    disabled={isFormDisabled}
                     className="h-5 w-5 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
                   />
                   <div>
@@ -497,9 +523,10 @@ export function SettingsModal() {
                       onChange={(e) => setNewExtension(e.target.value)}
                       onKeyPress={handleKeyPress}
                       placeholder="e.g., .mp4, .mov"
-                      className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-brand-500 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                      disabled={isFormDisabled}
+                      className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-brand-500 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                     />
-                    <Button onClick={handleAddExtension} size="sm">
+                    <Button onClick={handleAddExtension} size="sm" disabled={isFormDisabled}>
                       <Plus className="h-4 w-4" />
                     </Button>
                   </div>
@@ -512,7 +539,8 @@ export function SettingsModal() {
                         {ext}
                         <button
                           onClick={() => handleRemoveExtension(ext)}
-                          className="ml-1 hover:text-brand-600 dark:hover:text-brand-400"
+                          disabled={isFormDisabled}
+                          className="ml-1 hover:text-brand-600 dark:hover:text-brand-400 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <X className="h-3 w-3" />
                         </button>
@@ -534,6 +562,7 @@ export function SettingsModal() {
                     type="checkbox"
                     checked={verifyChecksums}
                     onChange={(e) => setVerifyChecksums(e.target.checked)}
+                    disabled={isFormDisabled}
                     className="h-5 w-5 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
                   />
                   <div>
@@ -549,6 +578,7 @@ export function SettingsModal() {
                     type="checkbox"
                     checked={generateMHLChecksumFiles}
                     onChange={(e) => setGenerateMHLChecksumFiles(e.target.checked)}
+                    disabled={isFormDisabled}
                     className="h-5 w-5 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
                   />
                   <div>
@@ -577,7 +607,8 @@ export function SettingsModal() {
                     type="number"
                     value={bufferSize}
                     onChange={(e) => setBufferSize(parseInt(e.target.value) || 0)}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-brand-500 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                    disabled={isFormDisabled}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-brand-500 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                   />
                   <p className="text-xs text-gray-600 dark:text-gray-400">
                     Buffer size for file operations (default: 4MB). Higher values may improve
@@ -593,7 +624,8 @@ export function SettingsModal() {
                     type="number"
                     value={chunkSize}
                     onChange={(e) => setChunkSize(parseInt(e.target.value) || 0)}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-brand-500 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                    disabled={isFormDisabled}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-brand-500 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                   />
                   <p className="text-xs text-gray-600 dark:text-gray-400">
                     Chunk size for progress updates (default: 1MB). Smaller values provide more
@@ -614,6 +646,7 @@ export function SettingsModal() {
                     type="checkbox"
                     checked={showDetailedProgress}
                     onChange={(e) => setShowDetailedProgress(e.target.checked)}
+                    disabled={isFormDisabled}
                     className="h-5 w-5 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
                   />
                   <div>
@@ -631,6 +664,7 @@ export function SettingsModal() {
                     type="checkbox"
                     checked={autoCleanupLogs}
                     onChange={(e) => setAutoCleanupLogs(e.target.checked)}
+                    disabled={isFormDisabled}
                     className="h-5 w-5 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
                   />
                   <div>
@@ -651,7 +685,8 @@ export function SettingsModal() {
                       value={logRetentionDays}
                       onChange={(e) => setLogRetentionDays(parseInt(e.target.value) || 0)}
                       min="0"
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-brand-500 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                      disabled={isFormDisabled}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-brand-500 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                     <p className="text-xs text-gray-600 dark:text-gray-400">
                       Number of days to keep log entries (0 = keep forever)
@@ -672,6 +707,7 @@ export function SettingsModal() {
                         value="decimal"
                         checked={unitSystem === 'decimal'}
                         onChange={(e) => setUnitSystem(e.target.value as 'decimal')}
+                        disabled={isFormDisabled}
                         className="h-4 w-4 text-brand-500 focus:ring-brand-500"
                       />
                       <div>
@@ -690,6 +726,7 @@ export function SettingsModal() {
                         value="binary"
                         checked={unitSystem === 'binary'}
                         onChange={(e) => setUnitSystem(e.target.value as 'binary')}
+                        disabled={isFormDisabled}
                         className="h-4 w-4 text-brand-500 focus:ring-brand-500"
                       />
                       <div>
@@ -713,13 +750,14 @@ export function SettingsModal() {
           <Button
             variant="outline"
             onClick={toggleSettings}
+            disabled={isFormDisabled}
             className="flex-1 border-gray-300 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-800"
           >
             Cancel
           </Button>
           <Button
             onClick={handleSave}
-            disabled={isSaving}
+            disabled={isFormDisabled}
             className="flex-1 bg-gradient-to-r from-brand-500 to-brand-600 text-white"
           >
             {isSaving ? (

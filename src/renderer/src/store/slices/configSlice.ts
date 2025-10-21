@@ -36,7 +36,7 @@ export const createConfigSlice: StateCreator<ConfigSlice> = (set) => ({
     createDeviceBasedFolders: false,
     deviceFolderTemplate: '{device_name}',
     folderStructure: 'preserve-source', // Legacy setting
-    keepFolderStructure: true,
+    keepFolderStructure: false,
 
     // Media file filtering
     transferOnlyMediaFiles: false,

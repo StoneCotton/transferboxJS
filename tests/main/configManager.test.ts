@@ -13,7 +13,7 @@ import {
   resetConfig,
   validateConfig
 } from '../../src/main/configManager'
-import { AppConfig, DEFAULT_CONFIG, TransferMode } from '../../src/shared/types'
+import { AppConfig, DEFAULT_CONFIG, TransferMode, FolderStructure } from '../../src/shared/types'
 
 describe('ConfigManager', () => {
   let configManager: ConfigManager
@@ -29,7 +29,7 @@ describe('ConfigManager', () => {
     // Clean up test config
     try {
       await fs.rm(testConfigPath, { recursive: true, force: true })
-    } catch (error) {
+    } catch {
       // Ignore cleanup errors
     }
   })
@@ -38,8 +38,9 @@ describe('ConfigManager', () => {
     it('should initialize with default config', () => {
       const config = configManager.getConfig()
 
-      expect(config.transferMode).toBe('auto-transfer')
+      expect(config.transferMode).toBe('manual')
       expect(config.folderStructure).toBe('preserve-source')
+      expect(config.keepFolderStructure).toBe(false)
       expect(config.verifyChecksums).toBe(true)
       expect(config.checksumAlgorithm).toBe('xxhash64')
     })
@@ -48,7 +49,7 @@ describe('ConfigManager', () => {
       const config = configManager.getConfig()
 
       expect(config).toBeDefined()
-      expect(config.transferMode).toBe('auto-transfer')
+      expect(config.transferMode).toBe('manual')
       expect(config.mediaExtensions).toContain('.mp4')
       expect(config.bufferSize).toBeGreaterThan(0)
     })
@@ -60,6 +61,7 @@ describe('ConfigManager', () => {
       expect(config.transferMode).toBe('fully-autonomous')
       // Other values should remain default
       expect(config.folderStructure).toBe('preserve-source')
+      expect(config.keepFolderStructure).toBe(false)
     })
 
     it('should update multiple config values', () => {
@@ -94,8 +96,9 @@ describe('ConfigManager', () => {
       configManager.resetConfig()
       const config = configManager.getConfig()
 
-      expect(config.transferMode).toBe('auto-transfer')
+      expect(config.transferMode).toBe('manual')
       expect(config.folderStructure).toBe('preserve-source')
+      expect(config.keepFolderStructure).toBe(false)
     })
 
     it('should validate config before updating', () => {
@@ -125,6 +128,22 @@ describe('ConfigManager', () => {
       const config = configManager.getConfig()
       expect(config.mediaExtensions).toEqual(customExtensions)
     })
+
+    it('should handle keepFolderStructure setting', () => {
+      // Default should be false
+      let config = configManager.getConfig()
+      expect(config.keepFolderStructure).toBe(false)
+
+      // Should be able to update to true
+      configManager.updateConfig({ keepFolderStructure: true })
+      config = configManager.getConfig()
+      expect(config.keepFolderStructure).toBe(true)
+
+      // Should be able to update back to false
+      configManager.updateConfig({ keepFolderStructure: false })
+      config = configManager.getConfig()
+      expect(config.keepFolderStructure).toBe(false)
+    })
   })
 
   describe('Standalone functions', () => {
@@ -144,7 +163,7 @@ describe('ConfigManager', () => {
       updateConfig({ transferMode: 'fully-autonomous' })
       resetConfig()
       const config = getConfig()
-      expect(config.transferMode).toBe('auto-transfer')
+      expect(config.transferMode).toBe('manual')
     })
   })
 
@@ -161,7 +180,7 @@ describe('ConfigManager', () => {
       const validConfig: Partial<AppConfig> = { folderStructure: 'date-based' }
       expect(() => validateConfig(validConfig)).not.toThrow()
 
-      const invalidConfig: any = { folderStructure: 'invalid' }
+      const invalidConfig = { folderStructure: 'invalid' as FolderStructure }
       expect(() => validateConfig(invalidConfig)).toThrow()
     })
 
@@ -247,7 +266,7 @@ describe('ConfigManager', () => {
         futureFeature: 'value'
       }
 
-      configManager.updateConfig(configWithExtra as any)
+      configManager.updateConfig(configWithExtra as Partial<AppConfig>)
       const config = configManager.getConfig()
 
       // Should have standard keys

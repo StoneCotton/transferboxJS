@@ -1,7 +1,6 @@
 /**
  * App Component Tests
  */
-
 import React from 'react'
 import { render, screen } from '@testing-library/react'
 import App from '../../src/renderer/src/App'
@@ -94,7 +93,7 @@ jest.mock('../../src/renderer/src/store', () => ({
       createDeviceBasedFolders: false,
       deviceFolderTemplate: '{device_name}',
       folderStructure: 'preserve-source',
-      keepFolderStructure: true,
+      keepFolderStructure: false,
       transferOnlyMediaFiles: false,
       mediaExtensions: ['.mp4', '.mov', '.jpg', '.png'],
       checksumAlgorithm: 'xxhash64',
