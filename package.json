@@ -1,6 +1,6 @@
 {
   "name": "transferbox",
-  "version": "2.0.1-beta.0",
+  "version": "2.0.1-beta.1",
   "description": "Media ingest utility.",
   "main": "./out/main/index.js",
   "author": "Tyler Saari",
