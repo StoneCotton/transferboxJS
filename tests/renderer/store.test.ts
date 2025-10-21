@@ -10,6 +10,13 @@ describe('Store', () => {
   // Get direct store reference
   const store = useStore
 
+  // Reset store state before each test
+  beforeEach(() => {
+    store.getState().clearLogs()
+    store.getState().setFilter('')
+    store.getState().setLevel('all')
+  })
+
   describe('Drive Slice', () => {
     it('should add a drive', () => {
       const mockDrive: DriveInfo = {
