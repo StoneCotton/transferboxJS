@@ -45,6 +45,22 @@ interface IpcApi {
   // App info
   getAppVersion: () => Promise<string>
 
+  // Config version management
+  getVersionInfo: () => Promise<{
+    appVersion: string
+    configVersion: string
+    isUpToDate: boolean
+    needsMigration: boolean
+    hasNewerConfigWarning: boolean
+  }>
+  getNewerConfigWarning: () => Promise<{
+    configVersion: string
+    appVersion: string
+    timestamp: number
+  } | null>
+  handleNewerConfigChoice: (choice: 'continue' | 'reset') => Promise<AppConfig>
+  clearNewerConfigWarning: () => Promise<void>
+
   // Event listeners
   onDriveDetected: (callback: (drive: DriveInfo) => void) => () => void
   onDriveRemoved: (callback: (device: string) => void) => () => void

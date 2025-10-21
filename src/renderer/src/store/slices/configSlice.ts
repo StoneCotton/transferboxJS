@@ -19,7 +19,7 @@ export const createConfigSlice: StateCreator<ConfigSlice> = (set) => ({
   // Initial state
   config: {
     // Default config - will be loaded from main process
-    configVersion: 1,
+    configVersion: '0.0.0',
     transferMode: 'manual',
     defaultDestination: null,
 
