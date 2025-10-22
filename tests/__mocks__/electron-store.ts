@@ -29,6 +29,23 @@ class MockElectronStore<T extends Record<string, any>> {
     sharedStorage.set(this.storageKey, { ...value })
   }
 
+  get<K extends keyof T>(key: K): T[K] {
+    const data = sharedStorage.get(this.storageKey)
+    return data[key]
+  }
+
+  set<K extends keyof T>(key: K, value: T[K]): void {
+    const data = sharedStorage.get(this.storageKey)
+    data[key] = value
+    sharedStorage.set(this.storageKey, data)
+  }
+
+  delete<K extends keyof T>(key: K): void {
+    const data = sharedStorage.get(this.storageKey)
+    delete data[key]
+    sharedStorage.set(this.storageKey, data)
+  }
+
   clear(): void {
     sharedStorage.set(this.storageKey, { ...this.defaults })
   }

@@ -13,7 +13,11 @@ module.exports = {
     {
       displayName: 'main',
       testEnvironment: 'node',
-      testMatch: ['<rootDir>/tests/main/**/*.test.ts', '<rootDir>/tests/integration/**/*.test.ts'],
+      testMatch: [
+        '<rootDir>/tests/main/**/*.test.ts',
+        '<rootDir>/tests/integration/**/*.test.ts',
+        '<rootDir>/tests/shared/**/*.test.ts'
+      ],
       preset: 'ts-jest',
       transform: {
         '^.+\\.tsx?$': [
