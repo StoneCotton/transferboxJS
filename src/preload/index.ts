@@ -88,6 +88,26 @@ const api = {
     const listener = () => callback()
     ipcRenderer.on(IPC_CHANNELS.SYSTEM_RESUME, listener)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.SYSTEM_RESUME, listener)
+  },
+  onMenuOpenSettings: (callback: () => void) => {
+    const listener = () => callback()
+    ipcRenderer.on(IPC_CHANNELS.MENU_OPEN_SETTINGS, listener)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.MENU_OPEN_SETTINGS, listener)
+  },
+  onMenuOpenHistory: (callback: () => void) => {
+    const listener = () => callback()
+    ipcRenderer.on(IPC_CHANNELS.MENU_OPEN_HISTORY, listener)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.MENU_OPEN_HISTORY, listener)
+  },
+  onMenuNewTransfer: (callback: () => void) => {
+    const listener = () => callback()
+    ipcRenderer.on(IPC_CHANNELS.MENU_NEW_TRANSFER, listener)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.MENU_NEW_TRANSFER, listener)
+  },
+  onMenuSelectDestination: (callback: () => void) => {
+    const listener = () => callback()
+    ipcRenderer.on(IPC_CHANNELS.MENU_SELECT_DESTINATION, listener)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.MENU_SELECT_DESTINATION, listener)
   }
 }
 

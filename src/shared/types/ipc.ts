@@ -53,7 +53,16 @@ export const IPC_CHANNELS = {
   SYSTEM_SHUTDOWN: 'system:shutdown',
   SYSTEM_SUSPEND: 'system:suspend', // Event from main to renderer
   SYSTEM_RESUME: 'system:resume', // Event from main to renderer
-  APP_VERSION: 'app:version'
+  APP_VERSION: 'app:version',
+
+  // Menu actions
+  MENU_OPEN_SETTINGS: 'menu:open-settings', // Event from main to renderer
+  MENU_OPEN_HISTORY: 'menu:open-history', // Event from main to renderer
+  MENU_OPEN_DESTINATION: 'menu:open-destination',
+  MENU_CANCEL_TRANSFER: 'menu:cancel-transfer',
+  MENU_NEW_TRANSFER: 'menu:new-transfer', // Event from main to renderer
+  MENU_SELECT_DESTINATION: 'menu:select-destination', // Event from main to renderer
+  MENU_CHECK_UPDATES: 'menu:check-updates'
 } as const
 
 // Request/Response types for each IPC channel
@@ -131,6 +140,10 @@ export interface IpcHandlers {
 
   [IPC_CHANNELS.SYSTEM_SHUTDOWN]: () => Promise<void>
   [IPC_CHANNELS.APP_VERSION]: () => Promise<string>
+
+  [IPC_CHANNELS.MENU_OPEN_DESTINATION]: () => Promise<void>
+  [IPC_CHANNELS.MENU_CANCEL_TRANSFER]: () => Promise<void>
+  [IPC_CHANNELS.MENU_CHECK_UPDATES]: () => Promise<void>
 }
 
 // Event listeners (main -> renderer)
@@ -144,4 +157,8 @@ export interface IpcEvents {
   [IPC_CHANNELS.LOG_ENTRY]: (entry: LogEntry) => void
   [IPC_CHANNELS.SYSTEM_SUSPEND]: () => void
   [IPC_CHANNELS.SYSTEM_RESUME]: () => void
+  [IPC_CHANNELS.MENU_OPEN_SETTINGS]: () => void
+  [IPC_CHANNELS.MENU_OPEN_HISTORY]: () => void
+  [IPC_CHANNELS.MENU_NEW_TRANSFER]: () => void
+  [IPC_CHANNELS.MENU_SELECT_DESTINATION]: () => void
 }

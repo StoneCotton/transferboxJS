@@ -74,6 +74,10 @@ export interface IpcApi {
   onLogEntry: (callback: (entry: LogEntry) => void) => () => void
   onSystemSuspend: (callback: () => void) => () => void
   onSystemResume: (callback: () => void) => () => void
+  onMenuOpenSettings: (callback: () => void) => () => void
+  onMenuOpenHistory: (callback: () => void) => () => void
+  onMenuNewTransfer: (callback: () => void) => () => void
+  onMenuSelectDestination: (callback: () => void) => () => void
 }
 
 /**
@@ -205,6 +209,22 @@ export function useIpc(): IpcApi {
     return window.api.onSystemResume(callback)
   }, [])
 
+  const onMenuOpenSettings = useCallback((callback: () => void) => {
+    return window.api.onMenuOpenSettings(callback)
+  }, [])
+
+  const onMenuOpenHistory = useCallback((callback: () => void) => {
+    return window.api.onMenuOpenHistory(callback)
+  }, [])
+
+  const onMenuNewTransfer = useCallback((callback: () => void) => {
+    return window.api.onMenuNewTransfer(callback)
+  }, [])
+
+  const onMenuSelectDestination = useCallback((callback: () => void) => {
+    return window.api.onMenuSelectDestination(callback)
+  }, [])
+
   return {
     getConfig,
     updateConfig,
@@ -234,6 +254,10 @@ export function useIpc(): IpcApi {
     onTransferError,
     onLogEntry,
     onSystemSuspend,
-    onSystemResume
+    onSystemResume,
+    onMenuOpenSettings,
+    onMenuOpenHistory,
+    onMenuNewTransfer,
+    onMenuSelectDestination
   }
 }

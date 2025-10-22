@@ -332,6 +332,69 @@ export function useAppInit(): null {
       })
     })
 
+    const unsubMenuOpenSettings = ipc.onMenuOpenSettings(() => {
+      console.log('[useAppInit] Menu: Open Settings')
+      const store = useStore.getState()
+      if (!store.showSettings) {
+        store.toggleSettings()
+      }
+    })
+
+    const unsubMenuOpenHistory = ipc.onMenuOpenHistory(() => {
+      console.log('[useAppInit] Menu: Open History')
+      const store = useStore.getState()
+      if (!store.showHistory) {
+        store.toggleHistory()
+      }
+    })
+
+    const unsubMenuNewTransfer = ipc.onMenuNewTransfer(() => {
+      console.log('[useAppInit] Menu: New Transfer - focusing on drive selector')
+      const store = useStore.getState()
+      // Reset current transfer state
+      store.selectDrive(null)
+      store.clearScan()
+      store.setSelectedDestination(null)
+      // Close any open modals
+      store.closeAllModals()
+    })
+
+    const unsubMenuSelectDestination = ipc.onMenuSelectDestination(() => {
+      console.log('[useAppInit] Menu: Select Destination - opening folder picker')
+      const store = useStore.getState()
+
+      // Replicate the folder selection logic from DestinationSelector
+      const handleSelectFolder = async (): Promise<void> => {
+        try {
+          const folder = await ipc.selectFolder()
+          if (folder) {
+            // Validate the path
+            const validation = await ipc.validatePath({ path: folder })
+
+            if (validation.isValid) {
+              store.setSelectedDestination(folder)
+              // Auto-transfer logic is handled by DestinationSelector's useEffect
+            } else {
+              store.addToast({
+                type: 'error',
+                message: validation.error || 'Invalid destination folder',
+                duration: 5000
+              })
+            }
+          }
+        } catch (error) {
+          console.error('Failed to select folder:', error)
+          store.addToast({
+            type: 'error',
+            message: 'Failed to select destination folder',
+            duration: 5000
+          })
+        }
+      }
+
+      handleSelectFolder()
+    })
+
     // Cleanup on unmount
     return () => {
       unsubDriveDetected()
@@ -343,6 +406,10 @@ export function useAppInit(): null {
       unsubLogEntry()
       unsubSystemSuspend()
       unsubSystemResume()
+      unsubMenuOpenSettings()
+      unsubMenuOpenHistory()
+      unsubMenuNewTransfer()
+      unsubMenuSelectDestination()
       cleanupSoundManager()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

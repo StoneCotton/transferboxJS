@@ -71,6 +71,10 @@ interface IpcApi {
   onLogEntry: (callback: (entry: LogEntry) => void) => () => void
   onSystemSuspend: (callback: () => void) => () => void
   onSystemResume: (callback: () => void) => () => void
+  onMenuOpenSettings: (callback: () => void) => () => void
+  onMenuOpenHistory: (callback: () => void) => () => void
+  onMenuNewTransfer: (callback: () => void) => () => void
+  onMenuSelectDestination: (callback: () => void) => () => void
 }
 
 declare global {

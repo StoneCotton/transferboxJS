@@ -22,6 +22,7 @@ import { FileTransferEngine } from './fileTransfer'
 import { getDatabaseManager } from './databaseManager'
 import { getLogger } from './logger'
 import { createPathProcessor, type PathProcessor } from './pathProcessor'
+import { updateMenuForTransferState } from './menu'
 
 // Global instances
 let driveMonitor: DriveMonitor | null = null
@@ -300,6 +301,9 @@ export function setupIpcHandlers(): void {
       { success: boolean; checksum?: string; error?: string }
     >()
 
+    // Update menu to enable Cancel Transfer option
+    updateMenuForTransferState(true)
+
     // Transfer files with progress updates
     transferEngine
       .transferFiles(transferFiles, {
@@ -564,6 +568,9 @@ export function setupIpcHandlers(): void {
           id: sessionId,
           status: failedCount > 0 ? 'error' : 'complete'
         })
+
+        // Update menu to disable Cancel Transfer option
+        updateMenuForTransferState(false)
       })
       .catch((error) => {
         // Update session with error
@@ -577,6 +584,9 @@ export function setupIpcHandlers(): void {
 
         // Send error event
         event.sender.send(IPC_CHANNELS.TRANSFER_ERROR, error.message)
+
+        // Update menu to disable Cancel Transfer option
+        updateMenuForTransferState(false)
       })
   })
 
@@ -584,6 +594,8 @@ export function setupIpcHandlers(): void {
     if (transferEngine) {
       await transferEngine.stop()
       getLogger().info('Transfer stopped by user')
+      // Update menu to disable Cancel Transfer option
+      updateMenuForTransferState(false)
     }
   })
 
@@ -637,6 +649,44 @@ export function setupIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.APP_VERSION, async () => {
     const { app } = await import('electron')
     return app.getVersion()
+  })
+
+  // Menu action handlers
+  ipcMain.handle(IPC_CHANNELS.MENU_OPEN_DESTINATION, async () => {
+    const config = getConfig()
+    if (config.defaultDestination) {
+      const { shell } = await import('electron')
+      await shell.openPath(config.defaultDestination)
+    }
+  })
+
+  ipcMain.handle(IPC_CHANNELS.MENU_CANCEL_TRANSFER, async () => {
+    if (transferEngine) {
+      await transferEngine.stop()
+      getLogger().info('Transfer cancelled by user via menu')
+      // Update menu to disable Cancel Transfer option
+      updateMenuForTransferState(false)
+    }
+  })
+
+  ipcMain.handle(IPC_CHANNELS.MENU_CHECK_UPDATES, async () => {
+    const { dialog, shell } = await import('electron')
+    const currentVersion = (await import('electron')).app.getVersion()
+
+    // Show a simple dialog for now - can be enhanced with actual update checking
+    const result = await dialog.showMessageBox({
+      type: 'info',
+      title: 'Check for Updates',
+      message: 'Check for Updates',
+      detail: `Current version: ${currentVersion}\n\nVisit the releases page to check for updates?`,
+      buttons: ['Visit Releases', 'Cancel'],
+      defaultId: 0,
+      cancelId: 1
+    })
+
+    if (result.response === 0) {
+      await shell.openExternal('https://github.com/tylersaari/transferbox/releases')
+    }
   })
 }
 
@@ -695,6 +745,17 @@ export function stopDriveMonitoring(): void {
  */
 export function isTransferInProgress(): boolean {
   return transferEngine ? transferEngine.isTransferring() : false
+}
+
+/**
+ * Cancel the current transfer (for use by menu or other main process code)
+ */
+export async function cancelCurrentTransfer(): Promise<void> {
+  if (transferEngine) {
+    await transferEngine.stop()
+    getLogger().info('Transfer cancelled by user via menu')
+    updateMenuForTransferState(false)
+  }
 }
 
 /**

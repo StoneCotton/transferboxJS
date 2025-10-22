@@ -7,6 +7,7 @@ import { getLogger } from './logger'
 import { cleanupOrphanedPartFiles } from './fileTransfer'
 import { getConfig } from './configManager'
 import { IPC_CHANNELS } from '../shared/types'
+import { createApplicationMenu } from './menu'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -16,7 +17,6 @@ function createWindow(): void {
     width: 1600,
     height: 1000,
     show: false,
-    autoHideMenuBar: true,
     icon: icon,
     title: 'TransferBox',
     webPreferences: {
@@ -97,6 +97,12 @@ app.whenReady().then(async () => {
   // Setup IPC handlers
   setupIpcHandlers()
 
+  // Create application menu (must be done before window creation for proper initialization)
+  createWindow()
+  if (mainWindow) {
+    createApplicationMenu(mainWindow)
+  }
+
   // Clean up orphaned .TBPART files from previous incomplete transfers
   try {
     const config = getConfig()
@@ -147,12 +153,15 @@ app.whenReady().then(async () => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  createWindow()
-
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the
     // dock icon is clicked and there are no other windows open.
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow()
+      if (mainWindow) {
+        createApplicationMenu(mainWindow)
+      }
+    }
   })
 })
 
