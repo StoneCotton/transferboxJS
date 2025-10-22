@@ -32,6 +32,11 @@ const api = {
   // Logs
   getRecentLogs: (limit?: number) => ipcRenderer.invoke(IPC_CHANNELS.LOG_GET_RECENT, limit),
   clearLogs: () => ipcRenderer.invoke(IPC_CHANNELS.LOG_CLEAR),
+  getLogsByRange: (
+    startTime: number,
+    endTime: number,
+    level?: 'debug' | 'info' | 'warn' | 'error'
+  ) => ipcRenderer.invoke('log:get-range', { startTime, endTime, level }),
 
   // App info
   getAppVersion: () => ipcRenderer.invoke(IPC_CHANNELS.APP_VERSION),

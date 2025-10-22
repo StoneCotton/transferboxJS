@@ -89,6 +89,7 @@ export class FileTransferEngine {
     destPath: string,
     options?: TransferOptions
   ): Promise<TransferResult> {
+    const logger = getLogger()
     const startTime = Date.now()
     const bufferSize = options?.bufferSize || DEFAULT_BUFFER_SIZE
     const tempPath = destPath + '.TBPART'
@@ -109,6 +110,18 @@ export class FileTransferEngine {
       // Check if stopped before starting
       if (this.stopped) {
         throw new Error('Transfer cancelled')
+      }
+
+      // Log file transfer start (debug)
+      try {
+        const sourceStats = await stat(sourcePath)
+        logger.debug('File transfer start', {
+          sourcePath,
+          destPath,
+          size: sourceStats.size
+        })
+      } catch {
+        logger.debug('File transfer start', { sourcePath, destPath })
       }
 
       // Check if source exists
@@ -178,6 +191,8 @@ export class FileTransferEngine {
       this.activeTempFiles.delete(tempPath)
 
       result.success = true
+      // Log success
+      logger.logFileTransfer(sourcePath, destPath, 'complete')
     } catch (error) {
       const transferError = wrapError(error)
       result.error = transferError.message
@@ -192,6 +207,8 @@ export class FileTransferEngine {
         // Ignore cleanup errors
       }
 
+      // Log error for this file
+      logger.logFileTransfer(sourcePath, destPath, 'error')
       throw transferError
     } finally {
       result.duration = Date.now() - startTime

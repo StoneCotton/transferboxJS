@@ -20,7 +20,7 @@ import {
 import { DriveMonitor } from './driveMonitor'
 import { FileTransferEngine } from './fileTransfer'
 import { getDatabaseManager } from './databaseManager'
-import { getLogger } from './logger'
+import { getLogger, onLogEntry } from './logger'
 import { createPathProcessor, type PathProcessor } from './pathProcessor'
 import { updateMenuForTransferState } from './menu'
 
@@ -41,7 +41,17 @@ export function setupIpcHandlers(): void {
   })
 
   ipcMain.handle(IPC_CHANNELS.CONFIG_UPDATE, async (_, config) => {
-    return updateConfig(config)
+    const updated = updateConfig(config)
+    // If logLevel changed, apply to logger immediately
+    if (config && 'logLevel' in config && config.logLevel) {
+      const logger = getLogger()
+      const previous = logger.getLevel()
+      logger.setLevel(config.logLevel)
+      if (previous !== config.logLevel) {
+        logger.info('Log level set', { from: previous, to: config.logLevel })
+      }
+    }
+    return updated
   })
 
   ipcMain.handle(IPC_CHANNELS.CONFIG_RESET, async () => {
@@ -118,9 +128,9 @@ export function setupIpcHandlers(): void {
         }
 
         const config = getConfig()
-        console.log('[IPC] Scanning drive with mediaExtensions:', config.mediaExtensions)
+        getLogger().debug('[IPC] Scanning drive', { mediaExtensions: config.mediaExtensions })
         const result = await driveMonitor.scanForMedia(drive.mountpoints[0])
-        console.log('[IPC] Scan complete. Found files:', result.fileCount)
+        getLogger().info('[IPC] Scan complete', { fileCount: result.fileCount })
 
         return {
           driveInfo: drive,
@@ -136,9 +146,11 @@ export function setupIpcHandlers(): void {
 
         // If not mounted yet and we have retries left, wait and retry
         if (attempt < MAX_RETRIES - 1 && lastError.message.includes('not mounted')) {
-          console.log(
-            `[IPC] Drive not mounted yet, retrying in ${RETRY_DELAY_MS}ms (attempt ${attempt + 1}/${MAX_RETRIES})`
-          )
+          getLogger().warn('[IPC] Drive not mounted yet, retrying', {
+            attempt: attempt + 1,
+            maxRetries: MAX_RETRIES,
+            retryDelayMs: RETRY_DELAY_MS
+          })
           await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS))
           continue
         }
@@ -162,10 +174,10 @@ export function setupIpcHandlers(): void {
 
         // Notify renderer that drive was unmounted
         if (mainWindow && !mainWindow.isDestroyed()) {
-          console.log('[IPC] Sending DRIVE_UNMOUNTED event for device:', device)
+          getLogger().debug('[IPC] Sending DRIVE_UNMOUNTED event', { device })
           mainWindow.webContents.send(IPC_CHANNELS.DRIVE_UNMOUNTED, device)
         } else {
-          console.warn('[IPC] Cannot send DRIVE_UNMOUNTED - mainWindow not available')
+          getLogger().warn('[IPC] Cannot send DRIVE_UNMOUNTED - mainWindow not available')
         }
       } else {
         getLogger().warn('Failed to unmount drive', { device })
@@ -203,20 +215,25 @@ export function setupIpcHandlers(): void {
     const transferFiles = await Promise.all(
       filteredFiles.map(async (sourcePath) => {
         try {
-          console.log(`[IPC] Processing path: ${sourcePath}`)
+          getLogger().debug('[IPC] Processing source path', { sourcePath })
           const processedPath = await pathProcessor!.processFilePath(
             sourcePath,
             request.destinationRoot,
             request.driveInfo.displayName
           )
-          console.log(`[IPC] Processed path result: ${processedPath.destinationPath}`)
+          getLogger().debug('[IPC] Processed path result', {
+            destinationPath: processedPath.destinationPath
+          })
           return { source: sourcePath, dest: processedPath.destinationPath }
         } catch (error) {
-          console.error(`Failed to process path for ${sourcePath}:`, error)
+          getLogger().warn('Failed to process path', {
+            sourcePath,
+            error: error instanceof Error ? error.message : String(error)
+          })
           // Fallback to simple filename if processing fails
           const fileName = sourcePath.split('/').pop() || 'file'
           const destPath = `${request.destinationRoot}/${fileName}`
-          console.log(`[IPC] Using fallback path: ${destPath}`)
+          getLogger().info('[IPC] Using fallback destination path', { destPath })
           return { source: sourcePath, dest: destPath }
         }
       })
@@ -408,6 +425,26 @@ export function setupIpcHandlers(): void {
           const status = result.success ? 'complete' : 'error'
           const checksum = result.success ? result.sourceChecksum : undefined
 
+          // Log per-file completion with context
+          if (result.success) {
+            logger.info('File transfer completed', {
+              sourcePath: file.source,
+              destPath: file.dest,
+              bytesTransferred: result.bytesTransferred,
+              checksumVerified: result.checksumVerified,
+              checksum: result.sourceChecksum,
+              durationMs: result.duration
+            })
+          } else {
+            logger.error('File transfer failed', {
+              sourcePath: file.source,
+              destPath: file.dest,
+              error: result.error,
+              errorType: result.errorType,
+              durationMs: result.duration
+            })
+          }
+
           // Track this completion
           completedFileResults.set(fileIndex, {
             success: result.success,
@@ -511,16 +548,15 @@ export function setupIpcHandlers(): void {
 
                 // Notify renderer that drive was unmounted
                 if (mainWindow && !mainWindow.isDestroyed()) {
-                  console.log(
-                    '[IPC] Sending DRIVE_UNMOUNTED event for auto-unmounted device:',
-                    request.driveInfo.device
-                  )
+                  getLogger().debug('[IPC] Sending DRIVE_UNMOUNTED event (auto)', {
+                    device: request.driveInfo.device
+                  })
                   mainWindow.webContents.send(
                     IPC_CHANNELS.DRIVE_UNMOUNTED,
                     request.driveInfo.device
                   )
                 } else {
-                  console.warn('[IPC] Cannot send DRIVE_UNMOUNTED - mainWindow not available')
+                  getLogger().warn('[IPC] Cannot send DRIVE_UNMOUNTED - mainWindow not available')
                 }
               } else {
                 logger.warn('Failed to auto-unmount drive', {
@@ -639,6 +675,24 @@ export function setupIpcHandlers(): void {
     getLogger().clear()
   })
 
+  // Log range export handler
+  ipcMain.handle(
+    'log:get-range',
+    async (_e, args: { startTime: number; endTime: number; level?: string }) => {
+      const logger = getLogger()
+      const { startTime, endTime, level } = args || {}
+      if (typeof startTime !== 'number' || typeof endTime !== 'number') {
+        throw new Error('Invalid date range')
+      }
+      if (level && ['debug', 'info', 'warn', 'error'].includes(level)) {
+        // Filter by level within range
+        const range = logger.getByDateRange(startTime, endTime)
+        return range.filter((l) => l.level === level)
+      }
+      return logger.getByDateRange(startTime, endTime)
+    }
+  )
+
   // System handlers
   ipcMain.handle(IPC_CHANNELS.SYSTEM_SHUTDOWN, async () => {
     const { app } = await import('electron')
@@ -702,6 +756,19 @@ export function startDriveMonitoring(window: Electron.BrowserWindow): void {
 
   // Store window reference for unmount events
   mainWindow = window
+
+  // Stream log entries to renderer
+  try {
+    const unsubscribe = onLogEntry((entry) => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send(IPC_CHANNELS.LOG_ENTRY, entry)
+      }
+    })
+    // Ensure we clean up when window is destroyed
+    mainWindow.once('closed', () => unsubscribe())
+  } catch {
+    // No-op if streaming setup fails
+  }
 
   driveMonitor
     .start({

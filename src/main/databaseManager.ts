@@ -130,7 +130,13 @@ export class DatabaseManager {
     const hasDurationColumn = columns.some((col) => col.name === 'duration')
 
     if (!hasDurationColumn) {
-      console.log('Adding duration column to transfer_files table...')
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { getLogger } = require('./logger')
+        getLogger().info('Adding duration column to transfer_files table...')
+      } catch {
+        // ignore if logger not ready
+      }
       this.db.exec(`
         ALTER TABLE transfer_files ADD COLUMN duration REAL
       `)

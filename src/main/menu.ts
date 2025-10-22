@@ -166,7 +166,10 @@ export function createApplicationMenu(mainWindow: BrowserWindow): void {
             try {
               await cancelCurrentTransfer()
             } catch (error) {
-              console.error('Failed to cancel transfer:', error)
+              const { getLogger } = await import('./logger')
+              getLogger().error('Failed to cancel transfer', {
+                error: error instanceof Error ? error.message : String(error)
+              })
               dialog.showErrorBox('Error', 'Failed to cancel transfer')
             }
           }
@@ -226,7 +229,10 @@ export function createApplicationMenu(mainWindow: BrowserWindow): void {
                 await shell.openExternal('https://github.com/tylersaari/transferbox/releases')
               }
             } catch (error) {
-              console.error('Failed to check for updates:', error)
+              const { getLogger } = await import('./logger')
+              getLogger().error('Failed to check for updates', {
+                error: error instanceof Error ? error.message : String(error)
+              })
             }
           }
         },

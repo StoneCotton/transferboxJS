@@ -65,6 +65,8 @@ export function SettingsModal() {
   const [autoCleanupLogs, setAutoCleanupLogs] = useState(config.autoCleanupLogs)
   const [logRetentionDays, setLogRetentionDays] = useState(config.logRetentionDays)
   const [unitSystem, setUnitSystem] = useState(config.unitSystem)
+  // Logging level
+  const [logLevel, setLogLevel] = useState<AppConfig['logLevel']>(config.logLevel || 'info')
 
   const [isSaving, setIsSaving] = useState(false)
 
@@ -94,6 +96,7 @@ export function SettingsModal() {
     setAutoCleanupLogs(config.autoCleanupLogs)
     setLogRetentionDays(config.logRetentionDays)
     setUnitSystem(config.unitSystem)
+    setLogLevel(config.logLevel || 'info')
   }, [config])
 
   const handleSelectDestination = async (): Promise<void> => {
@@ -159,7 +162,10 @@ export function SettingsModal() {
         showDetailedProgress,
         autoCleanupLogs,
         logRetentionDays,
-        unitSystem
+        unitSystem,
+
+        // Logging
+        logLevel
       }
 
       const updatedConfig = await ipc.updateConfig(updates)
@@ -641,6 +647,27 @@ export function SettingsModal() {
                 UI Preferences
               </h3>
               <div className="space-y-4">
+                {/* Log Level */}
+                <div className="rounded-lg border-2 border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800/50">
+                  <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
+                    Log Level
+                  </label>
+                  <select
+                    value={logLevel || 'info'}
+                    onChange={(e) => setLogLevel(e.target.value as AppConfig['logLevel'])}
+                    disabled={isFormDisabled}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-brand-500 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <option value="error">error</option>
+                    <option value="warn">warn</option>
+                    <option value="info">info</option>
+                    <option value="debug">debug</option>
+                  </select>
+                  <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
+                    Controls what the app records. The Logs panel filter only affects display.
+                  </p>
+                </div>
+
                 <label className="flex items-center gap-3 rounded-lg border-2 border-gray-200 bg-white p-4 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800/50">
                   <input
                     type="checkbox"

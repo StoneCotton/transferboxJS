@@ -54,6 +54,7 @@ export interface AppConfig {
   chunkSize: number // In bytes, for progress updates
 
   // Logging
+  logLevel?: 'error' | 'warn' | 'info' | 'debug'
   enableLogging: boolean
   generateMHL: boolean // Legacy setting - kept for backward compatibility
 
@@ -145,6 +146,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   chunkSize: 1048576, // 1MB for progress updates
 
   // Logging
+  logLevel: 'info',
   enableLogging: true,
   generateMHL: false, // Legacy setting
 

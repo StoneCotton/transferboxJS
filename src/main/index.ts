@@ -106,6 +106,15 @@ app.whenReady().then(async () => {
   // Clean up orphaned .TBPART files from previous incomplete transfers
   try {
     const config = getConfig()
+    // Ensure logger level is applied from config
+    if (config.logLevel) {
+      const logger = getLogger()
+      const previous = logger.getLevel()
+      logger.setLevel(config.logLevel)
+      if (previous !== config.logLevel) {
+        logger.info('Log level set', { from: previous, to: config.logLevel })
+      }
+    }
     if (config.defaultDestination) {
       const cleaned = await cleanupOrphanedPartFiles(config.defaultDestination)
       if (cleaned > 0) {
@@ -119,6 +128,35 @@ app.whenReady().then(async () => {
     getLogger().warn('Startup cleanup failed', {
       error: error instanceof Error ? error.message : String(error)
     })
+  }
+
+  // Schedule daily log retention cleanup if enabled
+  try {
+    const config = getConfig()
+    if (config.autoCleanupLogs && typeof config.logRetentionDays === 'number') {
+      const logger = getLogger()
+      const ONE_DAY_MS = 24 * 60 * 60 * 1000
+      setInterval(() => {
+        try {
+          const deleted = logger.deleteOldLogs(config.logRetentionDays)
+          if (deleted > 0) {
+            logger.info('Log retention cleanup completed', {
+              deleted,
+              daysToKeep: config.logRetentionDays
+            })
+          }
+        } catch (cleanupError) {
+          logger.warn('Log retention cleanup failed', {
+            error: cleanupError instanceof Error ? cleanupError.message : String(cleanupError)
+          })
+        }
+      }, ONE_DAY_MS)
+      logger.info('Scheduled daily log retention cleanup', {
+        daysToKeep: config.logRetentionDays
+      })
+    }
+  } catch {
+    // ignore scheduling errors
   }
 
   // Setup power monitoring for system sleep/hibernate detection

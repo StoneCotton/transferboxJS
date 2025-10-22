@@ -5,6 +5,7 @@
 
 import { stat } from 'fs/promises'
 import * as path from 'path'
+import { getLogger } from './logger'
 import type { AppConfig } from '../shared/types'
 import { FilenameUtils } from './utils/filenameUtils'
 import { getLogger } from './logger'
@@ -55,7 +56,7 @@ export class PathProcessor {
     destinationRoot: string,
     deviceName?: string
   ): Promise<ProcessedPath> {
-    console.log(`[PathProcessor] Processing: ${sourcePath} -> ${destinationRoot}`)
+    getLogger().debug('[PathProcessor] Processing', { sourcePath, destinationRoot })
 
     // Get file information
     const fileInfo = await this.getFileInfo(sourcePath)
@@ -69,7 +70,7 @@ export class PathProcessor {
 
     // Generate filename based on configuration
     const processedFileName = this.generateFileName(fileInfo)
-    console.log(`[PathProcessor] Generated filename: ${processedFileName}`)
+    getLogger().debug('[PathProcessor] Generated filename', { processedFileName })
 
     // Generate directory structure based on configuration
     const directoryStructure = this.generateDirectoryStructure(
@@ -77,11 +78,11 @@ export class PathProcessor {
       destinationRoot,
       deviceName
     )
-    console.log(`[PathProcessor] Generated directory: ${directoryStructure}`)
+    getLogger().debug('[PathProcessor] Generated directory', { directoryStructure })
 
     // Combine directory and filename
     const destinationPath = path.join(directoryStructure, processedFileName)
-    console.log(`[PathProcessor] Final destination: ${destinationPath}`)
+    getLogger().debug('[PathProcessor] Final destination', { destinationPath })
 
     return {
       destinationPath,

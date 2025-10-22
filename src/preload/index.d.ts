@@ -41,6 +41,11 @@ interface IpcApi {
   // Logs
   getRecentLogs: (limit?: number) => Promise<LogEntry[]>
   clearLogs: () => Promise<void>
+  getLogsByRange: (
+    startTime: number,
+    endTime: number,
+    level?: 'debug' | 'info' | 'warn' | 'error'
+  ) => Promise<LogEntry[]>
 
   // App info
   getAppVersion: () => Promise<string>

@@ -15,6 +15,7 @@ import {
   ChecksumAlgorithm
 } from '../shared/types'
 import { CONFIG_VERSION, isCompatible, VersionUtils } from './constants/version'
+import { getLogger } from './logger'
 
 /**
  * Get default config with current version from package.json
@@ -135,9 +136,12 @@ export class ConfigManager {
       const currentConfig = this.getConfig()
 
       writeFileSync(backupPath, JSON.stringify(currentConfig, null, 2))
-      console.log(`[ConfigManager] Config backed up to: ${backupPath}`)
+      getLogger().info('[ConfigManager] Config backed up', { path: backupPath, reason })
     } catch (error) {
-      console.error('[ConfigManager] Failed to create config backup:', error)
+      getLogger().error('[ConfigManager] Failed to create config backup', {
+        error: error instanceof Error ? error.message : String(error),
+        reason
+      })
     }
   }
 
@@ -229,6 +233,7 @@ export class ConfigManager {
    * Validates before updating
    */
   updateConfig(updates: Partial<AppConfig>): AppConfig {
+    const logger = getLogger()
     // Validate the updates
     validateConfig(updates)
 
@@ -246,6 +251,23 @@ export class ConfigManager {
 
     // Save to store - set the entire store object
     this.store.store = newConfig
+
+    // Log settings change summary (limit large arrays)
+    try {
+      const changedKeys = Object.keys(updates)
+      const summarized: Record<string, unknown> = {}
+      for (const key of changedKeys) {
+        const value = (updates as any)[key]
+        if (Array.isArray(value)) {
+          summarized[key] = value.length > 10 ? [...value.slice(0, 10), '...'] : value
+        } else {
+          summarized[key] = value
+        }
+      }
+      logger.info('Settings updated', { changedKeys, values: summarized })
+    } catch {
+      // ignore
+    }
 
     return newConfig
   }
@@ -266,8 +288,10 @@ export class ConfigManager {
    * Resets configuration to defaults
    */
   resetConfig(): AppConfig {
+    const logger = getLogger()
     const defaultConfig = getDefaultConfig()
     this.store.store = defaultConfig
+    logger.warn('Settings reset to defaults')
     return defaultConfig
   }
 
@@ -276,6 +300,7 @@ export class ConfigManager {
    * Useful for fixing corrupted or incompatible configs
    */
   forceMigration(): AppConfig {
+    const logger = getLogger()
     console.log('[ConfigManager] Forcing complete config migration')
 
     // Create backup before forced migration
@@ -304,6 +329,7 @@ export class ConfigManager {
     this.store.store = migratedConfig
 
     console.log('[ConfigManager] Config migration completed')
+    logger.info('Config migration completed', { toVersion: CONFIG_VERSION })
     return migratedConfig
   }
 
@@ -356,6 +382,7 @@ export class ConfigManager {
       // User wants to continue with the newer config
       console.log('[ConfigManager] User chose to continue with newer config version')
       this.store.delete('_newerConfigWarning')
+      getLogger().info('User continued with newer config', warning)
       return this.getConfig()
     } else {
       // User wants to reset to defaults
@@ -364,6 +391,7 @@ export class ConfigManager {
       this.store.delete('_newerConfigWarning')
       const defaultConfig = getDefaultConfig()
       this.store.store = defaultConfig
+      getLogger().warn('User reset config to defaults due to newer config', warning)
       return defaultConfig
     }
   }

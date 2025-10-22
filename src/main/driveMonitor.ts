@@ -106,8 +106,8 @@ export class DriveMonitor {
     const config = getConfig()
     const mediaExtensions = config.mediaExtensions.map((ext) => ext.toLowerCase())
 
-    console.log('[DriveMonitor] Scanning path:', drivePath)
-    console.log('[DriveMonitor] Media extensions:', mediaExtensions)
+    getLogger().info('[DriveMonitor] Scanning path', { path: drivePath })
+    getLogger().debug('[DriveMonitor] Media extensions', { mediaExtensions })
 
     const files: string[] = []
     let totalSize = 0
@@ -192,7 +192,10 @@ export class DriveMonitor {
 
       return true
     } catch (error) {
-      console.error('Failed to unmount drive:', error)
+      getLogger().error('Failed to unmount drive', {
+        device,
+        error: error instanceof Error ? error.message : String(error)
+      })
       return false
     }
   }
@@ -229,7 +232,9 @@ export class DriveMonitor {
       }
     } catch (error) {
       // Log error but don't stop monitoring
-      console.error('Error checking for drive changes:', error)
+      getLogger().warn('Error checking for drive changes', {
+        error: error instanceof Error ? error.message : String(error)
+      })
     }
   }
 
@@ -286,25 +291,31 @@ export class DriveMonitor {
 
           if (stats.isDirectory()) {
             // Recursively scan subdirectory
-            console.log('[DriveMonitor] Scanning subdirectory:', fullPath)
+            getLogger().debug('[DriveMonitor] Scanning subdirectory', { path: fullPath })
             await this.scanDirectory(fullPath, files, mediaExtensions, visitedInodes)
           } else if (stats.isFile()) {
             // Check if file has media extension
             const ext = path.extname(entry.name).toLowerCase()
             if (mediaExtensions.includes(ext)) {
-              console.log('[DriveMonitor] Found media file:', entry.name, 'ext:', ext)
+              getLogger().debug('[DriveMonitor] Found media file', { file: entry.name, ext })
               files.push(fullPath)
             }
           }
         } catch (error) {
           // Skip files/directories that can't be accessed
-          console.warn('[DriveMonitor] Could not access:', fullPath, error)
+          getLogger().warn('[DriveMonitor] Could not access path', {
+            path: fullPath,
+            error: error instanceof Error ? error.message : String(error)
+          })
           continue
         }
       }
     } catch (error) {
       // Skip directories that can't be accessed
-      console.warn('[DriveMonitor] Could not read directory:', dirPath, error)
+      getLogger().warn('[DriveMonitor] Could not read directory', {
+        path: dirPath,
+        error: error instanceof Error ? error.message : String(error)
+      })
       return
     }
   }

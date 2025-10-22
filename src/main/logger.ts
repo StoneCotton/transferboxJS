@@ -4,6 +4,7 @@
  */
 
 import { LogEntry } from '../shared/types'
+import { EventEmitter } from 'events'
 import { DatabaseManager } from './databaseManager'
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error'
@@ -22,6 +23,7 @@ const LOG_LEVELS: Record<LogLevel, number> = {
 export class Logger {
   private db: DatabaseManager
   private minLevel: LogLevel = 'info'
+  private emitter: EventEmitter = new EventEmitter()
 
   constructor(dbPath?: string) {
     this.db = new DatabaseManager(dbPath)
@@ -96,7 +98,9 @@ export class Logger {
       context: safeContext
     }
 
-    this.db.addLogEntry(entry)
+    const timestamp = this.db.addLogEntry(entry)
+    // Emit to subscribers (e.g., forward to renderer)
+    this.emitter.emit('entry', { timestamp, ...entry })
   }
 
   /**
@@ -244,4 +248,16 @@ export function closeLogger(): void {
     globalLogger.close()
     globalLogger = null
   }
+}
+
+/**
+ * Subscribe to log entries from the global logger. Returns an unsubscribe function.
+ */
+export function onLogEntry(callback: (entry: LogEntry) => void): () => void {
+  const logger = getLogger()
+  // Access the emitter via a lightweight wrapper using debug level to ensure instance creation
+  // We expose subscription through this function to avoid importing EventEmitter elsewhere
+  const anyLogger = logger as unknown as { emitter: EventEmitter }
+  anyLogger.emitter.on('entry', callback)
+  return () => anyLogger.emitter.off('entry', callback)
 }
