@@ -9,6 +9,7 @@ import * as path from 'path'
 import { TransferError, wrapError } from './errors/TransferError'
 import { TransferErrorType } from '../shared/types'
 import { getLogger } from './logger'
+import { withRetry } from './utils/retryStrategy'
 
 export interface TransferProgress {
   bytesTransferred: number
@@ -82,7 +83,7 @@ export class FileTransferEngine {
   }
 
   /**
-   * Transfer a single file with atomic operations
+   * Transfer a single file with atomic operations and retry logic
    */
   async transferFile(
     sourcePath: string,
@@ -107,88 +108,39 @@ export class FileTransferEngine {
     }
 
     try {
-      // Check if stopped before starting
-      if (this.stopped) {
-        throw new Error('Transfer cancelled')
+      // Configure retry settings from options or use defaults
+      const retryConfig = {
+        maxAttempts: options?.maxRetries || 3,
+        initialDelay: options?.retryDelay || 1000,
+        maxDelay: 10000,
+        backoffMultiplier: 2
       }
 
-      // Log file transfer start (debug)
-      try {
-        const sourceStats = await stat(sourcePath)
-        logger.debug('File transfer start', {
-          sourcePath,
-          destPath,
-          size: sourceStats.size
-        })
-      } catch {
-        logger.debug('File transfer start', { sourcePath, destPath })
-      }
+      // Wrap the core transfer logic with retry
+      await withRetry(
+        async () => {
+          // Clean up any existing .TBPART file before retry attempt
+          await this.cleanupTempFile(tempPath)
 
-      // Check if source exists
-      await access(sourcePath, constants.R_OK)
-
-      // Get source file stats
-      const sourceStats = await stat(sourcePath)
-      const totalBytes = sourceStats.size
-
-      // Check if destination exists and overwrite is disabled
-      if (options?.overwrite === false) {
-        try {
-          await access(destPath)
-          throw new Error('Destination file already exists and overwrite is disabled')
-        } catch (error) {
-          // File doesn't exist, which is what we want
-          if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-            throw error
+          return await this.performFileTransfer(
+            sourcePath,
+            destPath,
+            tempPath,
+            bufferSize,
+            options,
+            result
+          )
+        },
+        retryConfig,
+        {
+          operationName: 'transferFile',
+          metadata: {
+            sourcePath,
+            destPath,
+            fileName: path.basename(sourcePath)
           }
         }
-      }
-
-      // Ensure destination directory exists
-      const destDir = path.dirname(destPath)
-      await mkdir(destDir, { recursive: true })
-
-      // Copy file to .TBPART with progress tracking and streaming checksum
-      if (options?.verifyChecksum) {
-        // Use streaming checksum during transfer
-        const { sourceChecksum, destChecksum } = await this.copyFileWithStreamingChecksum(
-          sourcePath,
-          tempPath,
-          totalBytes,
-          bufferSize,
-          options
-        )
-
-        result.sourceChecksum = sourceChecksum
-        result.destChecksum = destChecksum
-
-        if (sourceChecksum !== destChecksum) {
-          throw TransferError.fromChecksumMismatch(sourceChecksum, destChecksum)
-        }
-
-        result.checksumVerified = true
-      } else {
-        // Regular copy without checksum
-        await this.copyFileWithProgress(sourcePath, tempPath, totalBytes, bufferSize, options)
-      }
-
-      result.bytesTransferred = totalBytes
-
-      // Preserve permissions if requested (default: true)
-      if (options?.preservePermissions !== false && process.platform !== 'win32') {
-        await chmod(tempPath, sourceStats.mode)
-      }
-
-      // Preserve file timestamps (access and modification times)
-      // This ensures creation date, modified date, and last accessed date are preserved
-      // Note: birthtime (creation time) cannot be set via utimes, but atime/mtime are preserved
-      await utimes(tempPath, sourceStats.atime, sourceStats.mtime)
-
-      // Atomic rename: .TBPART -> final file
-      await rename(tempPath, destPath)
-
-      // Remove from tracking since it's now completed
-      this.activeTempFiles.delete(tempPath)
+      )
 
       result.success = true
       // Log success
@@ -216,6 +168,122 @@ export class FileTransferEngine {
     }
 
     return result
+  }
+
+  /**
+   * Clean up temporary file if it exists
+   */
+  private async cleanupTempFile(tempPath: string): Promise<void> {
+    try {
+      await unlink(tempPath)
+      this.activeTempFiles.delete(tempPath)
+    } catch (error) {
+      // Ignore cleanup errors - file might not exist
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        // Log non-ENOENT errors for debugging
+        getLogger().debug('Failed to cleanup temp file', {
+          tempPath,
+          error: (error as Error).message
+        })
+      }
+    }
+  }
+
+  /**
+   * Core file transfer logic (extracted for retry wrapper)
+   */
+  private async performFileTransfer(
+    sourcePath: string,
+    destPath: string,
+    tempPath: string,
+    bufferSize: number,
+    options: TransferOptions | undefined,
+    result: TransferResult
+  ): Promise<void> {
+    const logger = getLogger()
+
+    // Check if stopped before starting
+    if (this.stopped) {
+      throw new Error('Transfer cancelled')
+    }
+
+    // Log file transfer start (debug)
+    try {
+      const sourceStats = await stat(sourcePath)
+      logger.debug('File transfer start', {
+        sourcePath,
+        destPath,
+        size: sourceStats.size
+      })
+    } catch {
+      logger.debug('File transfer start', { sourcePath, destPath })
+    }
+
+    // Check if source exists
+    await access(sourcePath, constants.R_OK)
+
+    // Get source file stats
+    const sourceStats = await stat(sourcePath)
+    const totalBytes = sourceStats.size
+
+    // Check if destination exists and overwrite is disabled
+    if (options?.overwrite === false) {
+      try {
+        await access(destPath)
+        throw new Error('Destination file already exists and overwrite is disabled')
+      } catch (error) {
+        // File doesn't exist, which is what we want
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+          throw error
+        }
+      }
+    }
+
+    // Ensure destination directory exists
+    const destDir = path.dirname(destPath)
+    await mkdir(destDir, { recursive: true })
+
+    // Copy file to .TBPART with progress tracking and streaming checksum
+    if (options?.verifyChecksum) {
+      // Use streaming checksum during transfer
+      const { sourceChecksum, destChecksum } = await this.copyFileWithStreamingChecksum(
+        sourcePath,
+        tempPath,
+        totalBytes,
+        bufferSize,
+        options
+      )
+
+      result.sourceChecksum = sourceChecksum
+      result.destChecksum = destChecksum
+
+      if (sourceChecksum !== destChecksum) {
+        throw TransferError.fromChecksumMismatch(sourceChecksum, destChecksum)
+      }
+
+      result.checksumVerified = true
+    } else {
+      // Regular copy without checksum
+      await this.copyFileWithProgress(sourcePath, tempPath, totalBytes, bufferSize, options)
+    }
+
+    result.bytesTransferred = totalBytes
+
+    // Preserve permissions if requested (default: true)
+    if (options?.preservePermissions !== false && process.platform !== 'win32') {
+      await chmod(tempPath, sourceStats.mode)
+    }
+
+    // Preserve file timestamps (access and modification times)
+    // This ensures creation date, modified date, and last accessed date are preserved
+    // Note: birthtime (creation time) cannot be set via utimes, but atime/mtime are preserved
+    await utimes(tempPath, sourceStats.atime, sourceStats.mtime)
+
+    // Atomic rename: .TBPART -> final file
+    await rename(tempPath, destPath)
+
+    // Remove from tracking since it's now completed
+    this.activeTempFiles.delete(tempPath)
   }
 
   /**

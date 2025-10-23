@@ -5,6 +5,7 @@
 
 import { FileTransferEngine } from '../../src/main/fileTransfer'
 import { TransferErrorType } from '../../src/shared/types'
+import { TransferError } from '../../src/main/errors/TransferError'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 
@@ -44,6 +45,62 @@ describe('FileTransfer Edge Cases', () => {
         // Restore permissions for cleanup
         await fs.chmod(sourceFile, 0o644).catch(() => {})
       }
+    })
+  })
+
+  describe('Retry Logic', () => {
+    it('should verify retryable error types are correctly marked', () => {
+      // Test that drive disconnection errors are retryable
+      const driveError = TransferError.fromNodeError({
+        code: 'ENOENT',
+        message: 'No such file or directory'
+      } as NodeJS.ErrnoException)
+
+      expect(driveError.errorType).toBe(TransferErrorType.DRIVE_DISCONNECTED)
+      expect(driveError.isRetryable).toBe(true)
+
+      // Test that checksum mismatch errors are retryable
+      const checksumError = TransferError.fromChecksumMismatch('abc123', 'def456')
+
+      expect(checksumError.errorType).toBe(TransferErrorType.CHECKSUM_MISMATCH)
+      expect(checksumError.isRetryable).toBe(true)
+    })
+
+    it('should verify non-retryable error types are correctly marked', () => {
+      // Test that permission errors are not retryable
+      const permissionError = TransferError.fromNodeError({
+        code: 'EACCES',
+        message: 'Permission denied'
+      } as NodeJS.ErrnoException)
+
+      expect(permissionError.errorType).toBe(TransferErrorType.PERMISSION_DENIED)
+      expect(permissionError.isRetryable).toBe(false)
+
+      // Test that space errors are not retryable
+      const spaceError = TransferError.fromNodeError({
+        code: 'ENOSPC',
+        message: 'No space left on device'
+      } as NodeJS.ErrnoException)
+
+      expect(spaceError.errorType).toBe(TransferErrorType.INSUFFICIENT_SPACE)
+      expect(spaceError.isRetryable).toBe(false)
+    })
+
+    it('should successfully transfer files with retry configuration', async () => {
+      const sourceFile = path.join(testDir, 'source.txt')
+      const destFile = path.join(testDir, 'dest.txt')
+
+      await fs.writeFile(sourceFile, 'test content')
+
+      // Test that retry configuration is accepted
+      const result = await engine.transferFile(sourceFile, destFile, {
+        maxRetries: 3,
+        retryDelay: 100,
+        verifyChecksum: true
+      })
+
+      expect(result.success).toBe(true)
+      expect(result.checksumVerified).toBe(true)
     })
   })
 

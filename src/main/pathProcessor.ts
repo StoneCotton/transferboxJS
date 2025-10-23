@@ -8,7 +8,6 @@ import * as path from 'path'
 import { getLogger } from './logger'
 import type { AppConfig } from '../shared/types'
 import { FilenameUtils } from './utils/filenameUtils'
-import { getLogger } from './logger'
 
 /**
  * Interface for file information needed for processing

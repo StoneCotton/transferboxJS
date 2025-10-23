@@ -49,12 +49,12 @@ export class TransferError extends Error {
       )
     }
 
-    // Drive disconnection (non-retryable)
+    // Drive disconnection (retryable - can be temporary USB reconnection, network mount recovery)
     if (code === 'enoent' || code === 'eio' || code === 'erofs') {
       return new TransferError(
         'Drive may have been disconnected',
         TransferErrorType.DRIVE_DISCONNECTED,
-        false,
+        true,
         error
       )
     }
@@ -81,7 +81,7 @@ export class TransferError extends Error {
     return new TransferError(
       `Checksum mismatch: source=${sourceChecksum}, dest=${destChecksum}`,
       TransferErrorType.CHECKSUM_MISMATCH,
-      false
+      true
     )
   }
 

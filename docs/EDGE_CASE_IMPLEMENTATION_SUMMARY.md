@@ -56,6 +56,79 @@ await withRetry(
 - Configurable per operation
 - Extensive logging for debugging
 
+### 2.1. Retry Logic Integration ✅
+
+**Files Updated:**
+
+- `src/main/fileTransfer.ts` - Integrated `withRetry` into file transfer operations
+- `src/main/errors/TransferError.ts` - Updated error classification for retryable errors
+
+**Key Changes:**
+
+- **Drive Disconnection Errors**: Now marked as retryable (`isRetryable: true`)
+  - `ENOENT` (No such file or directory) - USB reconnection scenarios
+  - `EIO` (Input/output error) - Temporary drive issues
+  - `EROFS` (Read-only file system) - Mount point recovery
+- **Checksum Mismatch Errors**: Now marked as retryable (`isRetryable: true`)
+  - Transient I/O corruption during streaming
+  - Temporary file system issues
+  - Network transfer glitches
+
+**Retry Behavior:**
+
+```typescript
+// Automatic retry with exponential backoff
+await withRetry(
+  async () => {
+    return await this.performFileTransfer(
+      sourcePath,
+      destPath,
+      tempPath,
+      bufferSize,
+      options,
+      result
+    )
+  },
+  {
+    maxAttempts: options?.maxRetries || 3,
+    initialDelay: options?.retryDelay || 1000,
+    maxDelay: 10000,
+    backoffMultiplier: 2
+  },
+  {
+    operationName: 'transferFile',
+    metadata: { sourcePath, destPath, fileName: path.basename(sourcePath) }
+  }
+)
+```
+
+**Retry Scenarios:**
+
+1. **Temporary Drive Disconnection**:
+
+   ```
+   Attempt 1: Transfer starts → Drive disconnects (ENOENT) → Wait 1s
+   Attempt 2: Retry transfer → Drive reconnected → Success ✓
+   ```
+
+2. **Checksum Mismatch Recovery**:
+
+   ```
+   Attempt 1: Transfer completes → Checksum mismatch → Clean .TBPART → Wait 1s
+   Attempt 2: Retry transfer → Checksum matches → Success ✓
+   ```
+
+3. **Non-Retryable Errors** (fail immediately):
+   ```
+   Attempt 1: Transfer starts → Permission denied (EACCES) → Fail immediately ✗
+   ```
+
+**Cleanup Between Retries:**
+
+- `.TBPART` files are automatically cleaned up before each retry attempt
+- Prevents partial file accumulation during retries
+- Ensures clean state for each retry attempt
+
 ### 3. File Validation Module ✅
 
 **Files Created:**

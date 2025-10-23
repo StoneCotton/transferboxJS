@@ -46,7 +46,7 @@ describe('TransferError', () => {
       const transferError = TransferError.fromNodeError(nodeError)
 
       expect(transferError.errorType).toBe(TransferErrorType.DRIVE_DISCONNECTED)
-      expect(transferError.isRetryable).toBe(false)
+      expect(transferError.isRetryable).toBe(true)
     })
 
     it('should categorize drive disconnection errors (EIO)', () => {
@@ -56,7 +56,17 @@ describe('TransferError', () => {
       const transferError = TransferError.fromNodeError(nodeError)
 
       expect(transferError.errorType).toBe(TransferErrorType.DRIVE_DISCONNECTED)
-      expect(transferError.isRetryable).toBe(false)
+      expect(transferError.isRetryable).toBe(true)
+    })
+
+    it('should categorize drive disconnection errors (EROFS)', () => {
+      const nodeError = new Error('Read-only file system') as NodeJS.ErrnoException
+      nodeError.code = 'EROFS'
+
+      const transferError = TransferError.fromNodeError(nodeError)
+
+      expect(transferError.errorType).toBe(TransferErrorType.DRIVE_DISCONNECTED)
+      expect(transferError.isRetryable).toBe(true)
     })
 
     it('should categorize network timeout errors as retryable', () => {
@@ -108,7 +118,7 @@ describe('TransferError', () => {
       const error = TransferError.fromChecksumMismatch(sourceChecksum, destChecksum)
 
       expect(error.errorType).toBe(TransferErrorType.CHECKSUM_MISMATCH)
-      expect(error.isRetryable).toBe(false)
+      expect(error.isRetryable).toBe(true)
       expect(error.message).toContain(sourceChecksum)
       expect(error.message).toContain(destChecksum)
     })
