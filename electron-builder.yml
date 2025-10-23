@@ -34,9 +34,13 @@ mac:
     - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
   notarize: false
   target:
-    - dmg
-    - zip
-  artifactName: ${name}-${version}-${arch}.${ext}
+    - target: dmg
+      arch:
+        - universal
+    - target: zip
+      arch:
+        - universal
+  artifactName: ${name}-${version}-universal.${ext}
 dmg:
   artifactName: ${name}-${version}.${ext}
 linux:
@@ -44,7 +48,6 @@ linux:
   target:
     - AppImage
     - deb
-    - rpm
   maintainer: electronjs.org
   category: Utility
   artifactName: ${name}-${version}-${arch}.${ext}
