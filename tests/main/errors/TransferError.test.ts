@@ -69,6 +69,48 @@ describe('TransferError', () => {
       expect(transferError.isRetryable).toBe(true)
     })
 
+    it('should categorize drive disconnection errors (ENXIO)', () => {
+      const nodeError = new Error('No such device or address') as NodeJS.ErrnoException
+      nodeError.code = 'ENXIO'
+
+      const transferError = TransferError.fromNodeError(nodeError)
+
+      expect(transferError.errorType).toBe(TransferErrorType.DRIVE_DISCONNECTED)
+      expect(transferError.isRetryable).toBe(true)
+    })
+
+    it('should categorize drive disconnection errors (ENOTCONN)', () => {
+      const nodeError = new Error('Transport endpoint is not connected') as NodeJS.ErrnoException
+      nodeError.code = 'ENOTCONN'
+
+      const transferError = TransferError.fromNodeError(nodeError)
+
+      expect(transferError.errorType).toBe(TransferErrorType.DRIVE_DISCONNECTED)
+      expect(transferError.isRetryable).toBe(true)
+    })
+
+    it('should categorize drive disconnection errors (ENODEV)', () => {
+      const nodeError = new Error('No such device') as NodeJS.ErrnoException
+      nodeError.code = 'ENODEV'
+
+      const transferError = TransferError.fromNodeError(nodeError)
+
+      expect(transferError.errorType).toBe(TransferErrorType.DRIVE_DISCONNECTED)
+      expect(transferError.isRetryable).toBe(true)
+    })
+
+    it('should categorize drive disconnection errors (ESHUTDOWN)', () => {
+      const nodeError = new Error(
+        'Cannot send after transport endpoint shutdown'
+      ) as NodeJS.ErrnoException
+      nodeError.code = 'ESHUTDOWN'
+
+      const transferError = TransferError.fromNodeError(nodeError)
+
+      expect(transferError.errorType).toBe(TransferErrorType.DRIVE_DISCONNECTED)
+      expect(transferError.isRetryable).toBe(true)
+    })
+
     it('should categorize network timeout errors as retryable', () => {
       const nodeError = new Error('Connection timed out') as NodeJS.ErrnoException
       nodeError.code = 'ETIMEDOUT'

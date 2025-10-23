@@ -70,7 +70,7 @@ describe('withRetry', () => {
         { maxAttempts: 3 },
         { operationName: 'test', metadata: { file: 'test.txt' } }
       )
-    ).rejects.toThrow('Operation failed after 3 attempts')
+    ).rejects.toThrow(retryableError)
 
     expect(operation).toHaveBeenCalledTimes(3)
   })

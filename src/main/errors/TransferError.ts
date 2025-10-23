@@ -50,7 +50,22 @@ export class TransferError extends Error {
     }
 
     // Drive disconnection (retryable - can be temporary USB reconnection, network mount recovery)
-    if (code === 'enoent' || code === 'eio' || code === 'erofs') {
+    // ENOENT: No such file or directory
+    // EIO: I/O error
+    // EROFS: Read-only file system
+    // ENXIO: No such device or address (device disconnected)
+    // ENOTCONN: Transport endpoint is not connected
+    // ENODEV: No such device
+    // ESHUTDOWN: Cannot send after transport endpoint shutdown
+    if (
+      code === 'enoent' ||
+      code === 'eio' ||
+      code === 'erofs' ||
+      code === 'enxio' ||
+      code === 'enotconn' ||
+      code === 'enodev' ||
+      code === 'eshutdown'
+    ) {
       return new TransferError(
         'Drive may have been disconnected',
         TransferErrorType.DRIVE_DISCONNECTED,

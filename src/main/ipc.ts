@@ -109,8 +109,9 @@ export function setupIpcHandlers(): void {
     }
 
     // Retry mechanism for drives that are detected but not yet mounted
-    const MAX_RETRIES = 5
-    const RETRY_DELAY_MS = 500
+    // Increased to accommodate slower mounting drives and reconnection scenarios
+    const MAX_RETRIES = 10
+    const RETRY_DELAY_MS = 1000
     let lastError: Error | null = null
 
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
@@ -146,21 +147,31 @@ export function setupIpcHandlers(): void {
 
         // If not mounted yet and we have retries left, wait and retry
         if (attempt < MAX_RETRIES - 1 && lastError.message.includes('not mounted')) {
-          getLogger().warn('[IPC] Drive not mounted yet, retrying', {
+          getLogger().info('[IPC] Drive detected but not mounted yet, waiting for OS to mount', {
+            device,
             attempt: attempt + 1,
             maxRetries: MAX_RETRIES,
-            retryDelayMs: RETRY_DELAY_MS
+            retryDelayMs: RETRY_DELAY_MS,
+            remainingTime: `${((MAX_RETRIES - attempt - 1) * RETRY_DELAY_MS) / 1000}s`
           })
           await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS))
           continue
         }
 
         // Other errors or out of retries
+        if (lastError.message.includes('not mounted')) {
+          getLogger().error('[IPC] Drive mount timeout - drive not mounted within retry window', {
+            device,
+            attemptsUsed: MAX_RETRIES,
+            totalTimeWaited: `${(MAX_RETRIES * RETRY_DELAY_MS) / 1000}s`,
+            suggestion: 'Drive may need more time to mount or there may be a hardware issue'
+          })
+        }
         throw lastError
       }
     }
 
-    throw lastError || new Error('Drive scan failed')
+    throw lastError || new Error('Drive scan failed after all retry attempts')
   })
 
   ipcMain.handle(IPC_CHANNELS.DRIVE_UNMOUNT, async (_, device: string) => {

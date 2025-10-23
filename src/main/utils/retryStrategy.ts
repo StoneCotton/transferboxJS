@@ -67,9 +67,11 @@ export async function withRetry<T>(
           ...context?.metadata,
           operation: context?.operationName,
           attempts: attempt,
-          finalError: (error as Error)?.message
+          finalError: (error as Error)?.message,
+          errorType: (error as any)?.errorType
         })
-        throw new Error(`Operation failed after ${attempt} attempts: ${(error as Error)?.message}`)
+        // Preserve the original error to maintain error type information
+        throw error
       }
 
       logger.warn('Operation failed, will retry', {

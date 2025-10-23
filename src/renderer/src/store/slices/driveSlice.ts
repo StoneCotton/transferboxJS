@@ -53,15 +53,21 @@ export const createDriveSlice: StateCreator<DriveSlice> = (set, get) => ({
       const newExistingDrives = new Set(state.existingDrives)
       newExistingDrives.delete(device)
 
+      // Check if there's an active transfer - don't clear scannedFiles during transfer
+      // This allows retry logic to work and keeps the queue visible to users
+      const isTransferring = (state as any).isTransferring || false
+
       return {
         detectedDrives: state.detectedDrives.filter((d) => d.device !== device),
         existingDrives: newExistingDrives,
         unmountedDrives: state.unmountedDrives.filter((d) => d !== device),
         // Clear selected drive if it was removed
         selectedDrive: state.selectedDrive?.device === device ? null : state.selectedDrive,
-        // Clear scan if removed drive was selected
-        scannedFiles: state.selectedDrive?.device === device ? [] : state.scannedFiles,
-        scanError: state.selectedDrive?.device === device ? null : state.scanError
+        // Only clear scan if NOT transferring - preserve queue during retry
+        scannedFiles:
+          state.selectedDrive?.device === device && !isTransferring ? [] : state.scannedFiles,
+        scanError:
+          state.selectedDrive?.device === device && !isTransferring ? null : state.scanError
       }
     }),
 
@@ -97,15 +103,26 @@ export const createDriveSlice: StateCreator<DriveSlice> = (set, get) => ({
         return state
       }
 
+      // Check if there's an active transfer - don't clear scannedFiles during transfer
+      // This allows retry logic to work and keeps the queue visible to users
+      const isTransferring = (state as any).isTransferring || false
+
       const update = {
         unmountedDrives: [...state.unmountedDrives, device],
         // Deselect the drive when it's unmounted
         selectedDrive: state.selectedDrive?.device === device ? null : state.selectedDrive,
-        // Clear scan data for unmounted drive
-        scannedFiles: state.selectedDrive?.device === device ? [] : state.scannedFiles
+        // Only clear scan data if NOT transferring - preserve queue during retry
+        scannedFiles:
+          state.selectedDrive?.device === device && !isTransferring ? [] : state.scannedFiles
       }
 
       console.log('[driveSlice] Returning update with unmountedDrives:', update.unmountedDrives)
+      console.log(
+        '[driveSlice] isTransferring:',
+        isTransferring,
+        'scannedFiles preserved:',
+        state.selectedDrive?.device === device && isTransferring
+      )
 
       return update
     }),
