@@ -282,8 +282,8 @@ function showAboutDialog(mainWindow: BrowserWindow): void {
       applicationName: appName,
       applicationVersion: appVersion,
       version: appVersion,
-      copyright: `© ${new Date().getFullYear()} Tyler Saari`,
-      credits: 'Media ingest utility for professional workflows.',
+      copyright: `© ${new Date().getFullYear()} Created by Tyler Saari`,
+      credits: 'TransferBox is a media ingest utility for professional workflows.',
       website: 'https://tylersaari.net'
     })
     app.showAboutPanel()
@@ -293,7 +293,7 @@ function showAboutDialog(mainWindow: BrowserWindow): void {
       type: 'info',
       title: `About ${appName}`,
       message: appName,
-      detail: `Version: ${appVersion}\n\nMedia ingest utility for professional workflows.\n\n© ${new Date().getFullYear()} Tyler Saari\n\nhttps://tylersaari.net`,
+      detail: `Version: ${appVersion}\n\nTransferBox is a media ingest utility for professional workflows.\n\n© ${new Date().getFullYear()} Created by Tyler Saari\n\nhttps://tylersaari.net`,
       buttons: ['OK']
     })
   }
