@@ -207,8 +207,18 @@ export function createApplicationMenu(mainWindow: BrowserWindow): void {
         {
           label: 'Documentation',
           click: async () => {
-            await shell.openExternal('https://tylersaari.net/transferbox')
+            await dialog.showMessageBox(mainWindow, {
+              type: 'info',
+              title: 'Coming Soon',
+              message: 'Documentation integration is coming soon!',
+              detail: 'This feature is not available yet.',
+              buttons: ['OK']
+            })
           }
+          // label: 'Documentation',
+          // click: async () => {
+          //   await shell.openExternal('https://tylersaari.net')
+          // }
         },
         {
           label: 'Check for Updates',
@@ -226,7 +236,7 @@ export function createApplicationMenu(mainWindow: BrowserWindow): void {
               })
 
               if (result.response === 0) {
-                await shell.openExternal('https://github.com/tylersaari/transferbox/releases')
+                await shell.openExternal('https://github.com/StoneCotton/transferboxJS/releases')
               }
             } catch (error) {
               const { getLogger } = await import('./logger')
@@ -237,17 +247,41 @@ export function createApplicationMenu(mainWindow: BrowserWindow): void {
           }
         },
         {
+          // label: 'Report Issue',
+          // click: async () => {
+          //   await shell.openExternal('https://github.com/StoneCotton/transferboxJS/issues')
+          // }
           label: 'Report Issue',
           click: async () => {
-            await shell.openExternal('https://github.com/tylersaari/transferbox/issues')
+            await dialog.showMessageBox(mainWindow, {
+              type: 'info',
+              title: 'Report Issue',
+              message: 'Report Issue',
+              detail:
+                'This feature is not available yet. You will be able to report issues directly inside the app in a future update.',
+              buttons: ['OK']
+            })
           }
         },
         {
+          // The "View Changelog" functionality will be re-enabled once implemented:
+          // label: 'View Changelog',
+          // click: async () => {
+          //   await shell.openExternal(
+          //     'https://github.com/StoneCotton/transferboxJS/blob/main/CHANGELOG.md'
+          //   )
+          // },
+
           label: 'View Changelog',
           click: async () => {
-            await shell.openExternal(
-              'https://github.com/tylersaari/transferbox/blob/main/CHANGELOG.md'
-            )
+            await dialog.showMessageBox(mainWindow, {
+              type: 'info',
+              title: 'Coming Soon',
+              message: 'Changelog integration is coming soon!',
+              detail:
+                'This feature is not available yet. You will be able to view the changelog directly inside the app in a future update.',
+              buttons: ['OK']
+            })
           }
         },
         ...(isMac
