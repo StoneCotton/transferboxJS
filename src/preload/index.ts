@@ -113,6 +113,12 @@ const api = {
     const listener = () => callback()
     ipcRenderer.on(IPC_CHANNELS.MENU_SELECT_DESTINATION, listener)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.MENU_SELECT_DESTINATION, listener)
+  },
+  onConfigMigrated: (callback: (data: { fromVersion: string; toVersion: string }) => void) => {
+    const listener = (_event: any, data: { fromVersion: string; toVersion: string }) =>
+      callback(data)
+    ipcRenderer.on(IPC_CHANNELS.CONFIG_MIGRATED, listener)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.CONFIG_MIGRATED, listener)
   }
 }
 

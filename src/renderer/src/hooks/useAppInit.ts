@@ -489,6 +489,16 @@ export function useAppInit(): null {
       handleSelectFolder()
     })
 
+    const unsubConfigMigrated = ipc.onConfigMigrated((data) => {
+      console.log('[useAppInit] Config migrated:', data)
+      const store = useStore.getState()
+      store.addToast({
+        type: 'success',
+        message: `Configuration updated from version ${data.fromVersion} to ${data.toVersion}`,
+        duration: 6000
+      })
+    })
+
     // Cleanup on unmount
     return () => {
       unsubDriveDetected()
@@ -504,6 +514,7 @@ export function useAppInit(): null {
       unsubMenuOpenHistory()
       unsubMenuNewTransfer()
       unsubMenuSelectDestination()
+      unsubConfigMigrated()
       cleanupSoundManager()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

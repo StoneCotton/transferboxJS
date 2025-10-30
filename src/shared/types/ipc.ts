@@ -18,6 +18,7 @@ export const IPC_CHANNELS = {
   CONFIG_NEWER_WARNING: 'config:newer-warning',
   CONFIG_HANDLE_NEWER: 'config:handle-newer',
   CONFIG_CLEAR_NEWER_WARNING: 'config:clear-newer-warning',
+  CONFIG_MIGRATED: 'config:migrated', // Event from main to renderer
 
   // Path validation
   PATH_VALIDATE: 'path:validate',
@@ -161,4 +162,5 @@ export interface IpcEvents {
   [IPC_CHANNELS.MENU_OPEN_HISTORY]: () => void
   [IPC_CHANNELS.MENU_NEW_TRANSFER]: () => void
   [IPC_CHANNELS.MENU_SELECT_DESTINATION]: () => void
+  [IPC_CHANNELS.CONFIG_MIGRATED]: (data: { fromVersion: string; toVersion: string }) => void
 }

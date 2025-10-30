@@ -5,7 +5,7 @@ import icon from '../../resources/TransferBox_Icon.png?asset'
 import { setupIpcHandlers, startDriveMonitoring, cleanupIpc, isTransferInProgress } from './ipc'
 import { getLogger } from './logger'
 import { cleanupOrphanedPartFiles } from './fileTransfer'
-import { getConfig } from './configManager'
+import { getConfig, getLastMigration, clearLastMigration } from './configManager'
 import { IPC_CHANNELS } from '../shared/types'
 import { createApplicationMenu } from './menu'
 
@@ -83,6 +83,16 @@ function createWindow(): void {
       mainWindow.setTitle('TransferBox')
       startDriveMonitoring(mainWindow)
       getLogger().info('TransferBox started')
+
+      // Check for config migration and notify renderer
+      const migration = getLastMigration()
+      if (migration) {
+        getLogger().info('Config migration detected', migration)
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send(IPC_CHANNELS.CONFIG_MIGRATED, migration)
+          clearLastMigration()
+        }
+      }
     }
   })
 }

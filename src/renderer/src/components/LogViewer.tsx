@@ -3,7 +3,8 @@
  * Displays application logs with filtering and real-time updates
  */
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
+import type React from 'react'
 import { useLogStore, useStore } from '../store'
 import { useIpc } from '../hooks/useIpc'
 import { LogFilters } from './LogFilters'
@@ -32,7 +33,7 @@ interface LogViewerProps {
   onClose: () => void
 }
 
-export function LogViewer({ onClose }: LogViewerProps) {
+export function LogViewer({ onClose }: LogViewerProps): React.ReactElement {
   const { logs, filter, level, setLogs, addLog, setFilter, setLevel, clearLogs, getFilteredLogs } =
     useLogStore()
   const notificationHistory = useStore((state) => state.notificationHistory || [])
@@ -49,37 +50,7 @@ export function LogViewer({ onClose }: LogViewerProps) {
     'all' | 'info' | 'success' | 'warning' | 'error'
   >('all')
 
-  // Load initial logs
-  useEffect(() => {
-    loadLogs()
-  }, [])
-
-  // Set up real-time log updates
-  useEffect(() => {
-    if (!autoRefresh) return
-
-    const interval = setInterval(() => {
-      if (!isRefreshing) {
-        refreshLogs()
-      }
-    }, 2000) // Refresh every 2 seconds
-
-    return () => clearInterval(interval)
-  }, [autoRefresh, isRefreshing])
-
-  // Handle escape key to close
-  useEffect(() => {
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose()
-      }
-    }
-
-    document.addEventListener('keydown', handleEscape)
-    return () => document.removeEventListener('keydown', handleEscape)
-  }, [onClose])
-
-  const loadLogs = async () => {
+  const loadLogs = useCallback(async (): Promise<void> => {
     try {
       setIsLoading(true)
       const recentLogs = await getRecentLogs(1000)
@@ -89,9 +60,9 @@ export function LogViewer({ onClose }: LogViewerProps) {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [getRecentLogs, setLogs])
 
-  const refreshLogs = async () => {
+  const refreshLogs = useCallback(async (): Promise<void> => {
     try {
       setIsRefreshing(true)
       const recentLogs = await getRecentLogs(100)
@@ -107,9 +78,39 @@ export function LogViewer({ onClose }: LogViewerProps) {
     } finally {
       setIsRefreshing(false)
     }
-  }
+  }, [getRecentLogs, logs, addLog])
 
-  const handleClearLogs = async () => {
+  // Load initial logs
+  useEffect(() => {
+    loadLogs()
+  }, [loadLogs])
+
+  // Set up real-time log updates
+  useEffect(() => {
+    if (!autoRefresh) return
+
+    const interval = setInterval(() => {
+      if (!isRefreshing) {
+        refreshLogs()
+      }
+    }, 2000) // Refresh every 2 seconds
+
+    return () => clearInterval(interval)
+  }, [autoRefresh, isRefreshing, refreshLogs])
+
+  // Handle escape key to close
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') {
+        onClose()
+      }
+    }
+
+    document.addEventListener('keydown', handleEscape)
+    return () => document.removeEventListener('keydown', handleEscape)
+  }, [onClose])
+
+  const handleClearLogs = async (): Promise<void> => {
     try {
       setIsClearing(true)
       await clearLogsIpc()
@@ -122,7 +123,7 @@ export function LogViewer({ onClose }: LogViewerProps) {
     }
   }
 
-  const handleExportLogs = () => {
+  const handleExportLogs = (): void => {
     const filteredLogs = getFilteredLogs()
     const logText = filteredLogs
       .map(
@@ -142,14 +143,14 @@ export function LogViewer({ onClose }: LogViewerProps) {
     URL.revokeObjectURL(url)
   }
 
-  const handleClearNotifications = () => {
+  const handleClearNotifications = (): void => {
     if (clearNotificationHistory) {
       clearNotificationHistory()
     }
     setShowClearConfirm(false)
   }
 
-  const handleExportNotifications = () => {
+  const handleExportNotifications = (): void => {
     const filteredNotifications = getFilteredNotifications()
     const notificationText = filteredNotifications
       .map(
@@ -169,7 +170,13 @@ export function LogViewer({ onClose }: LogViewerProps) {
     URL.revokeObjectURL(url)
   }
 
-  const getFilteredNotifications = () => {
+  const getFilteredNotifications = (): Array<{
+    id: string
+    type: 'info' | 'success' | 'warning' | 'error'
+    message: string
+    timestamp: number
+    duration?: number
+  }> => {
     const history = notificationHistory || []
     return history.filter((notification) => {
       if (notificationTypeFilter !== 'all' && notification.type !== notificationTypeFilter) {
@@ -201,7 +208,7 @@ export function LogViewer({ onClose }: LogViewerProps) {
     error: (notificationHistory || []).filter((n) => n.type === 'error').length
   }
 
-  const getLevelIcon = (level: string) => {
+  const getLevelIcon = (level: string): React.ReactElement => {
     switch (level) {
       case 'error':
         return <AlertCircle className="h-4 w-4 text-red-500" />
@@ -216,7 +223,7 @@ export function LogViewer({ onClose }: LogViewerProps) {
     }
   }
 
-  const getNotificationIcon = (type: string) => {
+  const getNotificationIcon = (type: string): React.ReactElement => {
     switch (type) {
       case 'success':
         return <CheckCircle2 className="h-4 w-4 text-green-500" />
@@ -230,7 +237,7 @@ export function LogViewer({ onClose }: LogViewerProps) {
     }
   }
 
-  const getNotificationColorClasses = (type: string) => {
+  const getNotificationColorClasses = (type: string): string => {
     switch (type) {
       case 'success':
         return 'bg-green-50 dark:bg-green-900/20'
@@ -244,7 +251,7 @@ export function LogViewer({ onClose }: LogViewerProps) {
     }
   }
 
-  const getNotificationTextColor = (type: string) => {
+  const getNotificationTextColor = (type: string): string => {
     switch (type) {
       case 'success':
         return 'text-green-600 dark:text-green-400'

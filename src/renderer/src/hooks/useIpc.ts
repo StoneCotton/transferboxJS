@@ -78,6 +78,9 @@ export interface IpcApi {
   onMenuOpenHistory: (callback: () => void) => () => void
   onMenuNewTransfer: (callback: () => void) => () => void
   onMenuSelectDestination: (callback: () => void) => () => void
+  onConfigMigrated: (
+    callback: (data: { fromVersion: string; toVersion: string }) => void
+  ) => () => void
 }
 
 /**
@@ -225,6 +228,13 @@ export function useIpc(): IpcApi {
     return window.api.onMenuSelectDestination(callback)
   }, [])
 
+  const onConfigMigrated = useCallback(
+    (callback: (data: { fromVersion: string; toVersion: string }) => void) => {
+      return window.api.onConfigMigrated(callback)
+    },
+    []
+  )
+
   return {
     getConfig,
     updateConfig,
@@ -258,6 +268,7 @@ export function useIpc(): IpcApi {
     onMenuOpenSettings,
     onMenuOpenHistory,
     onMenuNewTransfer,
-    onMenuSelectDestination
+    onMenuSelectDestination,
+    onConfigMigrated
   }
 }

@@ -33,6 +33,7 @@ function getDefaultConfig(): AppConfig {
  */
 export class ConfigManager {
   private store: any // Using any to work around electron-store typing issues
+  private lastMigration: { fromVersion: string; toVersion: string } | null = null
 
   constructor(configPath?: string) {
     // Handle both CJS and ESM module formats
@@ -91,6 +92,9 @@ export class ConfigManager {
 
       // Update config version to current
       this.store.set('configVersion', targetVersion)
+
+      // Store migration info for notification
+      this.lastMigration = { fromVersion: currentVersion, toVersion: targetVersion }
     } else {
       console.log('[ConfigManager] Config version is up to date, no migration needed')
     }
@@ -411,6 +415,20 @@ export class ConfigManager {
   }
 
   /**
+   * Get last migration info if available
+   */
+  getLastMigration(): { fromVersion: string; toVersion: string } | null {
+    return this.lastMigration
+  }
+
+  /**
+   * Clear last migration info
+   */
+  clearLastMigration(): void {
+    this.lastMigration = null
+  }
+
+  /**
    * Gets the underlying store instance
    */
   getStore(): Store<AppConfig> {
@@ -495,6 +513,20 @@ export function handleNewerConfigChoice(choice: 'continue' | 'reset'): AppConfig
  */
 export function clearNewerConfigWarning(): void {
   return getConfigManager().clearNewerConfigWarning()
+}
+
+/**
+ * Get last migration info (convenience function)
+ */
+export function getLastMigration(): { fromVersion: string; toVersion: string } | null {
+  return getConfigManager().getLastMigration()
+}
+
+/**
+ * Clear last migration info (convenience function)
+ */
+export function clearLastMigration(): void {
+  return getConfigManager().clearLastMigration()
 }
 
 /**

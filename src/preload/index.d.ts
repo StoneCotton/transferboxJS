@@ -80,6 +80,9 @@ interface IpcApi {
   onMenuOpenHistory: (callback: () => void) => () => void
   onMenuNewTransfer: (callback: () => void) => () => void
   onMenuSelectDestination: (callback: () => void) => () => void
+  onConfigMigrated: (
+    callback: (data: { fromVersion: string; toVersion: string }) => void
+  ) => () => void
 }
 
 declare global {
