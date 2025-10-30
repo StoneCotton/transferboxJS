@@ -3,11 +3,11 @@
  * Detects network paths and provides optimal settings
  */
 
-import { exec } from 'child_process'
+import { execFile } from 'child_process'
 import { promisify } from 'util'
 import * as path from 'path'
 
-const execAsync = promisify(exec)
+const execFileAsync = promisify(execFile)
 
 export class NetworkDetector {
   async isNetworkPath(targetPath: string): Promise<boolean> {
@@ -29,7 +29,13 @@ export class NetworkDetector {
     // Check if drive letter is mapped to network
     try {
       const drive = targetPath.substring(0, 2)
-      const { stdout } = await execAsync(`net use ${drive}`)
+      // Validate drive letter format (e.g., "C:")
+      const driveLetter = drive.replace(/[\\/:]/g, '').toUpperCase()
+      if (!/^[A-Z]$/.test(driveLetter)) {
+        return false
+      }
+      // Use execFile with array arguments to prevent command injection
+      const { stdout } = await execFileAsync('net', ['use', `${driveLetter}:`])
       return stdout.toLowerCase().includes('remote')
     } catch {
       return false
@@ -38,7 +44,12 @@ export class NetworkDetector {
 
   private async isUnixNetworkPath(targetPath: string): Promise<boolean> {
     try {
-      const { stdout } = await execAsync(`df -T "${targetPath}"`)
+      // Validate path doesn't contain command injection characters
+      if (/[;&|`$(){}]/.test(targetPath)) {
+        return false
+      }
+      // Use execFile with array arguments to prevent command injection
+      const { stdout } = await execFileAsync('df', ['-T', targetPath])
       const networkFS = ['nfs', 'smb', 'cifs', 'sshfs', 'afp']
       return networkFS.some((fs) => stdout.toLowerCase().includes(fs))
     } catch {

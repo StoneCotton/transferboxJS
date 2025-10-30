@@ -6,14 +6,14 @@
 import * as drivelist from 'drivelist'
 import { readdir, stat, lstat } from 'fs/promises'
 import * as path from 'path'
-import { exec } from 'child_process'
+import { execFile } from 'child_process'
 import { promisify } from 'util'
 import { DriveInfo, DriveStats, ScannedMedia } from '../shared/types'
 import { getConfig } from './configManager'
 import { checkDiskSpace } from './pathValidator'
 import { getLogger } from './logger'
 
-const execAsync = promisify(exec)
+const execFileAsync = promisify(execFile)
 
 export interface DriveMonitorOptions {
   pollingInterval?: number // Milliseconds between checks (default: 2000)
@@ -169,15 +169,20 @@ export class DriveMonitor {
 
       const mountPoint = drive.mountpoints[0]
 
-      // Platform-specific unmount commands
-      let unmountCommand: string
+      // Validate mount point path to prevent command injection
+      if (/[;&|`$(){}]/.test(mountPoint)) {
+        throw new Error('Invalid characters in mount point path')
+      }
 
+      // Platform-specific unmount commands
       switch (process.platform) {
         case 'darwin': // macOS
-          unmountCommand = `diskutil unmount "${mountPoint}"`
+          // Use execFile with array arguments to prevent command injection
+          await execFileAsync('diskutil', ['unmount', mountPoint])
           break
         case 'linux':
-          unmountCommand = `umount "${mountPoint}"`
+          // Use execFile with array arguments to prevent command injection
+          await execFileAsync('umount', [mountPoint])
           break
         case 'win32':
           // Windows doesn't have a direct unmount command for removable drives
@@ -186,9 +191,6 @@ export class DriveMonitor {
         default:
           throw new Error(`Unsupported platform: ${process.platform}`)
       }
-
-      // Execute unmount command
-      await execAsync(unmountCommand)
 
       return true
     } catch (error) {
