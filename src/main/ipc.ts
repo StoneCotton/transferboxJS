@@ -5,7 +5,7 @@
 
 import { ipcMain, dialog } from 'electron'
 import { stat } from 'fs/promises'
-import { IPC_CHANNELS, PathValidationRequest, TransferStartRequest } from '../shared/types'
+import { IPC_CHANNELS } from '../shared/types'
 import { validatePath, hasEnoughSpace, checkDiskSpace } from './pathValidator'
 import {
   validateTransferStartRequest,
@@ -228,7 +228,8 @@ export function setupIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.TRANSFER_START, async (event, request: unknown) => {
     // Prevent concurrent transfers
     if (transferEngine && transferEngine.isTransferring()) {
-      const errorMessage = 'A transfer is already in progress. Please wait for it to complete or cancel it first.'
+      const errorMessage =
+        'A transfer is already in progress. Please wait for it to complete or cancel it first.'
       getLogger().warn('Transfer start blocked - transfer already in progress')
       throw new Error(errorMessage)
     }
@@ -249,7 +250,9 @@ export function setupIpcHandlers(): void {
     const logger = getLogger()
 
     // Filter files based on media extensions if enabled
-    const filteredFiles = validatedRequest.files.filter((file) => pathProcessor!.shouldTransferFile(file))
+    const filteredFiles = validatedRequest.files.filter((file) =>
+      pathProcessor!.shouldTransferFile(file)
+    )
 
     // Process file paths using configuration
     const transferFiles = await Promise.all(
@@ -578,7 +581,9 @@ export function setupIpcHandlers(): void {
                 sessionId
               })
 
-              const unmountSuccess = await driveMonitor?.unmountDrive(validatedRequest.driveInfo.device)
+              const unmountSuccess = await driveMonitor?.unmountDrive(
+                validatedRequest.driveInfo.device
+              )
 
               if (unmountSuccess) {
                 logger.info('Drive auto-unmounted successfully', {
