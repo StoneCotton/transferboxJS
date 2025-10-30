@@ -142,6 +142,12 @@ class MockStatement {
   all(...params: any[]): MockRow[] {
     // Return all rows matching WHERE clause
     const sqlLower = this.sql.toLowerCase()
+    
+    // Handle LEFT JOIN queries specially
+    if (sqlLower.includes('left join')) {
+      return this.handleLeftJoin(params)
+    }
+    
     const tableName = this.extractTableName(sqlLower, 'select')
 
     if (tableName) {
@@ -212,6 +218,82 @@ class MockStatement {
     return []
   }
 
+  private handleLeftJoin(params: any[]): MockRow[] {
+    // Handle our specific LEFT JOIN query for sessions and files
+    // FROM transfer_sessions s LEFT JOIN transfer_files f ON s.id = f.session_id
+    const sqlLower = this.sql.toLowerCase()
+    
+    // Extract table names
+    const leftTableMatch = this.sql.match(/from\s+(\w+)\s+/i)
+    const rightTableMatch = this.sql.match(/left\s+join\s+(\w+)\s+/i)
+    
+    if (!leftTableMatch || !rightTableMatch) {
+      return []
+    }
+    
+    const leftTable = leftTableMatch[1]
+    const rightTable = rightTableMatch[1]
+    
+    // Get data from both tables
+    const leftData = this.db.getTableData(leftTable)
+    const rightData = this.db.getTableData(rightTable)
+    
+    // Parse JOIN condition (e.g., "s.id = f.session_id")
+    const joinMatch = this.sql.match(/on\s+\w+\.(\w+)\s*=\s*\w+\.(\w+)/i)
+    if (!joinMatch) {
+      return []
+    }
+    
+    const leftKey = joinMatch[1]
+    const rightKey = joinMatch[2]
+    
+    // Perform LEFT JOIN
+    const result: MockRow[] = []
+    
+    leftData.forEach((leftRow) => {
+      const matchingRightRows = rightData.filter((rightRow) => rightRow[rightKey] === leftRow[leftKey])
+      
+      if (matchingRightRows.length > 0) {
+        // Join with each matching right row
+        matchingRightRows.forEach((rightRow) => {
+          result.push({ ...leftRow, ...rightRow })
+        })
+      } else {
+        // No match - LEFT JOIN includes left row with null right values
+        result.push({ ...leftRow })
+      }
+    })
+    
+    // Handle ORDER BY
+    if (sqlLower.includes('order by')) {
+      const orderMatch = this.sql.match(/order\s+by\s+\w+\.(\w+)\s+(desc|asc)/i)
+      if (orderMatch) {
+        const orderColumn = orderMatch[1]
+        const orderDir = orderMatch[2].toLowerCase()
+        
+        result.sort((a, b) => {
+          const aVal = a[orderColumn] || 0
+          const bVal = b[orderColumn] || 0
+          
+          // If values are equal, use insertion order (higher insertion order = more recent)
+          if (aVal === bVal) {
+            const aOrder = a._insertionOrder || 0
+            const bOrder = b._insertionOrder || 0
+            return bOrder - aOrder
+          }
+          
+          if (orderDir === 'desc') {
+            return bVal - aVal
+          } else {
+            return aVal - bVal
+          }
+        })
+      }
+    }
+    
+    return result
+  }
+
   private extractTableName(sql: string, operation: string): string | null {
     const patterns: Record<string, RegExp> = {
       insert: /insert\s+into\s+(\w+)/i,
@@ -265,6 +347,14 @@ class MockDatabase {
 
   close(): void {
     this.isOpen = false
+  }
+
+  transaction(fn: Function): Function {
+    // In a real database, this would wrap the function in a transaction
+    // For the mock, we just return a function that executes the original
+    return () => {
+      return fn()
+    }
   }
 
   pragma(pragma: string, options?: any): any {

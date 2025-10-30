@@ -7,6 +7,7 @@ import * as fs from 'fs/promises'
 import type { Stats } from 'fs'
 import * as path from 'path'
 import { PathValidationResponse } from '../shared/types'
+import { validatePathForShellExecution } from './utils/securityValidation'
 
 /**
  * System directories that should never be used as transfer destinations
@@ -269,10 +270,8 @@ async function checkDiskSpaceFallback(targetPath: string): Promise<DiskSpaceInfo
       }
     } else {
       // Unix-like: Use df command with path as argument (not in string)
-      // Validate path doesn't contain command injection characters
-      if (/[;&|`$(){}]/.test(targetPath)) {
-        throw new Error('Invalid characters in path')
-      }
+      // Validate path is safe for shell execution
+      validatePathForShellExecution(targetPath, 'disk space check path')
 
       const { stdout } = await execFileAsync('df', ['-k', targetPath])
       const lines = stdout.trim().split('\n')

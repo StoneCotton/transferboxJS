@@ -26,24 +26,29 @@ export class FilenameUtils {
 
     let sanitized = filename
 
-    if (platform === 'win32') {
-      // Windows forbidden chars: < > : " / \ | ? *
-      sanitized = sanitized.replace(/[<>:"/\\|?*]/g, replacement)
+    // Always remove Windows-forbidden characters for cross-platform portability
+    sanitized = sanitized.replace(/[<>:"/\\|?*]/g, replacement)
 
+    // Replace NULL with replacement, then remove other control characters universally
+    // eslint-disable-next-line no-control-regex
+    sanitized = sanitized.replace(/\x00/g, replacement)
+    // eslint-disable-next-line no-control-regex
+    sanitized = sanitized.replace(/[\x01-\x1f\x7f]/g, '')
+
+    // Ensure path separators are safe on POSIX (already handled in Windows set above)
+    if (platform !== 'win32') {
+      sanitized = sanitized.replace(/\//g, replacement)
+    }
+
+    if (platform === 'win32') {
       // Windows reserved names
       const reserved = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$/i
       if (reserved.test(sanitized)) {
         sanitized = `${replacement}${sanitized}`
       }
 
-      // No trailing dots or spaces
+      // No trailing dots or spaces on Windows
       sanitized = sanitized.replace(/[. ]+$/, '')
-    } else {
-      // Unix: Only / and null are forbidden
-      // eslint-disable-next-line no-control-regex
-      sanitized = sanitized.replace(/[/\x00]/g, replacement)
-      // eslint-disable-next-line no-control-regex
-      sanitized = sanitized.replace(/[\x00-\x1f\x7f]/g, '') // Control chars
     }
 
     // Limit length

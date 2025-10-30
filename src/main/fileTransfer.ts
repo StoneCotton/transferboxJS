@@ -10,6 +10,18 @@ import { TransferError, wrapError } from './errors/TransferError'
 import { TransferErrorType } from '../shared/types'
 import { getLogger } from './logger'
 import { withRetry } from './utils/retryStrategy'
+import { safeAdd } from './utils/fileSizeUtils'
+import {
+  DEFAULT_BUFFER_SIZE,
+  SMALL_FILE_THRESHOLD,
+  MEDIUM_FILE_THRESHOLD,
+  LARGE_FILE_THRESHOLD,
+  PROGRESS_SMALL_FILE,
+  PROGRESS_MEDIUM_FILE,
+  PROGRESS_LARGE_FILE,
+  PROGRESS_XLARGE_FILE,
+  ORPHANED_FILE_MAX_AGE_MS
+} from './constants/fileConstants'
 
 export interface TransferProgress {
   bytesTransferred: number
@@ -51,7 +63,7 @@ export interface TransferResult {
   duration: number // milliseconds
 }
 
-const DEFAULT_BUFFER_SIZE = 4 * 1024 * 1024 // 4MB - optimized for modern SSDs
+// Note: DEFAULT_BUFFER_SIZE and other constants now imported from fileConstants
 
 /**
  * File Transfer Engine Class
@@ -59,26 +71,24 @@ const DEFAULT_BUFFER_SIZE = 4 * 1024 * 1024 // 4MB - optimized for modern SSDs
  */
 export class FileTransferEngine {
   private stopped = false
+  private stopping = false // Intermediate state to prevent new transfers during stop
   private currentTransfer: { abort: () => void } | null = null
   private activeTempFiles: Set<string> = new Set()
+  private activeTransferCount = 0 // Track number of active transfers
 
   /**
    * Calculate optimal progress reporting throttle based on file size
    * Larger files get less frequent updates to prevent UI lag
    */
   private calculateProgressThrottle(fileSize: number): { interval: number; minBytes: number } {
-    if (fileSize < 100 * 1024 * 1024) {
-      // < 100MB
-      return { interval: 200, minBytes: 2 * 1024 * 1024 } // 200ms, 2MB
-    } else if (fileSize < 1024 * 1024 * 1024) {
-      // < 1GB
-      return { interval: 500, minBytes: 10 * 1024 * 1024 } // 500ms, 10MB
-    } else if (fileSize < 10 * 1024 * 1024 * 1024) {
-      // < 10GB
-      return { interval: 1000, minBytes: 50 * 1024 * 1024 } // 1s, 50MB
+    if (fileSize < SMALL_FILE_THRESHOLD) {
+      return PROGRESS_SMALL_FILE
+    } else if (fileSize < MEDIUM_FILE_THRESHOLD) {
+      return PROGRESS_MEDIUM_FILE
+    } else if (fileSize < LARGE_FILE_THRESHOLD) {
+      return PROGRESS_LARGE_FILE
     } else {
-      // >= 10GB
-      return { interval: 2000, minBytes: 100 * 1024 * 1024 } // 2s, 100MB
+      return PROGRESS_XLARGE_FILE
     }
   }
 
@@ -90,10 +100,18 @@ export class FileTransferEngine {
     destPath: string,
     options?: TransferOptions
   ): Promise<TransferResult> {
+    // Check if stop has been requested
+    if (this.stopped || this.stopping) {
+      throw new Error('Transfer engine is stopping')
+    }
+
     const logger = getLogger()
     const startTime = Date.now()
     const bufferSize = options?.bufferSize || DEFAULT_BUFFER_SIZE
     const tempPath = destPath + '.TBPART'
+
+    // Track active transfer
+    this.activeTransferCount++
 
     // Track this temp file for cleanup
     this.activeTempFiles.add(tempPath)
@@ -167,6 +185,9 @@ export class FileTransferEngine {
     } finally {
       result.duration = Date.now() - startTime
       this.currentTransfer = null
+
+      // Decrement active transfer count
+      this.activeTransferCount = Math.max(0, this.activeTransferCount - 1)
     }
 
     return result
@@ -339,7 +360,7 @@ export class FileTransferEngine {
 
     // Calculate total bytes for all files (not just active ones)
     const totalBytesForAllFiles = Array.from(fileInfo.values()).reduce(
-      (sum, info) => sum + info.totalBytes,
+      (sum, info) => safeAdd(sum, info.totalBytes),
       0
     )
 
@@ -357,13 +378,13 @@ export class FileTransferEngine {
 
       // Add bytes from completed files
       completedFiles.forEach((bytes) => {
-        totalBytesTransferred += bytes
+        totalBytesTransferred = safeAdd(totalBytesTransferred, bytes)
       })
 
       // Add bytes from active transfers
       fileProgress.forEach((progress) => {
-        totalBytesTransferred += progress.bytesTransferred
-        totalSpeed += progress.speed
+        totalBytesTransferred = safeAdd(totalBytesTransferred, progress.bytesTransferred)
+        totalSpeed = safeAdd(totalSpeed, progress.speed)
         if (progress.percentage < 100) activeTransfers++
       })
 
@@ -539,15 +560,39 @@ export class FileTransferEngine {
 
   /**
    * Stop ongoing transfer
+   * Uses two-phase shutdown to prevent race conditions:
+   * 1. Set stopping flag to prevent new transfers
+   * 2. Wait for active transfers to complete or abort them
+   * 3. Clean up resources
    */
   async stop(): Promise<void> {
-    this.stopped = true
+    // Phase 1: Prevent new transfers from starting
+    this.stopping = true
+
+    // Phase 2: Abort current transfer if any
     if (this.currentTransfer) {
       this.currentTransfer.abort()
       this.currentTransfer = null
     }
 
-    // Clean up all active temp files
+    // Phase 3: Wait for active transfers to complete (with timeout)
+    const maxWaitTime = 5000 // 5 seconds max wait
+    const startTime = Date.now()
+
+    while (this.activeTransferCount > 0 && Date.now() - startTime < maxWaitTime) {
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    }
+
+    if (this.activeTransferCount > 0) {
+      getLogger().warn('Stopping with active transfers still running', {
+        activeCount: this.activeTransferCount
+      })
+    }
+
+    // Phase 4: Set final stopped flag
+    this.stopped = true
+
+    // Phase 5: Clean up all active temp files
     const tempFilesToClean = Array.from(this.activeTempFiles)
     this.activeTempFiles.clear()
 
@@ -572,16 +617,18 @@ export class FileTransferEngine {
    */
   reset(): void {
     this.stopped = false
+    this.stopping = false
     this.currentTransfer = null
     this.activeTempFiles.clear()
+    this.activeTransferCount = 0
   }
 
   /**
    * Check if transfers are currently in progress
    */
   isTransferring(): boolean {
-    // Check if we have active transfers or if stopped flag indicates transfer was happening
-    return (this.currentTransfer !== null || this.activeTempFiles.size > 0) && !this.stopped
+    // Check if we have active transfers
+    return this.activeTransferCount > 0 || (this.activeTempFiles.size > 0 && !this.stopped)
   }
 
   /**
@@ -901,6 +948,21 @@ export async function cleanupOrphanedPartFiles(directory: string): Promise<numbe
 /**
  * Recursively find .TBPART files in a directory
  */
+/**
+ * Check if a .TBPART file is old enough to be considered orphaned
+ * Only files older than 24 hours are considered orphaned to avoid removing active transfers
+ */
+async function isOrphanedPartFile(filePath: string): Promise<boolean> {
+  try {
+    const stats = await stat(filePath)
+    const age = Date.now() - stats.mtimeMs
+    return age > ORPHANED_FILE_MAX_AGE_MS
+  } catch {
+    // If we can't stat it, assume it's not orphaned (safer default)
+    return false
+  }
+}
+
 async function findPartFiles(dirPath: string): Promise<string[]> {
   const partFiles: string[] = []
 
@@ -916,7 +978,10 @@ async function findPartFiles(dirPath: string): Promise<string[]> {
           const subFiles = await findPartFiles(fullPath)
           partFiles.push(...subFiles)
         } else if (entry.isFile() && entry.name.endsWith('.TBPART')) {
-          partFiles.push(fullPath)
+          // Only include files that are old enough to be considered orphaned
+          if (await isOrphanedPartFile(fullPath)) {
+            partFiles.push(fullPath)
+          }
         }
       } catch {
         // Skip files/directories that can't be accessed

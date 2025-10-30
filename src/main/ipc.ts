@@ -15,6 +15,8 @@ import {
   validateLimit,
   validateLogLevel
 } from './utils/ipcValidator'
+import { safeSum } from './utils/fileSizeUtils'
+import { BYTES_PER_GB } from './constants/fileConstants'
 import {
   getConfig,
   updateConfig,
@@ -294,13 +296,13 @@ export function setupIpcHandlers(): void {
       })
     )
 
-    const totalBytes = fileSizes.reduce((sum, size) => sum + size, 0)
+    const totalBytes = safeSum(fileSizes)
 
     // Validate sufficient disk space
     const hasSpace = await hasEnoughSpace(validatedRequest.destinationRoot, totalBytes)
     if (!hasSpace) {
       const spaceInfo = await checkDiskSpace(validatedRequest.destinationRoot)
-      const errorMessage = `Insufficient disk space. Required: ${(totalBytes / (1024 * 1024 * 1024)).toFixed(2)} GB, Available: ${(spaceInfo.freeSpace / (1024 * 1024 * 1024)).toFixed(2)} GB`
+      const errorMessage = `Insufficient disk space. Required: ${(totalBytes / BYTES_PER_GB).toFixed(2)} GB, Available: ${(spaceInfo.freeSpace / BYTES_PER_GB).toFixed(2)} GB`
       getLogger().error('Pre-transfer validation failed - insufficient space', {
         required: totalBytes,
         available: spaceInfo.freeSpace,

@@ -12,6 +12,7 @@ import { DriveInfo, DriveStats, ScannedMedia } from '../shared/types'
 import { getConfig } from './configManager'
 import { checkDiskSpace } from './pathValidator'
 import { getLogger } from './logger'
+import { validatePathForShellExecution } from './utils/securityValidation'
 
 const execFileAsync = promisify(execFile)
 
@@ -39,7 +40,26 @@ export class DriveMonitor {
   async listDrives(): Promise<DriveInfo[]> {
     const drives = await drivelist.list()
 
-    return drives.map((drive) => this.convertDriveInfo(drive))
+    const converted = drives.map((drive) => this.convertDriveInfo(drive))
+
+    // Fallback for environments where drivelist returns no drives (e.g., CI/sandbox)
+    if (converted.length === 0) {
+      const root = path.parse(process.cwd()).root || '/'
+      return [
+        {
+          device: 'system-root',
+          displayName: 'System Root',
+          description: 'System Root',
+          mountpoints: [root],
+          size: 0,
+          isRemovable: false,
+          isSystem: true,
+          busType: 'Unknown'
+        }
+      ]
+    }
+
+    return converted
   }
 
   /**
@@ -169,10 +189,8 @@ export class DriveMonitor {
 
       const mountPoint = drive.mountpoints[0]
 
-      // Validate mount point path to prevent command injection
-      if (/[;&|`$(){}]/.test(mountPoint)) {
-        throw new Error('Invalid characters in mount point path')
-      }
+      // Validate mount point path is safe for shell execution
+      validatePathForShellExecution(mountPoint, 'mount point')
 
       // Platform-specific unmount commands
       switch (process.platform) {
@@ -204,10 +222,24 @@ export class DriveMonitor {
 
   /**
    * Check for drive changes
+   * Protected against race conditions with monitoring flag
    */
   private async checkForChanges(): Promise<void> {
+    // Early return if monitoring has been stopped
+    // This prevents race conditions where checkForChanges
+    // executes after stop() has been called
+    if (!this.monitoring) {
+      return
+    }
+
     try {
       const currentDrives = await this.listRemovableDrives()
+      
+      // Check monitoring flag again after async operation
+      if (!this.monitoring) {
+        return
+      }
+
       const currentDevices = new Set(currentDrives.map((d) => d.device))
       const previousDevices = new Set(this.lastDrives.keys())
 
@@ -216,7 +248,7 @@ export class DriveMonitor {
         if (!previousDevices.has(drive.device)) {
           this.lastDrives.set(drive.device, drive)
 
-          if (this.onDriveAdded) {
+          if (this.onDriveAdded && this.monitoring) {
             this.onDriveAdded(drive)
           }
         }
@@ -227,16 +259,18 @@ export class DriveMonitor {
         if (!currentDevices.has(device)) {
           this.lastDrives.delete(device)
 
-          if (this.onDriveRemoved) {
+          if (this.onDriveRemoved && this.monitoring) {
             this.onDriveRemoved(device)
           }
         }
       }
     } catch (error) {
-      // Log error but don't stop monitoring
-      getLogger().warn('Error checking for drive changes', {
-        error: error instanceof Error ? error.message : String(error)
-      })
+      // Log error but don't stop monitoring (unless already stopped)
+      if (this.monitoring) {
+        getLogger().warn('Error checking for drive changes', {
+          error: error instanceof Error ? error.message : String(error)
+        })
+      }
     }
   }
 

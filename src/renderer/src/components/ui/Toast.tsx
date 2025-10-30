@@ -32,9 +32,9 @@ function Toast({ id, type, message, duration = 5000 }: ToastProps) {
   const [progress, setProgress] = useState(0)
   const [isExiting, setIsExiting] = useState(false)
   const startTimeRef = useRef<number>(Date.now())
-  const animationFrameRef = useRef<number>()
-  const fadeOutTimerRef = useRef<NodeJS.Timeout>()
-  const removeTimerRef = useRef<NodeJS.Timeout>()
+  const animationFrameRef = useRef<number | null>(null)
+  const fadeOutTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const removeTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     if (!duration) {
@@ -162,7 +162,10 @@ function Toast({ id, type, message, duration = 5000 }: ToastProps) {
       {duration && (
         <div className="h-1 bg-black/5 dark:bg-white/5">
           <div
-            className={cn('h-full transition-all duration-75 ease-linear', progressBarClasses[type])}
+            className={cn(
+              'h-full transition-all duration-75 ease-linear',
+              progressBarClasses[type]
+            )}
             style={{ width: `${progress}%` }}
           />
         </div>

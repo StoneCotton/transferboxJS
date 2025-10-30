@@ -5,6 +5,11 @@
 
 import * as path from 'path'
 import { getLogger } from '../logger'
+import {
+  MAX_DEVICE_ID_LENGTH,
+  MAX_DISPLAY_NAME_LENGTH,
+  MAX_FILES_PER_TRANSFER
+} from '../constants/fileConstants'
 
 /**
  * Validates that a string is a valid file path
@@ -15,12 +20,21 @@ export function validateFilePath(filePath: string, allowRelative: boolean = fals
     throw new Error('File path must be a non-empty string')
   }
 
-  // Normalize the path
-  const normalized = path.normalize(filePath.trim())
+  const trimmed = filePath.trim()
 
-  // Check for path traversal attempts
+  // Check for path traversal attempts BEFORE normalization
+  // This catches attempts like ../../../etc/passwd
+  if (trimmed.includes('..')) {
+    getLogger().warn('Path traversal attempt detected', { originalPath: filePath })
+    throw new Error('Invalid path: path traversal not allowed')
+  }
+
+  // Normalize the path
+  const normalized = path.normalize(trimmed)
+
+  // Double-check after normalization
   if (normalized.includes('..')) {
-    getLogger().warn('Path traversal attempt detected', { originalPath: filePath, normalized })
+    getLogger().warn('Path traversal attempt detected after normalization', { originalPath: filePath, normalized })
     throw new Error('Invalid path: path traversal not allowed')
   }
 
@@ -50,7 +64,7 @@ export function validateFilePaths(filePaths: unknown[]): string[] {
   }
 
   // Limit array size to prevent DoS
-  if (filePaths.length > 100000) {
+  if (filePaths.length > MAX_FILES_PER_TRANSFER) {
     throw new Error('Too many files in transfer request')
   }
 
@@ -63,24 +77,74 @@ export function validateFilePaths(filePaths: unknown[]): string[] {
 }
 
 /**
- * Validates a device identifier
+ * Validates a device identifier with platform-specific rules
+ * 
+ * Platform-specific formats:
+ * - Unix (darwin/linux): /dev/disk*, /dev/sd*, /dev/mmcblk*
+ * - Windows: [A-Z]:, [A-Z]:\
+ * 
+ * Security checks:
+ * - Control characters (\x00-\x1f)
+ * - Path traversal (..)
+ * - Shell metacharacters (;|`$())
+ * - Wildcards (*?)
+ * - Pipe/redirect characters
  */
 export function validateDeviceId(device: unknown): string {
   if (typeof device !== 'string' || device.trim() === '') {
     throw new Error('Device ID must be a non-empty string')
   }
 
-  // Check for suspicious characters
-  if (/[<>:"/\\|?*\x00-\x1f]/.test(device)) {
-    throw new Error('Device ID contains invalid characters')
-  }
+  const trimmed = device.trim()
 
   // Limit length
-  if (device.length > 512) {
+  if (trimmed.length > MAX_DEVICE_ID_LENGTH) {
     throw new Error('Device ID exceeds maximum length')
   }
 
-  return device.trim()
+  // Check for control characters (always invalid)
+  if (/[\x00-\x1f]/.test(trimmed)) {
+    throw new Error('Device ID contains invalid characters')
+  }
+
+  // Check for path traversal attempts
+  if (trimmed.includes('..')) {
+    throw new Error('Device ID contains invalid characters')
+  }
+
+  // Check for shell metacharacters and command injection vectors
+  if (/[;|`$()]/.test(trimmed)) {
+    throw new Error('Device ID contains invalid characters')
+  }
+
+  // Check for wildcards
+  if (/[*?]/.test(trimmed)) {
+    throw new Error('Device ID contains invalid characters')
+  }
+
+  // Device ID format validation (platform-agnostic to support cross-platform testing)
+  
+  // Check if it's a Windows drive letter format: [A-Z]: or [A-Z]:\
+  const isWindowsDrive = /^[A-Z]:(\\)?$/i.test(trimmed)
+  
+  // Check if it's a Unix device path: /dev/*
+  const isUnixDevice = /^\/dev\/[a-zA-Z0-9_\-\/]+$/.test(trimmed)
+
+  if (isWindowsDrive) {
+    // Valid Windows drive letter - no additional checks needed
+    return trimmed
+  } else if (isUnixDevice) {
+    // Valid Unix device path - no additional checks needed
+    return trimmed
+  } else {
+    // Not a recognized device format - check for any remaining invalid characters
+    // Reject: quotes, angle brackets, pipe, backslashes, forward slashes, colons
+    if (/[<>:"/\\|]/.test(trimmed)) {
+      throw new Error('Device ID contains invalid characters')
+    }
+  }
+
+  return trimmed
 }
 
 /**
@@ -122,7 +186,7 @@ export function validateTransferStartRequest(request: unknown): {
     throw new Error('driveInfo.displayName must be a string')
   }
   const validatedDevice = validateDeviceId(driveInfo.device)
-  const displayName = typeof driveInfo.displayName === 'string' && driveInfo.displayName.length <= 512
+  const displayName = typeof driveInfo.displayName === 'string' && driveInfo.displayName.length <= MAX_DISPLAY_NAME_LENGTH
     ? driveInfo.displayName.trim()
     : 'Unknown Drive'
 

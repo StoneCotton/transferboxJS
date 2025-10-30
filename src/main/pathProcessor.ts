@@ -139,10 +139,15 @@ export class PathProcessor {
             .replace('{original}', fileInfo.baseName)
             .replace('{timestamp}', timestamp) + fileInfo.extension
       } else {
-        // Use just timestamp with extension
-        fileName =
-          this.config.filenameTemplate.replace('{original}', '').replace('{timestamp}', timestamp) +
-          fileInfo.extension
+        // Use just timestamp with extension. Remove any leading/trailing separators left by template.
+        let builtName = this.config.filenameTemplate
+          .replace('{original}', '')
+          .replace('{timestamp}', timestamp)
+
+        // Trim leftover separators/whitespace at start/end (e.g., leading underscore)
+        builtName = builtName.replace(/(^[\-_.\s]+)|([\-_.\s]+$)/g, '')
+
+        fileName = builtName + fileInfo.extension
       }
     }
 
@@ -189,7 +194,7 @@ export class PathProcessor {
     // Handle folder structure preservation
     if (this.config.keepFolderStructure) {
       // Extract relative path from source and preserve it
-      // Find the drive root by looking for the first path segment after /Volumes
+      // Prefer detecting a mounted volume root on macOS, otherwise fall back to filesystem root
       const pathParts = fileInfo.sourcePath.split(path.sep)
       let driveRoot = ''
 
@@ -201,11 +206,21 @@ export class PathProcessor {
         }
       }
 
-      if (driveRoot) {
-        const relativePath = path.relative(driveRoot, fileInfo.directory)
-        if (relativePath && relativePath !== '.') {
-          directory = path.join(directory, relativePath)
-        }
+      // Fallback: preserve path relative to filesystem root when a volume root isn't detected
+      const anchorRoot = driveRoot || path.parse(fileInfo.sourcePath).root
+
+      const relativePath = path.relative(anchorRoot, fileInfo.directory)
+
+      // Security: Validate that relative path doesn't contain path traversal attempts
+      if (relativePath && relativePath !== '.' && !relativePath.includes('..')) {
+        directory = path.join(directory, relativePath)
+      } else if (relativePath.includes('..')) {
+        getLogger().warn('Path traversal attempt detected in folder structure', {
+          sourcePath: fileInfo.sourcePath,
+          relativePath,
+          driveRoot: anchorRoot
+        })
+        // Don't add the relative path if it contains path traversal
       }
     }
 
@@ -217,8 +232,27 @@ export class PathProcessor {
 
     // Add device-based folders if enabled
     if (this.config.createDeviceBasedFolders && deviceName) {
-      const deviceFolder = this.config.deviceFolderTemplate.replace('{device_name}', deviceName)
+      // Sanitize device name to prevent path traversal
+      const sanitizedDeviceName = this.filenameUtils.sanitize(deviceName)
+      const deviceFolder = this.config.deviceFolderTemplate.replace(
+        '{device_name}',
+        sanitizedDeviceName
+      )
       directory = path.join(directory, deviceFolder)
+    }
+
+    // Final security check: Ensure the resolved directory is within destinationRoot
+    const resolvedDirectory = path.resolve(directory)
+    const resolvedDestinationRoot = path.resolve(destinationRoot)
+
+    if (!resolvedDirectory.startsWith(resolvedDestinationRoot)) {
+      getLogger().error('Directory traversal detected - path escapes destination root', {
+        directory: resolvedDirectory,
+        destinationRoot: resolvedDestinationRoot,
+        sourcePath: fileInfo.sourcePath
+      })
+      // Fallback to just the destination root if traversal is detected
+      return destinationRoot
     }
 
     return directory
