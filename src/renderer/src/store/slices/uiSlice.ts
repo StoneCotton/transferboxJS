@@ -30,6 +30,10 @@ export interface UISlice extends UIState {
   // NEW: Panel management
   togglePanel: (panel: keyof UIState['panels']) => void
   closeAllPanels: () => void
+
+  // NEW: Notification history management
+  addNotificationToHistory: (notification: Omit<UIState['notificationHistory'][0], 'id' | 'timestamp'>) => void
+  clearNotificationHistory: () => void
 }
 
 export const createUISlice: StateCreator<UISlice> = (set, get) => ({
@@ -67,6 +71,9 @@ export const createUISlice: StateCreator<UISlice> = (set, get) => ({
     fileList: false,
     retryQueue: false
   },
+
+  // NEW: Notification history
+  notificationHistory: [],
 
   // Existing actions
   setSelectedDestination: (destination) => set({ selectedDestination: destination }),
@@ -114,6 +121,13 @@ export const createUISlice: StateCreator<UISlice> = (set, get) => ({
       toasts: [...state.toasts, newToast]
     }))
 
+    // Save to notification history
+    get().addNotificationToHistory({
+      type: toast.type,
+      message: toast.message,
+      duration: toast.duration
+    })
+
     // Auto-remove toast after duration
     if (toast.duration) {
       setTimeout(() => {
@@ -148,5 +162,24 @@ export const createUISlice: StateCreator<UISlice> = (set, get) => ({
         fileList: false,
         retryQueue: false
       }
-    })
+    }),
+
+  // NEW: Notification history management
+  addNotificationToHistory: (notification) => {
+    const id = `${Date.now()}-${Math.random()}`
+    const timestamp = Date.now()
+
+    set((state) => ({
+      notificationHistory: [
+        {
+          id,
+          timestamp,
+          ...notification
+        },
+        ...state.notificationHistory
+      ].slice(0, 1000) // Keep last 1000 notifications
+    }))
+  },
+
+  clearNotificationHistory: () => set({ notificationHistory: [] })
 })

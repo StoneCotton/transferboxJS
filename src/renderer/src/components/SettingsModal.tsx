@@ -8,7 +8,7 @@ import { useState, useEffect } from 'react'
 import type { TransferMode, AppConfig } from '../../../shared/types'
 import { Modal } from './ui/Modal'
 import { Button } from './ui/Button'
-import { useConfigStore, useUIStore, useTransferStore } from '../store'
+import { useConfigStore, useUIStore, useTransferStore, useStore } from '../store'
 import { useIpc } from '../hooks/useIpc'
 import { cn } from '../lib/utils'
 
@@ -170,6 +170,12 @@ export function SettingsModal() {
 
       const updatedConfig = await ipc.updateConfig(updates)
       setConfig(updatedConfig)
+      // Show toast notification (logs are already created in main process)
+      useStore.getState().addToast({
+        type: 'success',
+        message: 'Settings saved successfully',
+        duration: 3000
+      })
       toggleSettings()
     } catch (error) {
       console.error('Failed to save settings:', error)

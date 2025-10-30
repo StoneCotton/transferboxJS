@@ -12,7 +12,7 @@ import {
   HardDriveDownload,
   AlertCircle
 } from 'lucide-react'
-import { useTransferStore, useConfigStore } from '../store'
+import { useTransferStore, useConfigStore, useStore } from '../store'
 import { Card, CardHeader, CardTitle, CardContent } from './ui/Card'
 import { Progress } from './ui/Progress'
 import { Button } from './ui/Button'
@@ -37,6 +37,12 @@ export function TransferProgress() {
     try {
       // Stop the transfer via IPC
       await ipc.stopTransfer()
+      // Show toast notification (logs are already created in main process)
+      useStore.getState().addToast({
+        type: 'warning',
+        message: 'Transfer cancelled by user',
+        duration: 4000
+      })
       // Play error sound for cancellation
       console.log('[SoundManager] Transfer cancelled - playing error sound')
       playErrorSound()
@@ -44,6 +50,13 @@ export function TransferProgress() {
       cancelTransfer()
     } catch (error) {
       console.error('Failed to cancel transfer:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to cancel transfer'
+      // Show toast notification for cancellation error
+      useStore.getState().addToast({
+        type: 'error',
+        message: `Failed to cancel transfer: ${errorMessage}`,
+        duration: 5000
+      })
     }
   }
 

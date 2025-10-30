@@ -3,7 +3,7 @@
  */
 
 import { HardDrive, Loader2, Usb, Check, Sparkles, Clock, PowerOff } from 'lucide-react'
-import { useDriveStore, useConfigStore } from '../store'
+import { useDriveStore, useConfigStore, useStore } from '../store'
 import { useIpc } from '../hooks/useIpc'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/Card'
 import { formatBytes, cn } from '../lib/utils'
@@ -46,15 +46,33 @@ export function DriveSelector() {
       setScannedFiles(result.files)
       console.log(`Found ${result.files.length} media files on ${drive.displayName}`)
 
-      // Play error sound if no valid files found
-      if (result.files.length === 0) {
+      // Show toast notification (logs are already created in main process)
+      if (result.files.length > 0) {
+        useStore.getState().addToast({
+          type: 'success',
+          message: `Scan complete: Found ${result.files.length} file${result.files.length === 1 ? '' : 's'} on ${drive.displayName}`,
+          duration: 3000
+        })
+      } else {
+        useStore.getState().addToast({
+          type: 'warning',
+          message: `Scan complete: No valid files found on ${drive.displayName}`,
+          duration: 4000
+        })
         console.log('[DriveSelector] No valid files found on drive - playing error sound')
         playErrorSound()
       }
     } catch (error) {
       console.error('Failed to scan drive:', error)
-      setScanError(error instanceof Error ? error.message : 'Failed to scan drive')
+      const errorMessage = error instanceof Error ? error.message : 'Failed to scan drive'
+      setScanError(errorMessage)
       setScannedFiles([])
+      // Show toast notification (logs are already created in main process)
+      useStore.getState().addToast({
+        type: 'error',
+        message: `Scan failed: ${errorMessage}`,
+        duration: 5000
+      })
       // Play error sound when scan fails
       playErrorSound()
     } finally {

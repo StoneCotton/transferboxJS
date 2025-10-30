@@ -4,7 +4,7 @@
 
 import { FolderOpen, CheckCircle2, AlertCircle, FolderPlus } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
-import { useUIStore, useDriveStore, useConfigStore, useTransferStore } from '../store'
+import { useUIStore, useDriveStore, useConfigStore, useTransferStore, useStore } from '../store'
 import { useIpc } from '../hooks/useIpc'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/Card'
 import { Button } from './ui/Button'
@@ -71,6 +71,13 @@ export function DestinationSelector() {
 
           await ipc.startTransfer(request)
 
+          // Show toast notification (logs are already created in main process)
+          useStore.getState().addToast({
+            type: 'info',
+            message: `Transfer started: ${scannedFiles.length} file${scannedFiles.length === 1 ? '' : 's'}`,
+            duration: 3000
+          })
+
           startTransfer({
             id: `transfer-${Date.now()}`,
             driveId: selectedDrive.device,
@@ -86,6 +93,13 @@ export function DestinationSelector() {
           })
         } catch (error) {
           console.error('Auto-transfer failed:', error)
+          const errorMessage = error instanceof Error ? error.message : 'Auto-transfer failed'
+          // Show toast notification (logs are already created in main process)
+          useStore.getState().addToast({
+            type: 'error',
+            message: `Failed to start transfer: ${errorMessage}`,
+            duration: 5000
+          })
         }
       }
 

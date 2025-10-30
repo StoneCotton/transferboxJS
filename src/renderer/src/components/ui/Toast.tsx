@@ -1,9 +1,9 @@
 /**
  * Toast Notification Component
- * Displays temporary notification messages
+ * Displays temporary notification messages with progress bar countdown and fade-out animation
  */
 
-import { useEffect } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { CheckCircle2, AlertCircle, Info, XCircle, X } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { useStore } from '../../store'
@@ -27,18 +27,61 @@ interface ToastProps {
   duration?: number
 }
 
-function Toast({ id, type, message, duration }: ToastProps) {
+function Toast({ id, type, message, duration = 5000 }: ToastProps) {
   const removeToast = useStore((state) => state.removeToast)
+  const [progress, setProgress] = useState(0)
+  const [isExiting, setIsExiting] = useState(false)
+  const startTimeRef = useRef<number>(Date.now())
+  const animationFrameRef = useRef<number>()
+  const fadeOutTimerRef = useRef<NodeJS.Timeout>()
+  const removeTimerRef = useRef<NodeJS.Timeout>()
 
   useEffect(() => {
-    if (duration) {
-      const timer = setTimeout(() => {
-        removeToast(id)
-      }, duration)
-
-      return () => clearTimeout(timer)
+    if (!duration) {
+      return undefined
     }
-    return undefined
+
+    // Reset progress and start time when effect runs
+    setProgress(0)
+    startTimeRef.current = Date.now()
+    setIsExiting(false)
+
+    // Start fade-out animation slightly before removal
+    const fadeOutTime = duration - 200 // Start fade 200ms before removal
+    fadeOutTimerRef.current = setTimeout(() => {
+      setIsExiting(true)
+    }, fadeOutTime)
+
+    // Update progress bar - show elapsed time (0% to 100%)
+    const updateProgress = () => {
+      const elapsed = Date.now() - startTimeRef.current
+      const newProgress = Math.min(100, (elapsed / duration) * 100)
+
+      setProgress(newProgress)
+
+      if (elapsed < duration) {
+        animationFrameRef.current = requestAnimationFrame(updateProgress)
+      }
+    }
+
+    animationFrameRef.current = requestAnimationFrame(updateProgress)
+
+    // Remove toast after duration
+    removeTimerRef.current = setTimeout(() => {
+      removeToast(id)
+    }, duration)
+
+    return () => {
+      if (fadeOutTimerRef.current) {
+        clearTimeout(fadeOutTimerRef.current)
+      }
+      if (removeTimerRef.current) {
+        clearTimeout(removeTimerRef.current)
+      }
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current)
+      }
+    }
   }, [id, duration, removeToast])
 
   const Icon =
@@ -67,21 +110,63 @@ function Toast({ id, type, message, duration }: ToastProps) {
     error: 'text-red-600 dark:text-red-400'
   }
 
+  const progressBarClasses = {
+    info: 'bg-blue-500 dark:bg-blue-600',
+    success: 'bg-green-500 dark:bg-green-600',
+    warning: 'bg-amber-500 dark:bg-amber-600',
+    error: 'bg-red-500 dark:bg-red-600'
+  }
+
+  const handleClose = () => {
+    // Cancel existing timers
+    if (fadeOutTimerRef.current) {
+      clearTimeout(fadeOutTimerRef.current)
+    }
+    if (removeTimerRef.current) {
+      clearTimeout(removeTimerRef.current)
+    }
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current)
+    }
+
+    setIsExiting(true)
+    // Wait for fade-out animation before removing
+    setTimeout(() => {
+      removeToast(id)
+    }, 200)
+  }
+
   return (
     <div
       className={cn(
-        'flex items-start gap-3 rounded-lg border-2 p-4 shadow-lg backdrop-blur-sm animate-in slide-in-from-right',
+        'relative overflow-hidden flex flex-col rounded-lg border-2 shadow-lg backdrop-blur-sm transition-all duration-200',
+        isExiting ? 'opacity-0 scale-95 translate-x-4' : 'opacity-100 scale-100 translate-x-0',
+        'animate-in slide-in-from-right',
         colorClasses[type]
       )}
     >
-      <Icon className={cn('h-5 w-5 flex-shrink-0 mt-0.5', iconClasses[type])} />
-      <p className="flex-1 text-sm font-medium">{message}</p>
-      <button
-        onClick={() => removeToast(id)}
-        className="flex-shrink-0 rounded-md p-1 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-      >
-        <X className="h-4 w-4" />
-      </button>
+      {/* Content */}
+      <div className="flex items-start gap-3 p-4">
+        <Icon className={cn('h-5 w-5 flex-shrink-0 mt-0.5', iconClasses[type])} />
+        <p className="flex-1 text-sm font-medium">{message}</p>
+        <button
+          onClick={handleClose}
+          className="flex-shrink-0 rounded-md p-1 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+          aria-label="Close notification"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+
+      {/* Progress Bar */}
+      {duration && (
+        <div className="h-1 bg-black/5 dark:bg-white/5">
+          <div
+            className={cn('h-full transition-all duration-75 ease-linear', progressBarClasses[type])}
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      )}
     </div>
   )
 }

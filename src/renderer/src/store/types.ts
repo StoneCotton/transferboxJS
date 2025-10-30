@@ -139,4 +139,13 @@ export interface UIState {
     fileList: boolean
     retryQueue: boolean
   }
+
+  // Notification history
+  notificationHistory: Array<{
+    id: string
+    type: 'info' | 'success' | 'warning' | 'error'
+    message: string
+    timestamp: number
+    duration?: number
+  }>
 }

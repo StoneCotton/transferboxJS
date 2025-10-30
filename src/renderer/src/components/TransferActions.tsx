@@ -4,7 +4,7 @@
 
 import { Play, Loader2, Rocket, AlertCircle } from 'lucide-react'
 import { useState } from 'react'
-import { useDriveStore, useTransferStore, useUIStore } from '../store'
+import { useDriveStore, useTransferStore, useUIStore, useStore } from '../store'
 import { useIpc } from '../hooks/useIpc'
 import { Button } from './ui/Button'
 import { Card, CardContent } from './ui/Card'
@@ -46,6 +46,14 @@ export function TransferActions() {
       // Start the transfer via IPC
       await ipc.startTransfer(request)
 
+      // Show toast notification (logs are already created in main process)
+      const store = useStore.getState()
+      store.addToast({
+        type: 'info',
+        message: `Transfer started: ${scannedFiles.length} file${scannedFiles.length === 1 ? '' : 's'}`,
+        duration: 3000
+      })
+
       // Update store
       startTransfer({
         id: `transfer-${Date.now()}`,
@@ -62,7 +70,15 @@ export function TransferActions() {
       })
     } catch (error) {
       console.error('Failed to start transfer:', error)
-      alert(`Failed to start transfer: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      // Show toast notification (logs are already created in main process)
+      const store = useStore.getState()
+      store.addToast({
+        type: 'error',
+        message: `Failed to start transfer: ${errorMessage}`,
+        duration: 5000
+      })
+      alert(`Failed to start transfer: ${errorMessage}`)
     } finally {
       setIsStarting(false)
     }

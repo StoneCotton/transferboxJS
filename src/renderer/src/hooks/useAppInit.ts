@@ -98,6 +98,13 @@ export function useAppInit(): null {
       // Add drive to detected drives
       store.addDrive(drive)
 
+      // Show toast notification (logs are already created in main process)
+      store.addToast({
+        type: 'info',
+        message: `Drive detected: ${drive.displayName}`,
+        duration: 3000
+      })
+
       // Get current config to determine transfer mode
       const config = store.config
 
@@ -122,8 +129,19 @@ export function useAppInit(): null {
           const result = await ipc.scanDrive(drive.device)
           store.setScannedFiles(result.files)
 
-          // Play error sound if no valid files found
-          if (result.files.length === 0) {
+          // Show toast notification for scan complete
+          if (result.files.length > 0) {
+            store.addToast({
+              type: 'success',
+              message: `Scan complete: Found ${result.files.length} file${result.files.length === 1 ? '' : 's'}`,
+              duration: 3000
+            })
+          } else {
+            store.addToast({
+              type: 'warning',
+              message: 'Scan complete: No valid files found on drive',
+              duration: 4000
+            })
             console.log('[Mode 3] No valid files found on drive - playing error sound')
             playErrorSound()
           }
@@ -137,6 +155,12 @@ export function useAppInit(): null {
               files: result.files
             }
             await ipc.startTransfer(request)
+            // Show toast notification (logs are already created in main process)
+            store.addToast({
+              type: 'info',
+              message: `Transfer started: ${result.files.length} file${result.files.length === 1 ? '' : 's'}`,
+              duration: 3000
+            })
             store.startTransfer({
               id: `transfer-${Date.now()}`,
               driveId: drive.device,
@@ -153,7 +177,14 @@ export function useAppInit(): null {
           }
         } catch (error) {
           console.error('Auto-transfer failed:', error)
-          store.setScanError(error instanceof Error ? error.message : 'Auto-transfer failed')
+          const errorMessage = error instanceof Error ? error.message : 'Auto-transfer failed'
+          store.setScanError(errorMessage)
+          // Show toast notification (logs are already created in main process)
+          store.addToast({
+            type: 'error',
+            message: `Scan failed: ${errorMessage}`,
+            duration: 5000
+          })
           // Play error sound when auto-transfer fails
           playErrorSound()
         } finally {
@@ -168,15 +199,33 @@ export function useAppInit(): null {
           store.setScannedFiles(result.files)
           store.selectDrive(drive)
 
-          // Play error sound if no valid files found
-          if (result.files.length === 0) {
+          // Show toast notification for scan complete
+          if (result.files.length > 0) {
+            store.addToast({
+              type: 'success',
+              message: `Scan complete: Found ${result.files.length} file${result.files.length === 1 ? '' : 's'}`,
+              duration: 3000
+            })
+          } else {
+            store.addToast({
+              type: 'warning',
+              message: 'Scan complete: No valid files found on drive',
+              duration: 4000
+            })
             console.log('[Mode 1] No valid files found on drive - playing error sound')
             playErrorSound()
           }
           // UI will show files and user can set destination then click transfer
         } catch (error) {
           console.error('Auto-scan failed:', error)
-          store.setScanError(error instanceof Error ? error.message : 'Auto-scan failed')
+          const errorMessage = error instanceof Error ? error.message : 'Auto-scan failed'
+          store.setScanError(errorMessage)
+          // Show toast notification (logs are already created in main process)
+          store.addToast({
+            type: 'error',
+            message: `Scan failed: ${errorMessage}`,
+            duration: 5000
+          })
           // Play error sound when scan fails
           playErrorSound()
         } finally {
@@ -191,15 +240,33 @@ export function useAppInit(): null {
           store.setScannedFiles(result.files)
           store.selectDrive(drive)
 
-          // Play error sound if no valid files found
-          if (result.files.length === 0) {
+          // Show toast notification for scan complete
+          if (result.files.length > 0) {
+            store.addToast({
+              type: 'success',
+              message: `Scan complete: Found ${result.files.length} file${result.files.length === 1 ? '' : 's'}`,
+              duration: 3000
+            })
+          } else {
+            store.addToast({
+              type: 'warning',
+              message: 'Scan complete: No valid files found on drive',
+              duration: 4000
+            })
             console.log('[Mode 2] No valid files found on drive - playing error sound')
             playErrorSound()
           }
           // UI will show confirmation dialog before starting transfer
         } catch (error) {
           console.error('Auto-scan failed:', error)
-          store.setScanError(error instanceof Error ? error.message : 'Auto-scan failed')
+          const errorMessage = error instanceof Error ? error.message : 'Auto-scan failed'
+          store.setScanError(errorMessage)
+          // Show toast notification (logs are already created in main process)
+          store.addToast({
+            type: 'error',
+            message: `Scan failed: ${errorMessage}`,
+            duration: 5000
+          })
           // Play error sound when scan fails
           playErrorSound()
         } finally {
@@ -211,7 +278,15 @@ export function useAppInit(): null {
 
     const unsubDriveRemoved = ipc.onDriveRemoved((device) => {
       console.log('Drive removed:', device)
-      useStore.getState().removeDrive(device)
+      const store = useStore.getState()
+      const drive = store.detectedDrives.find((d) => d.device === device)
+      store.removeDrive(device)
+      // Show toast notification (logs are already created in main process)
+      store.addToast({
+        type: 'info',
+        message: drive ? `Drive removed: ${drive.displayName}` : 'Drive removed',
+        duration: 3000
+      })
     })
 
     const unsubDriveUnmounted = ipc.onDriveUnmounted((device) => {
@@ -259,11 +334,23 @@ export function useAppInit(): null {
       const store = useStore.getState()
       store.completeTransfer()
 
-      // Play success or error sound based on transfer status
+      // Show toast notification and play sound based on transfer status
       if (data.status === 'complete') {
+        const fileCount = store.progress?.totalFiles || 0
+        store.addToast({
+          type: 'success',
+          message: `Transfer completed successfully${fileCount > 0 ? ` (${fileCount} file${fileCount === 1 ? '' : 's'})` : ''}`,
+          duration: 5000
+        })
         console.log('[SoundManager] Transfer completed successfully - playing success sound')
         playSuccessSound()
       } else {
+        const failedCount = store.progress?.failedFiles || 0
+        store.addToast({
+          type: 'error',
+          message: `Transfer completed with errors${failedCount > 0 ? ` (${failedCount} file${failedCount === 1 ? '' : 's'} failed)` : ''}`,
+          duration: 6000
+        })
         console.log('[SoundManager] Transfer completed with errors - playing error sound')
         playErrorSound()
       }
@@ -293,6 +380,13 @@ export function useAppInit(): null {
           affectedFiles: []
         })
       }
+
+      // Show toast notification (logs are already created in main process)
+      store.addToast({
+        type: 'error',
+        message: `Transfer failed: ${error}`,
+        duration: 6000
+      })
 
       // Play error sound when transfer fails
       console.log('[SoundManager] Transfer failed - playing error sound')
