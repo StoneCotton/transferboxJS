@@ -8,6 +8,14 @@ import { stat } from 'fs/promises'
 import { IPC_CHANNELS, PathValidationRequest, TransferStartRequest } from '../shared/types'
 import { validatePath, hasEnoughSpace, checkDiskSpace } from './pathValidator'
 import {
+  validateTransferStartRequest,
+  validatePathValidationRequest,
+  validateDeviceId,
+  validateSessionId,
+  validateLimit,
+  validateLogLevel
+} from './utils/ipcValidator'
+import {
   getConfig,
   updateConfig,
   resetConfig,
@@ -40,15 +48,21 @@ export function setupIpcHandlers(): void {
     return getConfig()
   })
 
-  ipcMain.handle(IPC_CHANNELS.CONFIG_UPDATE, async (_, config) => {
-    const updated = updateConfig(config)
+  ipcMain.handle(IPC_CHANNELS.CONFIG_UPDATE, async (_, config: unknown) => {
+    // Basic validation - configManager will do more detailed validation
+    if (!config || typeof config !== 'object') {
+      throw new Error('Config must be an object')
+    }
+    const configObj = config as Record<string, unknown>
+    const updated = updateConfig(configObj as Partial<typeof configObj>)
     // If logLevel changed, apply to logger immediately
-    if (config && 'logLevel' in config && config.logLevel) {
+    if (configObj && 'logLevel' in configObj && configObj.logLevel) {
+      const validatedLogLevel = validateLogLevel(configObj.logLevel)
       const logger = getLogger()
       const previous = logger.getLevel()
-      logger.setLevel(config.logLevel)
-      if (previous !== config.logLevel) {
-        logger.info('Log level set', { from: previous, to: config.logLevel })
+      logger.setLevel(validatedLogLevel)
+      if (previous !== validatedLogLevel) {
+        logger.info('Log level set', { from: previous, to: validatedLogLevel })
       }
     }
     return updated
@@ -70,7 +84,10 @@ export function setupIpcHandlers(): void {
     return getNewerConfigWarning()
   })
 
-  ipcMain.handle(IPC_CHANNELS.CONFIG_HANDLE_NEWER, async (_, choice: 'continue' | 'reset') => {
+  ipcMain.handle(IPC_CHANNELS.CONFIG_HANDLE_NEWER, async (_, choice: unknown) => {
+    if (choice !== 'continue' && choice !== 'reset') {
+      throw new Error('Invalid choice. Must be "continue" or "reset"')
+    }
     return handleNewerConfigChoice(choice)
   })
 
@@ -79,8 +96,9 @@ export function setupIpcHandlers(): void {
   })
 
   // Path validation handlers
-  ipcMain.handle(IPC_CHANNELS.PATH_VALIDATE, async (_, request: PathValidationRequest) => {
-    return validatePath(request.path)
+  ipcMain.handle(IPC_CHANNELS.PATH_VALIDATE, async (_, request: unknown) => {
+    const validatedPath = validatePathValidationRequest(request)
+    return validatePath(validatedPath)
   })
 
   ipcMain.handle(IPC_CHANNELS.PATH_SELECT_FOLDER, async () => {
@@ -103,7 +121,8 @@ export function setupIpcHandlers(): void {
     return driveMonitor.listRemovableDrives()
   })
 
-  ipcMain.handle(IPC_CHANNELS.DRIVE_SCAN, async (_, device: string) => {
+  ipcMain.handle(IPC_CHANNELS.DRIVE_SCAN, async (_, device: unknown) => {
+    const validatedDevice = validateDeviceId(device)
     if (!driveMonitor) {
       driveMonitor = new DriveMonitor()
     }
@@ -118,7 +137,7 @@ export function setupIpcHandlers(): void {
       try {
         // Find the drive and scan it
         const drives = await driveMonitor.listRemovableDrives()
-        const drive = drives.find((d) => d.device === device)
+        const drive = drives.find((d) => d.device === validatedDevice)
 
         if (!drive) {
           throw new Error('Drive not found')
@@ -148,7 +167,7 @@ export function setupIpcHandlers(): void {
         // If not mounted yet and we have retries left, wait and retry
         if (attempt < MAX_RETRIES - 1 && lastError.message.includes('not mounted')) {
           getLogger().info('[IPC] Drive detected but not mounted yet, waiting for OS to mount', {
-            device,
+            device: validatedDevice,
             attempt: attempt + 1,
             maxRetries: MAX_RETRIES,
             retryDelayMs: RETRY_DELAY_MS,
@@ -161,7 +180,7 @@ export function setupIpcHandlers(): void {
         // Other errors or out of retries
         if (lastError.message.includes('not mounted')) {
           getLogger().error('[IPC] Drive mount timeout - drive not mounted within retry window', {
-            device,
+            device: validatedDevice,
             attemptsUsed: MAX_RETRIES,
             totalTimeWaited: `${(MAX_RETRIES * RETRY_DELAY_MS) / 1000}s`,
             suggestion: 'Drive may need more time to mount or there may be a hardware issue'
@@ -174,30 +193,31 @@ export function setupIpcHandlers(): void {
     throw lastError || new Error('Drive scan failed after all retry attempts')
   })
 
-  ipcMain.handle(IPC_CHANNELS.DRIVE_UNMOUNT, async (_, device: string) => {
-    getLogger().info('Drive unmount requested', { device })
+  ipcMain.handle(IPC_CHANNELS.DRIVE_UNMOUNT, async (_, device: unknown) => {
+    const validatedDevice = validateDeviceId(device)
+    getLogger().info('Drive unmount requested', { device: validatedDevice })
 
     try {
-      const success = (await driveMonitor?.unmountDrive(device)) || false
+      const success = (await driveMonitor?.unmountDrive(validatedDevice)) || false
 
       if (success) {
-        getLogger().info('Drive unmounted successfully', { device })
+        getLogger().info('Drive unmounted successfully', { device: validatedDevice })
 
         // Notify renderer that drive was unmounted
         if (mainWindow && !mainWindow.isDestroyed()) {
-          getLogger().debug('[IPC] Sending DRIVE_UNMOUNTED event', { device })
-          mainWindow.webContents.send(IPC_CHANNELS.DRIVE_UNMOUNTED, device)
+          getLogger().debug('[IPC] Sending DRIVE_UNMOUNTED event', { device: validatedDevice })
+          mainWindow.webContents.send(IPC_CHANNELS.DRIVE_UNMOUNTED, validatedDevice)
         } else {
           getLogger().warn('[IPC] Cannot send DRIVE_UNMOUNTED - mainWindow not available')
         }
       } else {
-        getLogger().warn('Failed to unmount drive', { device })
+        getLogger().warn('Failed to unmount drive', { device: validatedDevice })
       }
 
       return success
     } catch (error) {
       getLogger().error('Error unmounting drive', {
-        device,
+        device: validatedDevice,
         error: error instanceof Error ? error.message : String(error)
       })
       return false
@@ -205,7 +225,16 @@ export function setupIpcHandlers(): void {
   })
 
   // Transfer operations handlers
-  ipcMain.handle(IPC_CHANNELS.TRANSFER_START, async (event, request: TransferStartRequest) => {
+  ipcMain.handle(IPC_CHANNELS.TRANSFER_START, async (event, request: unknown) => {
+    // Prevent concurrent transfers
+    if (transferEngine && transferEngine.isTransferring()) {
+      const errorMessage = 'A transfer is already in progress. Please wait for it to complete or cancel it first.'
+      getLogger().warn('Transfer start blocked - transfer already in progress')
+      throw new Error(errorMessage)
+    }
+
+    // Validate and sanitize request
+    const validatedRequest = validateTransferStartRequest(request)
     if (!transferEngine) {
       transferEngine = new FileTransferEngine()
     } else {
@@ -220,7 +249,7 @@ export function setupIpcHandlers(): void {
     const logger = getLogger()
 
     // Filter files based on media extensions if enabled
-    const filteredFiles = request.files.filter((file) => pathProcessor!.shouldTransferFile(file))
+    const filteredFiles = validatedRequest.files.filter((file) => pathProcessor!.shouldTransferFile(file))
 
     // Process file paths using configuration
     const transferFiles = await Promise.all(
@@ -229,8 +258,8 @@ export function setupIpcHandlers(): void {
           getLogger().debug('[IPC] Processing source path', { sourcePath })
           const processedPath = await pathProcessor!.processFilePath(
             sourcePath,
-            request.destinationRoot,
-            request.driveInfo.displayName
+            validatedRequest.destinationRoot,
+            validatedRequest.driveInfo.displayName
           )
           getLogger().debug('[IPC] Processed path result', {
             destinationPath: processedPath.destinationPath
@@ -243,7 +272,7 @@ export function setupIpcHandlers(): void {
           })
           // Fallback to simple filename if processing fails
           const fileName = sourcePath.split('/').pop() || 'file'
-          const destPath = `${request.destinationRoot}/${fileName}`
+          const destPath = `${validatedRequest.destinationRoot}/${fileName}`
           getLogger().info('[IPC] Using fallback destination path', { destPath })
           return { source: sourcePath, dest: destPath }
         }
@@ -265,24 +294,24 @@ export function setupIpcHandlers(): void {
     const totalBytes = fileSizes.reduce((sum, size) => sum + size, 0)
 
     // Validate sufficient disk space
-    const hasSpace = await hasEnoughSpace(request.destinationRoot, totalBytes)
+    const hasSpace = await hasEnoughSpace(validatedRequest.destinationRoot, totalBytes)
     if (!hasSpace) {
-      const spaceInfo = await checkDiskSpace(request.destinationRoot)
+      const spaceInfo = await checkDiskSpace(validatedRequest.destinationRoot)
       const errorMessage = `Insufficient disk space. Required: ${(totalBytes / (1024 * 1024 * 1024)).toFixed(2)} GB, Available: ${(spaceInfo.freeSpace / (1024 * 1024 * 1024)).toFixed(2)} GB`
       getLogger().error('Pre-transfer validation failed - insufficient space', {
         required: totalBytes,
         available: spaceInfo.freeSpace,
-        destination: request.destinationRoot
+        destination: validatedRequest.destinationRoot
       })
       throw new Error(errorMessage)
     }
 
     // Create transfer session
     const sessionId = db.createTransferSession({
-      driveId: request.driveInfo.device,
-      driveName: request.driveInfo.displayName,
-      sourceRoot: request.sourceRoot,
-      destinationRoot: request.destinationRoot,
+      driveId: validatedRequest.driveInfo.device,
+      driveName: validatedRequest.driveInfo.displayName,
+      sourceRoot: validatedRequest.sourceRoot,
+      destinationRoot: validatedRequest.destinationRoot,
       startTime: Date.now(),
       endTime: null,
       status: 'transferring',
@@ -293,9 +322,9 @@ export function setupIpcHandlers(): void {
 
     logger.logTransferStart(
       sessionId,
-      request.driveInfo.device,
-      request.sourceRoot,
-      request.destinationRoot
+      validatedRequest.driveInfo.device,
+      validatedRequest.sourceRoot,
+      validatedRequest.destinationRoot
     )
 
     // Track overall progress
@@ -540,44 +569,44 @@ export function setupIpcHandlers(): void {
         logger.logTransferComplete(sessionId, completedCount, 0)
 
         // Automatically unmount the drive after successful transfer
-        if (failedCount === 0 && request.driveInfo.device) {
+        if (failedCount === 0 && validatedRequest.driveInfo.device) {
           // Run unmount asynchronously without blocking the completion event
           setImmediate(async () => {
             try {
               logger.info('Auto-unmounting drive after successful transfer', {
-                device: request.driveInfo.device,
+                device: validatedRequest.driveInfo.device,
                 sessionId
               })
 
-              const unmountSuccess = await driveMonitor?.unmountDrive(request.driveInfo.device)
+              const unmountSuccess = await driveMonitor?.unmountDrive(validatedRequest.driveInfo.device)
 
               if (unmountSuccess) {
                 logger.info('Drive auto-unmounted successfully', {
-                  device: request.driveInfo.device,
+                  device: validatedRequest.driveInfo.device,
                   sessionId
                 })
 
                 // Notify renderer that drive was unmounted
                 if (mainWindow && !mainWindow.isDestroyed()) {
                   getLogger().debug('[IPC] Sending DRIVE_UNMOUNTED event (auto)', {
-                    device: request.driveInfo.device
+                    device: validatedRequest.driveInfo.device
                   })
                   mainWindow.webContents.send(
                     IPC_CHANNELS.DRIVE_UNMOUNTED,
-                    request.driveInfo.device
+                    validatedRequest.driveInfo.device
                   )
                 } else {
                   getLogger().warn('[IPC] Cannot send DRIVE_UNMOUNTED - mainWindow not available')
                 }
               } else {
                 logger.warn('Failed to auto-unmount drive', {
-                  device: request.driveInfo.device,
+                  device: validatedRequest.driveInfo.device,
                   sessionId
                 })
               }
             } catch (unmountError) {
               logger.error('Error during auto-unmount', {
-                device: request.driveInfo.device,
+                device: validatedRequest.driveInfo.device,
                 sessionId,
                 error: unmountError instanceof Error ? unmountError.message : String(unmountError)
               })
@@ -658,9 +687,10 @@ export function setupIpcHandlers(): void {
     return db.getAllTransferSessions()
   })
 
-  ipcMain.handle(IPC_CHANNELS.HISTORY_GET_BY_ID, async (_, id: string) => {
+  ipcMain.handle(IPC_CHANNELS.HISTORY_GET_BY_ID, async (_, id: unknown) => {
+    const validatedId = validateSessionId(id)
     const db = getDatabaseManager()
-    return db.getTransferSession(id)
+    return db.getTransferSession(validatedId)
   })
 
   ipcMain.handle(IPC_CHANNELS.HISTORY_CLEAR, async () => {
@@ -678,8 +708,9 @@ export function setupIpcHandlers(): void {
   })
 
   // Logging handlers
-  ipcMain.handle(IPC_CHANNELS.LOG_GET_RECENT, async (_, limit?: number) => {
-    return getLogger().getRecent(limit || 100)
+  ipcMain.handle(IPC_CHANNELS.LOG_GET_RECENT, async (_, limit?: unknown) => {
+    const validatedLimit = validateLimit(limit, 10000)
+    return getLogger().getRecent(validatedLimit)
   })
 
   ipcMain.handle(IPC_CHANNELS.LOG_CLEAR, async () => {
@@ -687,22 +718,33 @@ export function setupIpcHandlers(): void {
   })
 
   // Log range export handler
-  ipcMain.handle(
-    'log:get-range',
-    async (_e, args: { startTime: number; endTime: number; level?: string }) => {
-      const logger = getLogger()
-      const { startTime, endTime, level } = args || {}
-      if (typeof startTime !== 'number' || typeof endTime !== 'number') {
-        throw new Error('Invalid date range')
-      }
-      if (level && ['debug', 'info', 'warn', 'error'].includes(level)) {
-        // Filter by level within range
-        const range = logger.getByDateRange(startTime, endTime)
-        return range.filter((l) => l.level === level)
-      }
-      return logger.getByDateRange(startTime, endTime)
+  ipcMain.handle('log:get-range', async (_e, args: unknown) => {
+    const logger = getLogger()
+    if (!args || typeof args !== 'object') {
+      throw new Error('Invalid arguments')
     }
-  )
+    const argObj = args as Record<string, unknown>
+    const startTime = argObj.startTime
+    const endTime = argObj.endTime
+    const level = argObj.level
+
+    if (typeof startTime !== 'number' || typeof endTime !== 'number') {
+      throw new Error('Invalid date range')
+    }
+
+    // Validate date range values
+    if (!Number.isFinite(startTime) || !Number.isFinite(endTime) || startTime > endTime) {
+      throw new Error('Invalid date range values')
+    }
+
+    if (level !== undefined) {
+      const validatedLevel = validateLogLevel(level)
+      // Filter by level within range
+      const range = logger.getByDateRange(startTime, endTime)
+      return range.filter((l) => l.level === validatedLevel)
+    }
+    return logger.getByDateRange(startTime, endTime)
+  })
 
   // System handlers
   ipcMain.handle(IPC_CHANNELS.SYSTEM_SHUTDOWN, async () => {
