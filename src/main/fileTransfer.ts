@@ -580,7 +580,8 @@ export class FileTransferEngine {
    * Check if transfers are currently in progress
    */
   isTransferring(): boolean {
-    return this.currentTransfer !== null && !this.stopped
+    // Check if we have active transfers or if stopped flag indicates transfer was happening
+    return (this.currentTransfer !== null || this.activeTempFiles.size > 0) && !this.stopped
   }
 
   /**

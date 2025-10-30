@@ -235,17 +235,30 @@ export async function checkDiskSpace(targetPath: string): Promise<DiskSpaceInfo>
  * @returns Disk space information
  */
 async function checkDiskSpaceFallback(targetPath: string): Promise<DiskSpaceInfo> {
-  const { exec } = await import('child_process')
+  const { execFile } = await import('child_process')
   const { promisify } = await import('util')
-  const execAsync = promisify(exec)
+  const execFileAsync = promisify(execFile)
 
   try {
     if (process.platform === 'win32') {
-      // Windows: Use wmic or Get-Volume
+      // Windows: Use wmic with validated drive letter
       const drive = path.parse(targetPath).root
-      const { stdout } = await execAsync(
-        `wmic logical disk where "DeviceID='${drive.replace('\\', '')}'" get FreeSpace,Size /format:csv`
-      )
+      // Validate drive letter format (e.g., "C:")
+      const driveLetter = drive.replace(/[\\/:]/g, '').toUpperCase()
+      if (!/^[A-Z]$/.test(driveLetter)) {
+        throw new Error('Invalid drive letter')
+      }
+
+      // Use execFile with array of arguments to prevent command injection
+      const { stdout } = await execFileAsync('wmic', [
+        'logical',
+        'disk',
+        'where',
+        `DeviceID='${driveLetter}:'`,
+        'get',
+        'FreeSpace,Size',
+        '/format:csv'
+      ])
 
       const lines = stdout.trim().split('\n')
       const data = lines[lines.length - 1].split(',')
@@ -255,8 +268,13 @@ async function checkDiskSpaceFallback(targetPath: string): Promise<DiskSpaceInfo
         totalSpace: parseInt(data[2], 10)
       }
     } else {
-      // Unix-like: Use df command
-      const { stdout } = await execAsync(`df -k "${targetPath}"`)
+      // Unix-like: Use df command with path as argument (not in string)
+      // Validate path doesn't contain command injection characters
+      if (/[;&|`$(){}]/.test(targetPath)) {
+        throw new Error('Invalid characters in path')
+      }
+
+      const { stdout } = await execFileAsync('df', ['-k', targetPath])
       const lines = stdout.trim().split('\n')
       const data = lines[1].split(/\s+/)
 
