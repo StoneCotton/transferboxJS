@@ -55,6 +55,45 @@ describe('IPC Validator', () => {
           expect(() => validateDeviceId(drive)).not.toThrow()
         })
       })
+
+      it('should accept Windows physical drive paths', () => {
+        const physicalDrives = [
+          '\\\\.\\PHYSICALDRIVE0',
+          '\\\\.\\PHYSICALDRIVE1',
+          '\\\\.\\PHYSICALDRIVE9'
+        ]
+
+        physicalDrives.forEach((drive) => {
+          expect(() => validateDeviceId(drive)).not.toThrow()
+          expect(validateDeviceId(drive)).toBe(drive)
+        })
+      })
+
+      it('should accept Windows volume GUID paths', () => {
+        const volumePaths = [
+          '\\\\?\\Volume{12345678-1234-1234-1234-123456789abc}',
+          '\\\\?\\Volume{a1b2c3d4-e5f6-7890-abcd-ef1234567890}'
+        ]
+
+        volumePaths.forEach((drive) => {
+          expect(() => validateDeviceId(drive)).not.toThrow()
+          expect(validateDeviceId(drive)).toBe(drive)
+        })
+      })
+
+      it('should accept Windows harddisk volume paths', () => {
+        const harddiskPaths = [
+          '\\\\.\\HarddiskVolume1',
+          '\\\\.\\HarddiskVolume2',
+          '\\\\.\\Harddisk1',
+          '\\\\.\\Harddisk2'
+        ]
+
+        harddiskPaths.forEach((drive) => {
+          expect(() => validateDeviceId(drive)).not.toThrow()
+          expect(validateDeviceId(drive)).toBe(drive)
+        })
+      })
     })
 
     describe('invalid device IDs', () => {

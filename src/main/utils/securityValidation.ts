@@ -139,6 +139,7 @@ export function sanitizeForShell(value: string): string {
  * Allows only specific formats:
  * - Unix devices: /dev/xxx
  * - Windows drives: X: or X:\
+ * - Windows device paths: \\.\PHYSICALDRIVE0, \\?\Volume{guid}, \\.\HarddiskVolume1
  * - Simple alphanumeric identifiers
  * 
  * @param device - The device identifier to check
@@ -152,6 +153,11 @@ export function isSafeDeviceId(device: string): boolean {
   
   // Windows drive letter
   if (/^[A-Z]:(\\)?$/i.test(device)) {
+    return true
+  }
+  
+  // Windows physical drive or volume path
+  if (/^\\\\[.?]\\(PHYSICALDRIVE\d+|Volume\{[a-fA-F0-9-]+\}|Harddisk(Volume)?\d+)$/i.test(device)) {
     return true
   }
   

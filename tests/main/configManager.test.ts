@@ -283,5 +283,26 @@ describe('ConfigManager', () => {
       const config = configManager.getConfig()
       expect(config.mediaExtensions).toHaveLength(100)
     })
+
+    it('should handle numeric configVersion values from legacy configs', () => {
+      // This regression test ensures numeric config versions are converted to strings
+      // Bug: Some legacy configs might have numeric configVersion (e.g., 1 instead of "1")
+      const store = configManager.getStore()
+      
+      // Directly set a numeric configVersion to simulate legacy config
+      ;(store as any).set('configVersion', 1)
+
+      // Should not throw when getting version info
+      expect(() => {
+        const versionInfo = configManager.getVersionInfo()
+        expect(versionInfo.configVersion).toBe('1')
+      }).not.toThrow()
+
+      // Should not throw when migrating config
+      expect(() => {
+        // Create a new instance which will trigger migration
+        new ConfigManager(testConfigPath)
+      }).not.toThrow()
+    })
   })
 })

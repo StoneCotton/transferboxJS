@@ -94,7 +94,8 @@ export function validateFilePaths(filePaths: unknown[]): string[] {
  * 
  * Platform-specific formats:
  * - Unix (darwin/linux): /dev/disk*, /dev/sd*, /dev/mmcblk*
- * - Windows: [A-Z]:, [A-Z]:\
+ * - Windows drive letters: [A-Z]:, [A-Z]:\
+ * - Windows device paths: \\.\PHYSICALDRIVE0, \\?\Volume{guid}, \\.\HarddiskVolume1
  * 
  * Security checks:
  * - Control characters (\x00-\x1f)
@@ -115,11 +116,36 @@ export function validateDeviceId(device: unknown): string {
     throw new Error('Device ID exceeds maximum length')
   }
 
-  // Check for control characters (always invalid)
+  // Check for control characters (always invalid, even in device paths)
   if (/[\x00-\x1f]/.test(trimmed)) {
     throw new Error('Device ID contains invalid characters')
   }
 
+  // Device ID format validation (platform-agnostic to support cross-platform testing)
+  // Check recognized formats FIRST before applying general security checks
+  
+  // Check if it's a Windows drive letter format: [A-Z]: or [A-Z]:\
+  const isWindowsDrive = /^[A-Z]:(\\)?$/i.test(trimmed)
+  
+  // Check if it's a Windows physical drive or volume path:
+  // - \\.\PHYSICALDRIVE0, \\.\PHYSICALDRIVE1, etc.
+  // - \\?\Volume{guid}
+  // - \\.\HarddiskVolume1, etc.
+  const isWindowsDevicePath = /^\\\\[.?]\\(PHYSICALDRIVE\d+|Volume\{[a-fA-F0-9-]+\}|Harddisk(Volume)?\d+)$/i.test(trimmed)
+  
+  // Check if it's a Unix device path: /dev/*
+  const isUnixDevice = /^\/dev\/[a-zA-Z0-9_\-\/]+$/.test(trimmed)
+
+  if (isWindowsDrive || isWindowsDevicePath) {
+    // Valid Windows drive/device - no additional checks needed
+    return trimmed
+  } else if (isUnixDevice) {
+    // Valid Unix device path - no additional checks needed
+    return trimmed
+  }
+  
+  // If not a recognized device format, apply strict security checks
+  
   // Check for path traversal attempts
   if (trimmed.includes('..')) {
     throw new Error('Device ID contains invalid characters')
@@ -134,27 +160,11 @@ export function validateDeviceId(device: unknown): string {
   if (/[*?]/.test(trimmed)) {
     throw new Error('Device ID contains invalid characters')
   }
-
-  // Device ID format validation (platform-agnostic to support cross-platform testing)
   
-  // Check if it's a Windows drive letter format: [A-Z]: or [A-Z]:\
-  const isWindowsDrive = /^[A-Z]:(\\)?$/i.test(trimmed)
-  
-  // Check if it's a Unix device path: /dev/*
-  const isUnixDevice = /^\/dev\/[a-zA-Z0-9_\-\/]+$/.test(trimmed)
-
-  if (isWindowsDrive) {
-    // Valid Windows drive letter - no additional checks needed
-    return trimmed
-  } else if (isUnixDevice) {
-    // Valid Unix device path - no additional checks needed
-    return trimmed
-  } else {
-    // Not a recognized device format - check for any remaining invalid characters
-    // Reject: quotes, angle brackets, pipe, backslashes, forward slashes, colons
-    if (/[<>:"/\\|]/.test(trimmed)) {
-      throw new Error('Device ID contains invalid characters')
-    }
+  // Check for remaining invalid characters
+  // Reject: quotes, angle brackets, pipe, backslashes, forward slashes, colons
+  if (/[<>:"/\\|]/.test(trimmed)) {
+    throw new Error('Device ID contains invalid characters')
   }
 
   return trimmed
