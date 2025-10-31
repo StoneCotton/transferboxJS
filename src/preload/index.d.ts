@@ -7,7 +7,8 @@ import type {
   TransferSession,
   TransferStatusResponse,
   LogEntry,
-  DriveInfo
+  DriveInfo,
+  ScannedMedia
 } from '../shared/types'
 
 interface IpcApi {
@@ -23,9 +24,7 @@ interface IpcApi {
 
   // Drive operations
   listDrives: () => Promise<DriveInfo[]>
-  scanDrive: (
-    device: string
-  ) => Promise<{ driveInfo: DriveInfo; files: string[]; totalSize: number; fileCount: number }>
+  scanDrive: (device: string) => Promise<ScannedMedia>
   unmountDrive: (device: string) => Promise<boolean>
 
   // Transfer operations

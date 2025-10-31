@@ -149,12 +149,36 @@ export function useAppInit(): null {
           if (result.files.length > 0) {
             // Auto-start transfer without confirmation
             // Extract file paths from ScannedFile objects
+            const filePaths = result.files.map((file) => file.path)
+            
+            // Debug: Check for empty file paths
+            const emptyPaths = filePaths.filter((path, index) => {
+              if (!path || path.trim() === '') {
+                console.error(`[Fully-autonomous] Empty file path at index ${index}:`, result.files[index])
+                return true
+              }
+              return false
+            })
+            
+            if (emptyPaths.length > 0) {
+              console.error(`[Fully-autonomous] Found ${emptyPaths.length} empty file paths!`)
+              console.error('[Fully-autonomous] All scanned files:', result.files)
+            }
+            
             const request = {
               driveInfo: drive,
               sourceRoot: drive.mountpoints[0] || '',
               destinationRoot: config.defaultDestination,
-              files: result.files.map((file) => file.path)
+              files: filePaths
             }
+            
+            console.log('[Fully-autonomous] Starting transfer with request:', {
+              ...request,
+              fileCount: request.files.length,
+              firstFile: request.files[0],
+              lastFile: request.files[request.files.length - 1]
+            })
+            
             await ipc.startTransfer(request)
             // Show toast notification (logs are already created in main process)
             store.addToast({

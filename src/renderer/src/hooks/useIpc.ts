@@ -11,7 +11,8 @@ import type {
   AppConfig,
   TransferSession,
   LogEntry,
-  DriveInfo
+  DriveInfo,
+  ScannedMedia
 } from '../../../shared/types'
 
 // Type-safe IPC API
@@ -27,9 +28,7 @@ export interface IpcApi {
 
   // Drive operations
   listDrives: () => Promise<DriveInfo[]>
-  scanDrive: (
-    device: string
-  ) => Promise<{ driveInfo: DriveInfo; files: string[]; totalSize: number; fileCount: number }>
+  scanDrive: (device: string) => Promise<ScannedMedia>
   unmountDrive: (device: string) => Promise<boolean>
 
   // Transfer operations

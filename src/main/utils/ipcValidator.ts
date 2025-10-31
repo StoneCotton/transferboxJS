@@ -70,7 +70,20 @@ export function validateFilePaths(filePaths: unknown[]): string[] {
 
   return filePaths.map((fp, index) => {
     if (typeof fp !== 'string') {
-      throw new Error(`File path at index ${index} must be a string`)
+      getLogger().error('[IPC Validator] Invalid file path type', {
+        index,
+        type: typeof fp,
+        value: fp
+      })
+      throw new Error(`File path at index ${index} must be a string (got ${typeof fp})`)
+    }
+    if (fp.trim() === '') {
+      getLogger().error('[IPC Validator] Empty file path', {
+        index,
+        originalValue: fp,
+        length: fp.length
+      })
+      throw new Error(`File path at index ${index} is empty or contains only whitespace`)
     }
     return validateFilePath(fp, false)
   })

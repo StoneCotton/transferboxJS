@@ -37,12 +37,35 @@ export function TransferActions() {
 
       // Create transfer request
       // Extract file paths from ScannedFile objects
+      const filePaths = scannedFiles.map((file) => file.path)
+      
+      // Debug: Check for empty file paths
+      const emptyPaths = filePaths.filter((path, index) => {
+        if (!path || path.trim() === '') {
+          console.error(`Empty file path at index ${index}:`, scannedFiles[index])
+          return true
+        }
+        return false
+      })
+      
+      if (emptyPaths.length > 0) {
+        console.error(`Found ${emptyPaths.length} empty file paths!`)
+        console.error('All scanned files:', scannedFiles)
+      }
+      
       const request = {
         driveInfo: selectedDrive,
         sourceRoot: selectedDrive.mountpoints[0] || '',
         destinationRoot: selectedDestination,
-        files: scannedFiles.map((file) => file.path)
+        files: filePaths
       }
+
+      console.log('Starting transfer with request:', {
+        ...request,
+        fileCount: request.files.length,
+        firstFile: request.files[0],
+        lastFile: request.files[request.files.length - 1]
+      })
 
       // Start the transfer via IPC
       await ipc.startTransfer(request)

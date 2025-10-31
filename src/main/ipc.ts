@@ -228,16 +228,39 @@ export function setupIpcHandlers(): void {
 
   // Transfer operations handlers
   ipcMain.handle(IPC_CHANNELS.TRANSFER_START, async (event, request: unknown) => {
+    const logger = getLogger()
+    
     // Prevent concurrent transfers
     if (transferEngine && transferEngine.isTransferring()) {
       const errorMessage =
         'A transfer is already in progress. Please wait for it to complete or cancel it first.'
-      getLogger().warn('Transfer start blocked - transfer already in progress')
+      logger.warn('Transfer start blocked - transfer already in progress')
       throw new Error(errorMessage)
     }
 
+    // Log incoming request for debugging
+    logger.debug('[IPC] Transfer start requested', {
+      hasRequest: !!request,
+      requestType: typeof request
+    })
+
     // Validate and sanitize request
-    const validatedRequest = validateTransferStartRequest(request)
+    let validatedRequest
+    try {
+      validatedRequest = validateTransferStartRequest(request)
+      logger.debug('[IPC] Transfer request validated successfully', {
+        sourceRoot: validatedRequest.sourceRoot,
+        destinationRoot: validatedRequest.destinationRoot,
+        fileCount: validatedRequest.files.length,
+        driveDevice: validatedRequest.driveInfo.device
+      })
+    } catch (error) {
+      logger.error('[IPC] Transfer request validation failed', {
+        error: error instanceof Error ? error.message : String(error),
+        requestData: request ? JSON.stringify(request, null, 2) : 'null'
+      })
+      throw error
+    }
     if (!transferEngine) {
       transferEngine = new FileTransferEngine()
     } else {
@@ -249,7 +272,7 @@ export function setupIpcHandlers(): void {
     pathProcessor = createPathProcessor(config)
 
     const db = getDatabaseManager()
-    const logger = getLogger()
+    // logger already declared above
 
     // Filter files based on media extensions if enabled
     const filteredFiles = validatedRequest.files.filter((file) =>

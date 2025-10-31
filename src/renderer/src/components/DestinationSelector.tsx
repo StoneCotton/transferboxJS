@@ -62,12 +62,36 @@ export function DestinationSelector() {
 
       const performAutoTransfer = async () => {
         try {
+          // Extract file paths from ScannedFile objects
+          const filePaths = scannedFiles.map((file) => file.path)
+          
+          // Debug: Check for empty file paths
+          const emptyPaths = filePaths.filter((path, index) => {
+            if (!path || path.trim() === '') {
+              console.error(`[Auto-transfer] Empty file path at index ${index}:`, scannedFiles[index])
+              return true
+            }
+            return false
+          })
+          
+          if (emptyPaths.length > 0) {
+            console.error(`[Auto-transfer] Found ${emptyPaths.length} empty file paths!`)
+            console.error('[Auto-transfer] All scanned files:', scannedFiles)
+          }
+          
           const request = {
             driveInfo: selectedDrive,
             sourceRoot: selectedDrive.mountpoints[0] || '',
             destinationRoot: selectedDestination,
-            files: scannedFiles.map((file) => file.path)
+            files: filePaths
           }
+
+          console.log('[Auto-transfer] Starting transfer with request:', {
+            ...request,
+            fileCount: request.files.length,
+            firstFile: request.files[0],
+            lastFile: request.files[request.files.length - 1]
+          })
 
           await ipc.startTransfer(request)
 
