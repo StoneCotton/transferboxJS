@@ -191,8 +191,8 @@ describe('DriveMonitor', () => {
       expect(result.files.length).toBe(2)
 
       // Verify only media files
-      result.files.forEach((file) => {
-        const ext = path.extname(file).toLowerCase()
+      result.files.forEach((ScannedFile) => {
+        const ext = path.extname(ScannedFile.path).toLowerCase()
         expect(['.mp4', '.jpg'].includes(ext)).toBe(true)
       })
     })

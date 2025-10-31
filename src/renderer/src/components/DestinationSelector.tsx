@@ -66,7 +66,7 @@ export function DestinationSelector() {
             driveInfo: selectedDrive,
             sourceRoot: selectedDrive.mountpoints[0] || '',
             destinationRoot: selectedDestination,
-            files: scannedFiles
+            files: scannedFiles.map((file) => file.path)
           }
 
           await ipc.startTransfer(request)

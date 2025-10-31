@@ -278,7 +278,7 @@ export function FileList() {
     }
 
     scannedFiles.forEach((file) => {
-      const status = getFileTransferStatus(file, progress)
+      const status = getFileTransferStatus(file.path, progress)
       stats[status]++
     })
 
@@ -391,12 +391,25 @@ export function FileList() {
       <CardContent>
         <div className="max-h-[500px] space-y-2 overflow-y-auto rounded-lg bg-gradient-to-br from-gray-50 to-white p-3 dark:from-gray-800/50 dark:to-gray-900/50">
           {scannedFiles.map((file, index) => {
-            const Icon = getFileIcon(file)
-            const fileName = file.split('/').pop() || file
-            const fileType = getFileType(file)
-            const status = getFileTransferStatus(file, progress)
-            const checksum = getFileChecksum(file, progress)
-            const elapsedTime = getFileElapsedTime(file, progress)
+            const filePath = file.path
+            const Icon = getFileIcon(filePath)
+            const fileName = filePath.split('/').pop() || filePath
+            const fileType = getFileType(filePath)
+            const status = getFileTransferStatus(filePath, progress)
+            const checksum = getFileChecksum(filePath, progress)
+            const elapsedTime = getFileElapsedTime(filePath, progress)
+            
+            // Format creation date and time
+            const creationDate = new Date(file.birthtime)
+            const formattedDate = creationDate.toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: 'short',
+              day: 'numeric'
+            })
+            const formattedTime = creationDate.toLocaleTimeString('en-US', {
+              hour: '2-digit',
+              minute: '2-digit'
+            })
 
             // Status icon and colors
             const getStatusIcon = (): ReactElement => {
@@ -468,6 +481,14 @@ export function FileList() {
                       {fileName}
                     </span>
                     {getStatusIcon()}
+                  </div>
+
+                  {/* File creation date and time */}
+                  <div className="mt-1 flex items-center gap-2">
+                    <Clock className="h-3 w-3 text-gray-500 dark:text-gray-400" />
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                      Created: {formattedDate} at {formattedTime}
+                    </span>
                   </div>
 
                   {/* Elapsed time for completed files */}

@@ -5,7 +5,7 @@
 
 import type { StateCreator } from 'zustand'
 import type { DriveState } from '../types'
-import type { DriveInfo } from '../../../../shared/types'
+import type { DriveInfo, ScannedFile } from '../../../../shared/types'
 
 export interface DriveSlice extends DriveState {
   // Actions
@@ -13,7 +13,7 @@ export interface DriveSlice extends DriveState {
   addDrive: (drive: DriveInfo) => void
   removeDrive: (device: string) => void
   selectDrive: (drive: DriveInfo | null) => void
-  setScannedFiles: (files: string[]) => void
+  setScannedFiles: (files: ScannedFile[]) => void
   setScanInProgress: (inProgress: boolean) => void
   setScanError: (error: string | null) => void
   clearScan: () => void

@@ -4,11 +4,11 @@
  */
 
 import * as drivelist from 'drivelist'
-import { readdir, stat, lstat } from 'fs/promises'
+import { readdir, lstat } from 'fs/promises'
 import * as path from 'path'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
-import { DriveInfo, DriveStats, ScannedMedia } from '../shared/types'
+import { DriveInfo, DriveStats, ScannedMedia, ScannedFile } from '../shared/types'
 import { getConfig } from './configManager'
 import { checkDiskSpace } from './pathValidator'
 import { getLogger } from './logger'
@@ -129,7 +129,7 @@ export class DriveMonitor {
     getLogger().info('[DriveMonitor] Scanning path', { path: drivePath })
     getLogger().debug('[DriveMonitor] Media extensions', { mediaExtensions })
 
-    const files: string[] = []
+    const files: ScannedFile[] = []
     let totalSize = 0
 
     // Recursively scan directory
@@ -137,12 +137,7 @@ export class DriveMonitor {
 
     // Calculate total size
     for (const file of files) {
-      try {
-        const stats = await stat(file)
-        totalSize += stats.size
-      } catch (error) {
-        // Skip files that can't be accessed
-      }
+      totalSize += file.size
     }
 
     const scanTime = Date.now() - startTime
@@ -280,7 +275,7 @@ export class DriveMonitor {
    */
   private async scanDirectory(
     dirPath: string,
-    files: string[],
+    files: ScannedFile[],
     mediaExtensions: string[],
     visitedInodes = new Set<string>()
   ): Promise<void> {
@@ -334,7 +329,13 @@ export class DriveMonitor {
             const ext = path.extname(entry.name).toLowerCase()
             if (mediaExtensions.includes(ext)) {
               getLogger().debug('[DriveMonitor] Found media file', { file: entry.name, ext })
-              files.push(fullPath)
+              // Collect file metadata including creation date
+              files.push({
+                path: fullPath,
+                size: stats.size,
+                birthtime: stats.birthtime.getTime(), // Convert to milliseconds timestamp
+                mtime: stats.mtime.getTime() // Convert to milliseconds timestamp
+              })
             }
           }
         } catch (error) {

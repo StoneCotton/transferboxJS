@@ -10,13 +10,14 @@ import type {
   TransferProgress,
   LogEntry,
   FileTransferInfo,
-  TransferErrorType
+  TransferErrorType,
+  ScannedFile
 } from '../../../shared/types'
 
 export interface DriveState {
   detectedDrives: DriveInfo[]
   selectedDrive: DriveInfo | null
-  scannedFiles: string[]
+  scannedFiles: ScannedFile[]
   scanInProgress: boolean
   scanError: string | null
   existingDrives: Set<string> // Track drives that were present at startup

@@ -36,11 +36,12 @@ export function TransferActions() {
       setIsStarting(true)
 
       // Create transfer request
+      // Extract file paths from ScannedFile objects
       const request = {
         driveInfo: selectedDrive,
         sourceRoot: selectedDrive.mountpoints[0] || '',
         destinationRoot: selectedDestination,
-        files: scannedFiles
+        files: scannedFiles.map((file) => file.path)
       }
 
       // Start the transfer via IPC

@@ -148,11 +148,12 @@ export function useAppInit(): null {
 
           if (result.files.length > 0) {
             // Auto-start transfer without confirmation
+            // Extract file paths from ScannedFile objects
             const request = {
               driveInfo: drive,
               sourceRoot: drive.mountpoints[0] || '',
               destinationRoot: config.defaultDestination,
-              files: result.files
+              files: result.files.map((file) => file.path)
             }
             await ipc.startTransfer(request)
             // Show toast notification (logs are already created in main process)

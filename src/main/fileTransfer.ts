@@ -384,7 +384,7 @@ export class FileTransferEngine {
       // Add bytes from active transfers
       fileProgress.forEach((progress) => {
         totalBytesTransferred = safeAdd(totalBytesTransferred, progress.bytesTransferred)
-        totalSpeed = safeAdd(totalSpeed, progress.speed)
+        totalSpeed += progress.speed // Speed is naturally a float (bytes/sec), don't use safeAdd
         if (progress.percentage < 100) activeTransfers++
       })
 
