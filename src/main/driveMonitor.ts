@@ -197,10 +197,26 @@ export class DriveMonitor {
           // Use execFile with array arguments to prevent command injection
           await execFileAsync('umount', [mountPoint])
           break
-        case 'win32':
-          // Windows doesn't have a direct unmount command for removable drives
-          // The drive will be ejected when the user removes it
-          return true
+        case 'win32': {
+          // Extract drive letter from mount point (e.g., "D:\\" -> "D:")
+          const driveLetterMatch = mountPoint.match(/^([A-Z]):[\\/]?$/i)
+          if (!driveLetterMatch) {
+            throw new Error(`Invalid Windows mount point format: ${mountPoint}`)
+          }
+          const driveLetter = driveLetterMatch[1].toUpperCase() + ':'
+
+          // Use PowerShell Shell.Application Eject (same as Explorer UI)
+          const psCommand = `($obj = New-Object -ComObject Shell.Application).Namespace(17).ParseName(\"${driveLetter}\"); if ($obj) { $obj.InvokeVerb(\"Eject\") }`
+          await execFileAsync('powershell.exe', [
+            '-NoProfile',
+            '-NonInteractive',
+            '-Command',
+            psCommand
+          ])
+          // Small delay for the OS to process eject
+          await new Promise((resolve) => setTimeout(resolve, 800))
+          break
+        }
         default:
           throw new Error(`Unsupported platform: ${process.platform}`)
       }
@@ -237,6 +253,31 @@ export class DriveMonitor {
 
       const currentDevices = new Set(currentDrives.map((d) => d.device))
       const previousDevices = new Set(this.lastDrives.keys())
+
+      // Detect mountpoint changes on existing devices (e.g., SD card inserted/removed in a multi-slot reader)
+      for (const device of currentDevices) {
+        const prev = this.lastDrives.get(device)
+        const curr = currentDrives.find((d) => d.device === device)
+        if (!prev || !curr) continue
+
+        const prevMounted = (prev.mountpoints || []).length > 0
+        const currMounted = (curr.mountpoints || []).length > 0
+
+        // Update cached entry with latest info
+        this.lastDrives.set(device, curr)
+
+        if (prevMounted && !currMounted) {
+          // Treat as removal so UI clears state for this device
+          if (this.onDriveRemoved && this.monitoring) {
+            this.onDriveRemoved(device)
+          }
+        } else if (!prevMounted && currMounted) {
+          // Treat as added so UI can select/scan again
+          if (this.onDriveAdded && this.monitoring) {
+            this.onDriveAdded(curr)
+          }
+        }
+      }
 
       // Check for added drives
       for (const drive of currentDrives) {

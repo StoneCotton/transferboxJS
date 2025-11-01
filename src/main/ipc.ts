@@ -205,12 +205,18 @@ export function setupIpcHandlers(): void {
       if (success) {
         getLogger().info('Drive unmounted successfully', { device: validatedDevice })
 
-        // Notify renderer that drive was unmounted
+        // Notify renderer
         if (mainWindow && !mainWindow.isDestroyed()) {
-          getLogger().debug('[IPC] Sending DRIVE_UNMOUNTED event', { device: validatedDevice })
-          mainWindow.webContents.send(IPC_CHANNELS.DRIVE_UNMOUNTED, validatedDevice)
+          if (process.platform === 'win32') {
+            // On Windows, treat successful eject as removed so UI clears the device fully
+            getLogger().debug('[IPC] Sending DRIVE_REMOVED event (win32)', { device: validatedDevice })
+            mainWindow.webContents.send(IPC_CHANNELS.DRIVE_REMOVED, validatedDevice)
+          } else {
+            getLogger().debug('[IPC] Sending DRIVE_UNMOUNTED event', { device: validatedDevice })
+            mainWindow.webContents.send(IPC_CHANNELS.DRIVE_UNMOUNTED, validatedDevice)
+          }
         } else {
-          getLogger().warn('[IPC] Cannot send DRIVE_UNMOUNTED - mainWindow not available')
+          getLogger().warn('[IPC] Cannot send drive event - mainWindow not available')
         }
       } else {
         getLogger().warn('Failed to unmount drive', { device: validatedDevice })
@@ -616,17 +622,27 @@ export function setupIpcHandlers(): void {
                   sessionId
                 })
 
-                // Notify renderer that drive was unmounted
+                // Notify renderer
                 if (mainWindow && !mainWindow.isDestroyed()) {
-                  getLogger().debug('[IPC] Sending DRIVE_UNMOUNTED event (auto)', {
-                    device: validatedRequest.driveInfo.device
-                  })
-                  mainWindow.webContents.send(
-                    IPC_CHANNELS.DRIVE_UNMOUNTED,
-                    validatedRequest.driveInfo.device
-                  )
+                  if (process.platform === 'win32') {
+                    getLogger().debug('[IPC] Sending DRIVE_REMOVED event (auto, win32)', {
+                      device: validatedRequest.driveInfo.device
+                    })
+                    mainWindow.webContents.send(
+                      IPC_CHANNELS.DRIVE_REMOVED,
+                      validatedRequest.driveInfo.device
+                    )
+                  } else {
+                    getLogger().debug('[IPC] Sending DRIVE_UNMOUNTED event (auto)', {
+                      device: validatedRequest.driveInfo.device
+                    })
+                    mainWindow.webContents.send(
+                      IPC_CHANNELS.DRIVE_UNMOUNTED,
+                      validatedRequest.driveInfo.device
+                    )
+                  }
                 } else {
-                  getLogger().warn('[IPC] Cannot send DRIVE_UNMOUNTED - mainWindow not available')
+                  getLogger().warn('[IPC] Cannot send drive event - mainWindow not available')
                 }
               } else {
                 logger.warn('Failed to auto-unmount drive', {

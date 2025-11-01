@@ -3,7 +3,7 @@
  */
 
 import { HardDrive, Loader2, Usb, Check, Sparkles, Clock, PowerOff } from 'lucide-react'
-import { useDriveStore, useConfigStore, useStore } from '../store'
+import { useDriveStore, useConfigStore, useStore, useTransferStore } from '../store'
 import { useIpc } from '../hooks/useIpc'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/Card'
 import { formatBytes, cn } from '../lib/utils'
@@ -24,6 +24,7 @@ export function DriveSelector() {
     isDriveUnmounted
   } = useDriveStore()
   const { config } = useConfigStore()
+  const { isTransferring } = useTransferStore()
   const ipc = useIpc()
 
   const handleSelectDrive = async (drive: DriveInfo): Promise<void> => {
@@ -31,6 +32,14 @@ export function DriveSelector() {
     if (isDriveUnmounted(drive.device)) {
       console.log('[DriveSelector] Cannot select unmounted drive')
       setScanError('Drive is unmounted. Please reconnect the drive.')
+      playErrorSound()
+      return
+    }
+
+    // Don't allow drive selection during active transfer
+    if (isTransferring) {
+      console.log('[DriveSelector] Cannot select drive during active transfer')
+      setScanError('Cannot select drive while transfer is in progress.')
       playErrorSound()
       return
     }
@@ -136,6 +145,7 @@ export function DriveSelector() {
             const isScanningThis = scanInProgress && isSelected
             const isExisting = isExistingDrive(drive.device)
             const isUnmounted = isDriveUnmounted(drive.device)
+            const isDisabled = isUnmounted || isTransferring
             const isAutoMode =
               config.transferMode === 'fully-autonomous' || config.transferMode === 'auto-transfer'
 
@@ -152,11 +162,11 @@ export function DriveSelector() {
               <button
                 key={drive.device}
                 onClick={() => handleSelectDrive(drive)}
-                disabled={isUnmounted}
+                disabled={isDisabled}
                 className={cn(
                   'group relative w-full overflow-hidden rounded-xl border-2 p-4 text-left transition-all duration-300',
-                  !isUnmounted && 'hover:shadow-lg hover:shadow-brand-500/20',
-                  isUnmounted
+                  !isDisabled && 'hover:shadow-lg hover:shadow-brand-500/20',
+                  isDisabled
                     ? 'cursor-not-allowed border-red-300 bg-gradient-to-br from-red-50/50 to-orange-50/50 opacity-70 dark:border-red-800 dark:from-red-950/30 dark:to-orange-950/30'
                     : isSelected
                       ? 'border-brand-500 bg-gradient-to-br from-brand-50 to-orange-50 dark:border-brand-400 dark:from-brand-950/50 dark:to-orange-950/50'

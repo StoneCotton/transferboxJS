@@ -231,16 +231,18 @@ export function DestinationSelector() {
           {/* Select Button */}
           <Button
             onClick={handleSelectFolder}
-            disabled={isValidating || isSelectingDestination}
+            disabled={isValidating || isSelectingDestination || isTransferring}
             className="w-full bg-gradient-to-r from-slate-600 to-slate-700 text-white shadow-lg shadow-slate-500/30 transition-all hover:from-slate-700 hover:to-slate-800 hover:shadow-xl hover:shadow-slate-500/40"
             size="lg"
           >
             <FolderOpen className="mr-2 h-5 w-5" />
             {isValidating
               ? 'Validating...'
-              : selectedDestination
-                ? 'Change Destination'
-                : 'Select Destination'}
+              : isTransferring
+                ? 'Transfer in Progress...'
+                : selectedDestination
+                  ? 'Change Destination'
+                  : 'Select Destination'}
           </Button>
         </div>
       </CardContent>
