@@ -32,7 +32,11 @@
     "clean": "rm -rf out/ dist/",
     "clean:build": "npm run clean && npm run build",
     "clean:build:mac": "npm run clean && npm run build:mac",
-    "clean:build:all": "npm run clean && npm run build:all"
+    "clean:build:all": "npm run clean && npm run build:all",
+    "benchmark": "npm run benchmark:rebuild && node --enable-source-maps ./node_modules/.bin/tsx scripts/bench/run.ts && npm run benchmark:restore",
+    "benchmark:rebuild": "npm rebuild better-sqlite3",
+    "benchmark:restore": "electron-builder install-app-deps",
+    "benchmark:update": "TB_BASELINE_UPDATE=1 npm run benchmark"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",
@@ -61,6 +65,7 @@
     "@vitejs/plugin-react": "^5.0.3",
     "@welldone-software/why-did-you-render": "^10.0.1",
     "autoprefixer": "^10.4.21",
+    "colorette": "^2.0.20",
     "electron": "^38.1.2",
     "electron-builder": "^25.1.8",
     "electron-vite": "^4.0.1",
@@ -72,11 +77,15 @@
     "jest-environment-jsdom": "^30.2.0",
     "postcss": "^8.5.6",
     "prettier": "^3.6.2",
+    "pretty-bytes": "^6.1.1",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "tailwindcss": "^3.4.15",
+    "tinybench": "^2.8.0",
     "ts-jest": "^29.4.4",
+    "tsx": "^4.7.0",
     "typescript": "^5.9.2",
-    "vite": "^7.1.6"
+    "vite": "^7.1.6",
+    "zod": "^3.23.8"
   }
 }
