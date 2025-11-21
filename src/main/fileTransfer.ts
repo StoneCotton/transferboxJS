@@ -717,10 +717,12 @@ export class FileTransferEngine {
         }
       })
 
+      let streamError: Error | null = null
+
       readStream.on('error', (error) => {
-        writeStream.destroy()
-        const nodeError = error as NodeJS.ErrnoException
-        reject(TransferError.fromNodeError(nodeError))
+        // Capture error and flush write buffer to ensure clean shutdown
+        streamError = error
+        writeStream.end()
       })
 
       writeStream.on('error', (error) => {
@@ -731,7 +733,7 @@ export class FileTransferEngine {
 
       readStream.on('end', () => {
         // Verify we read exactly what we expected
-        if (bytesTransferred !== totalBytes) {
+        if (bytesTransferred !== totalBytes && !streamError) {
           writeStream.destroy()
           reject(
             TransferError.fromValidation(
@@ -742,6 +744,13 @@ export class FileTransferEngine {
       })
 
       writeStream.on('finish', () => {
+        // If we had a read error, reject now that write buffers are flushed
+        if (streamError) {
+          const nodeError = streamError as NodeJS.ErrnoException
+          reject(TransferError.fromNodeError(nodeError))
+          return
+        }
+
         // Final progress report
         if (options?.onProgress) {
           options.onProgress({
@@ -839,10 +848,12 @@ export class FileTransferEngine {
         }
       })
 
+      let streamError: Error | null = null
+
       readStream.on('error', (error) => {
-        writeStream.destroy()
-        const nodeError = error as NodeJS.ErrnoException
-        reject(TransferError.fromNodeError(nodeError))
+        // Capture error and flush write buffer to ensure clean shutdown
+        streamError = error
+        writeStream.end()
       })
 
       writeStream.on('error', (error) => {
@@ -853,7 +864,7 @@ export class FileTransferEngine {
 
       readStream.on('end', () => {
         // Verify we read exactly what we expected
-        if (bytesTransferred !== totalBytes) {
+        if (bytesTransferred !== totalBytes && !streamError) {
           writeStream.destroy()
           reject(
             TransferError.fromValidation(
@@ -864,6 +875,13 @@ export class FileTransferEngine {
       })
 
       writeStream.on('finish', () => {
+        // If we had a read error, reject now that write buffers are flushed
+        if (streamError) {
+          const nodeError = streamError as NodeJS.ErrnoException
+          reject(TransferError.fromNodeError(nodeError))
+          return
+        }
+
         // Final progress report
         if (options?.onProgress) {
           options.onProgress({
