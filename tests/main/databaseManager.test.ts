@@ -476,17 +476,159 @@ describe('DatabaseManager', () => {
       expect(retrieved?.files).toHaveLength(100)
     })
 
-    it('should handle concurrent writes', () => {
-      // Multiple log entries added quickly
-      const promises = Array.from({ length: 50 }, (_, i) =>
+    it('should handle concurrent writes without corruption', () => {
+      // Multiple log entries added quickly (simulating rapid sequential writes)
+      // IMMEDIATE transactions ensure these don't corrupt the database
+      Array.from({ length: 50 }, (_, i) =>
         dbManager.addLogEntry({ level: 'info', message: `Concurrent log ${i}` })
       )
 
-      // Should not throw
-      expect(() => promises).not.toThrow()
-
       const logs = dbManager.getRecentLogs(100)
       expect(logs.length).toBe(50)
+    })
+
+    it('should handle concurrent session updates to same session safely', () => {
+      // Create a single session
+      const session: Omit<TransferSession, 'id'> = {
+        driveId: '/dev/disk2',
+        driveName: 'Test Drive',
+        sourceRoot: '/source',
+        destinationRoot: '/dest',
+        startTime: Date.now(),
+        endTime: null,
+        status: 'transferring',
+        fileCount: 0,
+        totalBytes: 0,
+        files: []
+      }
+      const sessionId = dbManager.createTransferSession(session)
+
+      // Simulate multiple rapid sequential updates from different file transfers
+      // IMMEDIATE transactions ensure these don't corrupt the database
+      Array.from({ length: 10 }, (_, i) => {
+        dbManager.updateTransferSession(sessionId, {
+          fileCount: i + 1,
+          totalBytes: (i + 1) * 1000
+        })
+      })
+
+      const updated = dbManager.getTransferSession(sessionId)
+      expect(updated).toBeDefined()
+      expect(updated?.id).toBe(sessionId)
+      // Final values should be the last update (transaction ordering is preserved)
+      expect(updated?.fileCount).toBe(10)
+      expect(updated?.totalBytes).toBe(10000)
+    })
+
+    it('should handle concurrent file status updates safely', () => {
+      // Create a session with multiple files
+      const session: Omit<TransferSession, 'id'> = {
+        driveId: '/dev/disk2',
+        driveName: 'Test Drive',
+        sourceRoot: '/source',
+        destinationRoot: '/dest',
+        startTime: Date.now(),
+        endTime: null,
+        status: 'transferring',
+        fileCount: 5,
+        totalBytes: 5000,
+        files: []
+      }
+      const sessionId = dbManager.createTransferSession(session)
+
+      // Add multiple files using the initial session creation
+      const files: FileTransferInfo[] = Array.from({ length: 5 }, (_, i) => ({
+        sourcePath: `/source/file${i}.jpg`,
+        destinationPath: `/dest/file${i}.jpg`,
+        fileName: `file${i}.jpg`,
+        fileSize: 1000,
+        bytesTransferred: 0,
+        percentage: 0,
+        status: 'pending'
+      }))
+
+      files.forEach((file) => dbManager.addFileToSession(sessionId, file))
+
+      // Update each file sequentially - WAL mode ensures no corruption
+      files.forEach((file) => {
+        dbManager.updateFileStatus(sessionId, file.sourcePath, {
+          status: 'complete',
+          bytesTransferred: 1000,
+          percentage: 100
+        })
+      })
+
+      // Final verification - all files should be complete
+      const retrieved = dbManager.getTransferSession(sessionId)
+      expect(retrieved?.files).toHaveLength(5)
+      
+      retrieved?.files.forEach((file) => {
+        expect(file.status).toBe('complete')
+        expect(file.bytesTransferred).toBe(1000)
+        expect(file.percentage).toBe(100)
+      })
+    })
+
+    it('should handle concurrent session creation safely', () => {
+      // Simulate multiple rapid session creations
+      // IMMEDIATE transactions ensure these don't corrupt the database
+      const sessionIds = Array.from({ length: 10 }, (_, i) => {
+        const session: Omit<TransferSession, 'id'> = {
+          driveId: `/dev/disk${i}`,
+          driveName: `Drive ${i}`,
+          sourceRoot: `/source${i}`,
+          destinationRoot: `/dest${i}`,
+          startTime: Date.now(),
+          endTime: null,
+          status: 'transferring',
+          fileCount: 0,
+          totalBytes: 0,
+          files: []
+        }
+        return dbManager.createTransferSession(session)
+      })
+
+      expect(sessionIds).toHaveLength(10)
+      // All IDs should be unique
+      const uniqueIds = new Set(sessionIds)
+      expect(uniqueIds.size).toBe(10)
+
+      // All sessions should be retrievable
+      const allSessions = dbManager.getAllTransferSessions()
+      expect(allSessions.length).toBeGreaterThanOrEqual(10)
+    })
+
+    it('should handle mixed concurrent read and write operations', () => {
+      // Create initial session
+      const session: Omit<TransferSession, 'id'> = {
+        driveId: '/dev/disk2',
+        driveName: 'Test Drive',
+        sourceRoot: '/source',
+        destinationRoot: '/dest',
+        startTime: Date.now(),
+        endTime: null,
+        status: 'transferring',
+        fileCount: 0,
+        totalBytes: 0,
+        files: []
+      }
+      const sessionId = dbManager.createTransferSession(session)
+
+      // Mix of read and write operations (rapid sequential)
+      // IMMEDIATE transactions ensure writes don't corrupt while reads are happening
+      const readResults: (TransferSession | null)[] = []
+      
+      for (let i = 0; i < 5; i++) {
+        dbManager.updateTransferSession(sessionId, { fileCount: i + 1 })
+        readResults.push(dbManager.getTransferSession(sessionId))
+      }
+
+      // Reads should return valid data (not corrupted)
+      expect(readResults.length).toBe(5)
+      readResults.forEach((result) => {
+        expect(result).not.toBeNull()
+        expect(result?.id).toBe(sessionId)
+      })
     })
 
     it('should handle special characters in paths', () => {

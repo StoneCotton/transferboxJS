@@ -43,6 +43,9 @@ export class DatabaseManager {
     // Enable WAL mode for better concurrent access
     this.db.pragma('journal_mode = WAL')
 
+    // Set busy timeout to handle lock contention (5 seconds)
+    this.db.pragma('busy_timeout = 5000')
+
     // Enable foreign keys
     this.db.pragma('foreign_keys = ON')
 
@@ -206,13 +209,16 @@ export class DatabaseManager {
 
   /**
    * Create a new transfer session
-   * Uses transaction to ensure atomicity when adding files
+   * Uses IMMEDIATE transaction to acquire write lock and prevent concurrent write conflicts
    */
   createTransferSession(session: Omit<TransferSession, 'id'>): string {
     const id = `session_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
 
-    // Wrap in transaction for atomicity
-    const transaction = this.db.transaction(() => {
+    // Use manual IMMEDIATE transaction for explicit write locking
+    // WAL mode + IMMEDIATE transactions + busy_timeout ensures safe concurrent access
+    this.db.exec('BEGIN IMMEDIATE')
+
+    try {
       const stmt = this.db.prepare(`
         INSERT INTO transfer_sessions (
           id, drive_id, drive_name, source_root, destination_root,
@@ -262,10 +268,12 @@ export class DatabaseManager {
           )
         })
       }
-    })
 
-    // Execute the transaction
-    transaction()
+      this.db.exec('COMMIT')
+    } catch (error) {
+      this.db.exec('ROLLBACK')
+      throw error
+    }
 
     return id
   }
@@ -392,6 +400,7 @@ export class DatabaseManager {
 
   /**
    * Update transfer session
+   * Uses IMMEDIATE transaction to prevent concurrent write conflicts
    */
   updateTransferSession(
     sessionId: string,
@@ -427,11 +436,20 @@ export class DatabaseManager {
 
     values.push(sessionId)
 
-    const stmt = this.db.prepare(`
-      UPDATE transfer_sessions SET ${fields.join(', ')} WHERE id = ?
-    `)
+    // Use manual IMMEDIATE transaction for explicit write locking
+    this.db.exec('BEGIN IMMEDIATE')
 
-    stmt.run(...values)
+    try {
+      const stmt = this.db.prepare(`
+          UPDATE transfer_sessions SET ${fields.join(', ')} WHERE id = ?
+        `)
+
+      stmt.run(...values)
+      this.db.exec('COMMIT')
+    } catch (error) {
+      this.db.exec('ROLLBACK')
+      throw error
+    }
   }
 
   /**
@@ -451,29 +469,50 @@ export class DatabaseManager {
 
   /**
    * Delete old transfer sessions
+   * Uses IMMEDIATE transaction to prevent concurrent write conflicts
    */
   deleteOldTransferSessions(daysToKeep: number): number {
     const cutoffTime = Date.now() - daysToKeep * ONE_DAY_MS
 
-    const stmt = this.db.prepare(`
-      DELETE FROM transfer_sessions WHERE start_time < ?
-    `)
+    // Use manual IMMEDIATE transaction for explicit write locking
+    this.db.exec('BEGIN IMMEDIATE')
 
-    const result = stmt.run(cutoffTime)
-    return result.changes
+    try {
+      const stmt = this.db.prepare(`
+          DELETE FROM transfer_sessions WHERE start_time < ?
+        `)
+
+      const result = stmt.run(cutoffTime)
+      this.db.exec('COMMIT')
+      return result.changes
+    } catch (error) {
+      this.db.exec('ROLLBACK')
+      throw error
+    }
   }
 
   /**
    * Clear all transfer sessions
+   * Uses IMMEDIATE transaction to prevent concurrent write conflicts
    */
   clearTransferSessions(): number {
-    const stmt = this.db.prepare('DELETE FROM transfer_sessions')
-    const result = stmt.run()
-    return result.changes
+    // Use manual IMMEDIATE transaction for explicit write locking
+    this.db.exec('BEGIN IMMEDIATE')
+
+    try {
+      const stmt = this.db.prepare('DELETE FROM transfer_sessions')
+      const result = stmt.run()
+      this.db.exec('COMMIT')
+      return result.changes
+    } catch (error) {
+      this.db.exec('ROLLBACK')
+      throw error
+    }
   }
 
   /**
    * Add file to transfer session
+   * Uses autocommit - WAL mode with busy_timeout ensures safe concurrent access
    */
   addFileToSession(sessionId: string, file: FileTransferInfo): void {
     const stmt = this.db.prepare(`
@@ -503,6 +542,7 @@ export class DatabaseManager {
 
   /**
    * Update file status
+   * Uses simple UPDATE statement - better-sqlite3 handles atomicity automatically
    */
   updateFileStatus(
     sessionId: string,
@@ -551,6 +591,8 @@ export class DatabaseManager {
 
     values.push(sessionId, sourcePath)
 
+    // Simple UPDATE - in WAL mode with busy_timeout, this is safe for concurrent access
+    // better-sqlite3 handles statement-level atomicity automatically
     const stmt = this.db.prepare(`
       UPDATE transfer_files 
       SET ${fields.join(', ')} 
@@ -588,21 +630,32 @@ export class DatabaseManager {
 
   /**
    * Add log entry
+   * Uses IMMEDIATE transaction to prevent concurrent write conflicts
    */
   addLogEntry(entry: Omit<LogEntry, 'timestamp'>): number {
     const timestamp = Date.now()
 
-    const stmt = this.db.prepare(`
-      INSERT INTO logs (timestamp, level, message, context)
-      VALUES (?, ?, ?, ?)
-    `)
+    // Use manual IMMEDIATE transaction for explicit write locking
+    this.db.exec('BEGIN IMMEDIATE')
 
-    stmt.run(
-      timestamp,
-      entry.level,
-      entry.message,
-      entry.context ? JSON.stringify(entry.context) : null
-    )
+    try {
+      const stmt = this.db.prepare(`
+          INSERT INTO logs (timestamp, level, message, context)
+          VALUES (?, ?, ?, ?)
+        `)
+
+      stmt.run(
+        timestamp,
+        entry.level,
+        entry.message,
+        entry.context ? JSON.stringify(entry.context) : null
+      )
+
+      this.db.exec('COMMIT')
+    } catch (error) {
+      this.db.exec('ROLLBACK')
+      throw error
+    }
 
     return timestamp
   }
@@ -665,23 +718,43 @@ export class DatabaseManager {
 
   /**
    * Delete old logs
+   * Uses IMMEDIATE transaction to prevent concurrent write conflicts
    */
   deleteOldLogs(daysToKeep: number): number {
     const cutoffTime = Date.now() - daysToKeep * ONE_DAY_MS
 
-    const stmt = this.db.prepare(`
-      DELETE FROM logs WHERE timestamp < ?
-    `)
+    // Use manual IMMEDIATE transaction for explicit write locking
+    this.db.exec('BEGIN IMMEDIATE')
 
-    const result = stmt.run(cutoffTime)
-    return result.changes
+    try {
+      const stmt = this.db.prepare(`
+          DELETE FROM logs WHERE timestamp < ?
+        `)
+
+      const result = stmt.run(cutoffTime)
+      this.db.exec('COMMIT')
+      return result.changes
+    } catch (error) {
+      this.db.exec('ROLLBACK')
+      throw error
+    }
   }
 
   /**
    * Clear all logs
+   * Uses IMMEDIATE transaction to prevent concurrent write conflicts
    */
   clearLogs(): void {
-    this.db.prepare('DELETE FROM logs').run()
+    // Use manual IMMEDIATE transaction for explicit write locking
+    this.db.exec('BEGIN IMMEDIATE')
+
+    try {
+      this.db.prepare('DELETE FROM logs').run()
+      this.db.exec('COMMIT')
+    } catch (error) {
+      this.db.exec('ROLLBACK')
+      throw error
+    }
   }
 
   /**

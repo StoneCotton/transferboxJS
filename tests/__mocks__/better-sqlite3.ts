@@ -45,26 +45,57 @@ class MockStatement {
     } else if (sqlLower.includes('update')) {
       const tableName = this.extractTableName(sqlLower, 'update')
       if (tableName) {
-        // Simple UPDATE simulation - update first row that matches WHERE
         const data = this.db.getTableData(tableName)
-        if (data.length > 0) {
-          // Parse SET clause
-          const setMatch = this.sql.match(/SET\s+([\s\S]+?)(?:WHERE|$)/i)
-          if (setMatch) {
-            const setPairs = setMatch[1].split(',')
-            let paramIndex = 0
 
+        // Parse SET clause
+        const setMatch = this.sql.match(/SET\s+([\s\S]+?)(?:WHERE|$)/i)
+        if (setMatch) {
+          const setClause = setMatch[1]
+          const setPairs = setClause.split(',')
+
+          // Count SET parameters (they come first in params array)
+          const setParamCount = setPairs.length
+          const setParams = params.slice(0, setParamCount)
+          const whereParams = params.slice(setParamCount)
+
+          // Find rows that match WHERE clause
+          let rowsToUpdate: MockRow[] = data
+
+          if (sqlLower.includes('where') && whereParams.length > 0) {
+            // Parse WHERE conditions (e.g., "WHERE session_id = ? AND source_path = ?")
+            const whereConditions = this.sql.match(/where\s+([\s\S]+?)$/i)
+            if (whereConditions) {
+              const conditions = whereConditions[1].split(/\s+and\s+/i)
+              let whereParamIndex = 0
+
+              conditions.forEach((condition) => {
+                const condMatch = condition.match(/(\w+)\s*=\s*\?/)
+                if (condMatch && whereParams[whereParamIndex] !== undefined) {
+                  const columnName = condMatch[1]
+                  const searchValue = whereParams[whereParamIndex]
+                  rowsToUpdate = rowsToUpdate.filter((row) => row[columnName] === searchValue)
+                  whereParamIndex++
+                }
+              })
+            }
+          }
+
+          // Update all matching rows
+          rowsToUpdate.forEach((row) => {
+            let setParamIndex = 0
             setPairs.forEach((pair) => {
               const [col] = pair.split('=').map((s) => s.trim())
-              if (col && params[paramIndex] !== undefined) {
-                data[0][col] = params[paramIndex]
-                paramIndex++
+              if (col && setParams[setParamIndex] !== undefined) {
+                row[col] = setParams[setParamIndex]
+                setParamIndex++
               }
             })
-          }
+          })
+
+          return { changes: rowsToUpdate.length, lastInsertRowid: 0 }
         }
       }
-      return { changes: 1, lastInsertRowid: 0 }
+      return { changes: 0, lastInsertRowid: 0 }
     } else if (sqlLower.includes('delete')) {
       const tableName = this.extractTableName(sqlLower, 'delete')
       if (tableName) {
@@ -142,12 +173,12 @@ class MockStatement {
   all(...params: any[]): MockRow[] {
     // Return all rows matching WHERE clause
     const sqlLower = this.sql.toLowerCase()
-    
+
     // Handle LEFT JOIN queries specially
     if (sqlLower.includes('left join')) {
       return this.handleLeftJoin(params)
     }
-    
+
     const tableName = this.extractTableName(sqlLower, 'select')
 
     if (tableName) {
@@ -222,37 +253,39 @@ class MockStatement {
     // Handle our specific LEFT JOIN query for sessions and files
     // FROM transfer_sessions s LEFT JOIN transfer_files f ON s.id = f.session_id
     const sqlLower = this.sql.toLowerCase()
-    
+
     // Extract table names
     const leftTableMatch = this.sql.match(/from\s+(\w+)\s+/i)
     const rightTableMatch = this.sql.match(/left\s+join\s+(\w+)\s+/i)
-    
+
     if (!leftTableMatch || !rightTableMatch) {
       return []
     }
-    
+
     const leftTable = leftTableMatch[1]
     const rightTable = rightTableMatch[1]
-    
+
     // Get data from both tables
     const leftData = this.db.getTableData(leftTable)
     const rightData = this.db.getTableData(rightTable)
-    
+
     // Parse JOIN condition (e.g., "s.id = f.session_id")
     const joinMatch = this.sql.match(/on\s+\w+\.(\w+)\s*=\s*\w+\.(\w+)/i)
     if (!joinMatch) {
       return []
     }
-    
+
     const leftKey = joinMatch[1]
     const rightKey = joinMatch[2]
-    
+
     // Perform LEFT JOIN
     const result: MockRow[] = []
-    
+
     leftData.forEach((leftRow) => {
-      const matchingRightRows = rightData.filter((rightRow) => rightRow[rightKey] === leftRow[leftKey])
-      
+      const matchingRightRows = rightData.filter(
+        (rightRow) => rightRow[rightKey] === leftRow[leftKey]
+      )
+
       if (matchingRightRows.length > 0) {
         // Join with each matching right row
         matchingRightRows.forEach((rightRow) => {
@@ -263,25 +296,25 @@ class MockStatement {
         result.push({ ...leftRow })
       }
     })
-    
+
     // Handle ORDER BY
     if (sqlLower.includes('order by')) {
       const orderMatch = this.sql.match(/order\s+by\s+\w+\.(\w+)\s+(desc|asc)/i)
       if (orderMatch) {
         const orderColumn = orderMatch[1]
         const orderDir = orderMatch[2].toLowerCase()
-        
+
         result.sort((a, b) => {
           const aVal = a[orderColumn] || 0
           const bVal = b[orderColumn] || 0
-          
+
           // If values are equal, use insertion order (higher insertion order = more recent)
           if (aVal === bVal) {
             const aOrder = a._insertionOrder || 0
             const bOrder = b._insertionOrder || 0
             return bOrder - aOrder
           }
-          
+
           if (orderDir === 'desc') {
             return bVal - aVal
           } else {
@@ -290,7 +323,7 @@ class MockStatement {
         })
       }
     }
-    
+
     return result
   }
 
