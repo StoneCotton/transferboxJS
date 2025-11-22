@@ -6,11 +6,14 @@
 import { createReadStream, createWriteStream } from 'fs'
 import { stat, mkdir, rename, unlink, chmod, access, constants, readdir, utimes } from 'fs/promises'
 import * as path from 'path'
+import { XXHash64 } from 'xxhash-addon'
 import { TransferError, wrapError } from './errors/TransferError'
 import { TransferErrorType } from '../shared/types'
 import { getLogger } from './logger'
 import { withRetry } from './utils/retryStrategy'
-import { safeAdd } from './utils/fileSizeUtils'
+import { safeAdd, validateFileSize } from './utils/fileSizeUtils'
+import { validateFilePath } from './utils/ipcValidator'
+import { FileValidator } from './validators/fileValidator'
 import {
   DEFAULT_BUFFER_SIZE,
   SMALL_FILE_THRESHOLD,
@@ -38,6 +41,7 @@ export interface TransferOptions {
   preservePermissions?: boolean // Preserve file permissions (default: true)
   maxRetries?: number // Maximum retry attempts (default: 3)
   retryDelay?: number // Delay between retries in ms (default: 1000)
+  maxConcurrency?: number // Maximum concurrent file transfers (default: 3, range: 1-10)
   onProgress?: (progress: TransferProgress) => void
   onBatchProgress?: (completed: number, total: number) => void
   onChecksumProgress?: (
@@ -63,7 +67,24 @@ export interface TransferResult {
   duration: number // milliseconds
 }
 
-// Note: DEFAULT_BUFFER_SIZE and other constants now imported from fileConstants
+/**
+ * Interface for abortable transfer operations
+ */
+interface AbortableTransfer {
+  abort: () => void
+}
+
+/**
+ * Constants for transfer operations
+ */
+const DEFAULT_CONCURRENT_LIMIT = 3
+const MIN_CONCURRENT_LIMIT = 1
+const MAX_CONCURRENT_LIMIT = 10
+const MAX_STOP_WAIT_TIME_MS = 5000
+const PROGRESS_AGGREGATION_INTERVAL_MS = 100
+const CLEANUP_DELAY_MS = 50
+const MIN_BUFFER_SIZE = 1024 // 1KB minimum
+const MAX_BUFFER_SIZE = 10485760 // 10MB maximum (matching configManager.ts)
 
 /**
  * File Transfer Engine Class
@@ -72,7 +93,7 @@ export interface TransferResult {
 export class FileTransferEngine {
   private stopped = false
   private stopping = false // Intermediate state to prevent new transfers during stop
-  private currentTransfer: { abort: () => void } | null = null
+  private currentTransfer: AbortableTransfer | null = null
   private activeTempFiles: Set<string> = new Set()
   private activeTransferCount = 0 // Track number of active transfers
 
@@ -105,15 +126,31 @@ export class FileTransferEngine {
       throw new Error('Transfer engine is stopping')
     }
 
+    // Validate paths
+    try {
+      validateFilePath(sourcePath, false)
+      validateFilePath(destPath, false)
+    } catch (error) {
+      throw TransferError.fromValidation(
+        `Invalid path: ${error instanceof Error ? error.message : String(error)}`
+      )
+    }
+
     const logger = getLogger()
     const startTime = Date.now()
-    const bufferSize = options?.bufferSize || DEFAULT_BUFFER_SIZE
+
+    // Validate and set buffer size
+    let bufferSize = options?.bufferSize || DEFAULT_BUFFER_SIZE
+    if (bufferSize < MIN_BUFFER_SIZE || bufferSize > MAX_BUFFER_SIZE) {
+      throw TransferError.fromValidation(
+        `Buffer size must be between ${MIN_BUFFER_SIZE} and ${MAX_BUFFER_SIZE} bytes`
+      )
+    }
+    bufferSize = validateFileSize(bufferSize, 'buffer size')
+
     const tempPath = destPath + '.TBPART'
 
-    // Track active transfer
-    this.activeTransferCount++
-
-    // Track this temp file for cleanup
+    // Track this temp file for cleanup (before incrementing count)
     this.activeTempFiles.add(tempPath)
 
     const result: TransferResult = {
@@ -125,7 +162,14 @@ export class FileTransferEngine {
       duration: 0
     }
 
+    // Track active transfer - moved inside try block after validation
+    let transferStarted = false
+
     try {
+      // Increment active transfer count after validation passes
+      this.activeTransferCount++
+      transferStarted = true
+
       // Configure retry settings from options or use defaults
       // Default retry timing optimized for device reconnection scenarios:
       // Attempts at: 0s (immediate), 2s, 4s, 8s, 10s = ~24s total window
@@ -186,8 +230,12 @@ export class FileTransferEngine {
       result.duration = Date.now() - startTime
       this.currentTransfer = null
 
-      // Decrement active transfer count
-      this.activeTransferCount = Math.max(0, this.activeTransferCount - 1)
+      // Decrement active transfer count only if transfer started
+      if (transferStarted) {
+        this.activeTransferCount = Math.max(0, this.activeTransferCount - 1)
+      }
+      // Always remove temp file from tracking in finally
+      this.activeTempFiles.delete(tempPath)
     }
 
     return result
@@ -214,6 +262,13 @@ export class FileTransferEngine {
 
   /**
    * Core file transfer logic (extracted for retry wrapper)
+   * @param sourcePath - Source file path (already validated)
+   * @param destPath - Destination file path (already validated)
+   * @param tempPath - Temporary file path (.TBPART)
+   * @param bufferSize - Buffer size for copying (already validated)
+   * @param options - Transfer options
+   * @param result - Transfer result object to update
+   * @throws {TransferError} if transfer fails
    */
   private async performFileTransfer(
     sourcePath: string,
@@ -231,24 +286,47 @@ export class FileTransferEngine {
         throw new Error('Transfer cancelled')
       }
 
-      // Log file transfer start (debug)
-      try {
-        const sourceStats = await stat(sourcePath)
-        logger.debug('File transfer start', {
-          sourcePath,
-          destPath,
-          size: sourceStats.size
-        })
-      } catch {
-        logger.debug('File transfer start', { sourcePath, destPath })
+      // Validate source file using FileValidator
+      // Allow empty files (minSize: 0) as they are valid files
+      const fileValidator = new FileValidator()
+      const validationResult = await fileValidator.validate(sourcePath, {
+        checkReadability: true,
+        checkSize: true,
+        allowSymlinks: false,
+        allowSpecialFiles: false,
+        minSize: 0 // Allow empty files
+      })
+
+      if (!validationResult.valid) {
+        // Throw the validation error immediately (don't retry validation failures)
+        // Ensure validation errors are marked as non-retryable
+        const validationError =
+          validationResult.error || TransferError.fromValidation('File validation failed')
+        // Force non-retryable for validation errors (even if wrapped error was retryable)
+        if (validationError.isRetryable) {
+          throw new TransferError(
+            validationError.message,
+            validationError.errorType,
+            false, // Force non-retryable
+            validationError.originalError
+          )
+        }
+        throw validationError
       }
 
-      // Check if source exists
-      await access(sourcePath, constants.R_OK)
+      if (!validationResult.stats) {
+        throw TransferError.fromValidation('File stats not available')
+      }
 
-      // Get source file stats
-      const sourceStats = await stat(sourcePath)
-      const totalBytes = sourceStats.size
+      const sourceStats = validationResult.stats
+      const totalBytes = validateFileSize(sourceStats.size, 'file size')
+
+      // Log file transfer start (debug)
+      logger.debug('File transfer start', {
+        sourcePath,
+        destPath,
+        size: totalBytes
+      })
 
       // Check if destination exists and overwrite is disabled
       if (options?.overwrite === false) {
@@ -327,14 +405,27 @@ export class FileTransferEngine {
     files: Array<{ source: string; dest: string }>,
     options?: TransferOptions
   ): Promise<TransferResult[]> {
-    const CONCURRENT_LIMIT = 3 // Process up to 3 files concurrently
+    // Early return for empty file array
+    if (files.length === 0) {
+      return []
+    }
+
+    // Validate and set concurrency limit
+    let concurrentLimit = options?.maxConcurrency || DEFAULT_CONCURRENT_LIMIT
+    if (concurrentLimit < MIN_CONCURRENT_LIMIT || concurrentLimit > MAX_CONCURRENT_LIMIT) {
+      concurrentLimit = DEFAULT_CONCURRENT_LIMIT
+      getLogger().warn('Invalid maxConcurrency, using default', {
+        provided: options?.maxConcurrency,
+        default: DEFAULT_CONCURRENT_LIMIT
+      })
+    }
+
     const results: TransferResult[] = new Array(files.length)
     let completed = 0
 
     // Track progress for parallel transfers
     const fileProgress = new Map<number, TransferProgress>()
     let lastAggregatedProgressTime = Date.now()
-    const PROGRESS_AGGREGATION_INTERVAL = 100 // Aggregate progress every 100ms
 
     // Store file information for progress reporting
     const fileInfo = new Map<number, { source: string; dest: string; totalBytes: number }>()
@@ -369,7 +460,7 @@ export class FileTransferEngine {
       if (!options?.onProgress) return
 
       const now = Date.now()
-      if (now - lastAggregatedProgressTime < PROGRESS_AGGREGATION_INTERVAL) return
+      if (now - lastAggregatedProgressTime < PROGRESS_AGGREGATION_INTERVAL_MS) return
       lastAggregatedProgressTime = now
 
       let totalBytesTransferred = 0
@@ -393,6 +484,8 @@ export class FileTransferEngine {
           totalBytesForAllFiles > 0 ? (totalBytesTransferred / totalBytesForAllFiles) * 100 : 0
 
         // Create enhanced progress with individual file information
+        // Note: enhancedProgress extends TransferProgress with 'activeFiles' property
+        // TypeScript allows this since function parameters accept compatible types
         const enhancedProgress = {
           bytesTransferred: totalBytesTransferred,
           totalBytes: totalBytesForAllFiles,
@@ -534,21 +627,34 @@ export class FileTransferEngine {
     }
 
     // Start initial batch of transfers
-    while (nextFileIndex < Math.min(CONCURRENT_LIMIT, files.length) && !this.stopped) {
+    while (nextFileIndex < Math.min(concurrentLimit, files.length) && !this.stopped) {
       startTransfer(nextFileIndex)
       nextFileIndex++
     }
 
-    // Continuously maintain CONCURRENT_LIMIT active transfers
-    while (activeTransfers.size > 0 && !this.stopped) {
-      // Wait for any transfer to complete
-      await Promise.race(Array.from(activeTransfers.values()))
+    // Continuously maintain concurrentLimit active transfers
+    try {
+      while (activeTransfers.size > 0 && !this.stopped) {
+        // Wait for any transfer to complete
+        // If continueOnError is false and a transfer fails, Promise.race will reject
+        await Promise.race(Array.from(activeTransfers.values()))
 
-      // Start next transfer if there are more files
-      if (nextFileIndex < files.length) {
-        startTransfer(nextFileIndex)
-        nextFileIndex++
+        // Start next transfer if there are more files
+        if (nextFileIndex < files.length) {
+          startTransfer(nextFileIndex)
+          nextFileIndex++
+        }
       }
+    } catch (error) {
+      // If continueOnError is false, a failed transfer will cause Promise.race to reject
+      // We need to wait for any remaining transfers to complete before rethrowing
+      if (!options?.continueOnError && activeTransfers.size > 0) {
+        // Wait for remaining transfers (they will complete or error, but we continue on error for cleanup)
+        const remainingTransfers = Array.from(activeTransfers.values())
+        await Promise.allSettled(remainingTransfers)
+      }
+      // Re-throw the error that caused the batch to fail
+      throw error
     }
 
     if (this.stopped) {
@@ -562,8 +668,11 @@ export class FileTransferEngine {
    * Stop ongoing transfer
    * Uses two-phase shutdown to prevent race conditions:
    * 1. Set stopping flag to prevent new transfers
-   * 2. Wait for active transfers to complete or abort them
-   * 3. Clean up resources
+   * 2. Abort current transfer if any
+   * 3. Wait for active transfers to complete (with timeout)
+   * 4. Set final stopped flag
+   * 5. Clean up all temp files
+   * @throws {Error} if cleanup fails (errors are logged but not thrown)
    */
   async stop(): Promise<void> {
     // Phase 1: Prevent new transfers from starting
@@ -576,10 +685,9 @@ export class FileTransferEngine {
     }
 
     // Phase 3: Wait for active transfers to complete (with timeout)
-    const maxWaitTime = 5000 // 5 seconds max wait
     const startTime = Date.now()
 
-    while (this.activeTransferCount > 0 && Date.now() - startTime < maxWaitTime) {
+    while (this.activeTransferCount > 0 && Date.now() - startTime < MAX_STOP_WAIT_TIME_MS) {
       await new Promise((resolve) => setTimeout(resolve, 100))
     }
 
@@ -609,11 +717,12 @@ export class FileTransferEngine {
     }
 
     // Give a brief moment for any ongoing file operations to complete their cleanup
-    await new Promise((resolve) => setTimeout(resolve, 50))
+    await new Promise((resolve) => setTimeout(resolve, CLEANUP_DELAY_MS))
   }
 
   /**
    * Reset stopped flag for reuse
+   * Clears all state to allow the engine to be reused for new transfers
    */
   reset(): void {
     this.stopped = false
@@ -625,6 +734,7 @@ export class FileTransferEngine {
 
   /**
    * Check if transfers are currently in progress
+   * @returns true if there are active transfers or temp files being processed
    */
   isTransferring(): boolean {
     // Check if we have active transfers
@@ -632,155 +742,26 @@ export class FileTransferEngine {
   }
 
   /**
-   * Copy file with streaming checksum calculation during transfer
+   * Core file streaming logic with progress tracking
+   * Extracted common logic to reduce duplication between copy methods
+   * @param sourcePath - Source file path
+   * @param destPath - Destination file path (temp .TBPART file)
+   * @param totalBytes - Total bytes to transfer
+   * @param bufferSize - Buffer size for streaming
+   * @param options - Transfer options
+   * @param onChunk - Optional callback called for each chunk (for checksum calculation)
+   * @param onFinish - Optional callback called when transfer finishes, receives bytesTransferred
+   * @returns Promise that resolves when transfer completes
+   * @throws {TransferError} if copy fails
    */
-  private async copyFileWithStreamingChecksum(
+  private async copyFileStream(
     sourcePath: string,
     destPath: string,
     totalBytes: number,
     bufferSize: number,
-    options?: TransferOptions
-  ): Promise<{ sourceChecksum: string; destChecksum: string }> {
-    return new Promise((resolve, reject) => {
-      let bytesTransferred = 0
-      let lastProgressTime = Date.now()
-      let lastBytesTransferred = 0
-
-      // Dynamic throttling based on file size
-      const { interval: PROGRESS_INTERVAL, minBytes: MIN_BYTES_FOR_PROGRESS } =
-        this.calculateProgressThrottle(totalBytes)
-
-      // Import XXHash64 for streaming checksum
-      const { XXHash64 } = require('xxhash-addon') // eslint-disable-line @typescript-eslint/no-require-imports
-      const seed = Buffer.alloc(8)
-      const sourceHasher = new XXHash64(seed)
-      const destHasher = new XXHash64(seed)
-
-      const readStream = createReadStream(sourcePath, {
-        highWaterMark: bufferSize
-      })
-
-      const writeStream = createWriteStream(destPath, {
-        highWaterMark: bufferSize
-      })
-
-      // Setup abort handler
-      const abort = (): void => {
-        readStream.destroy()
-        writeStream.destroy()
-        reject(new Error('Transfer stopped'))
-      }
-
-      this.currentTransfer = { abort }
-
-      readStream.on('data', (chunk: string | Buffer) => {
-        if (this.stopped) {
-          abort()
-          return
-        }
-
-        const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
-        bytesTransferred += buf.length
-
-        // Detect if we're reading more than file size (corruption indicator)
-        if (bytesTransferred > totalBytes) {
-          readStream.destroy()
-          writeStream.destroy()
-          reject(TransferError.fromValidation('File size mismatch - possible source corruption'))
-          return
-        }
-
-        // Update both hashers with the same data
-        sourceHasher.update(buf)
-        destHasher.update(buf)
-
-        // Report progress only if enough time has passed AND enough bytes transferred
-        if (options?.onProgress) {
-          const now = Date.now()
-          const timeDelta = now - lastProgressTime
-          const bytesDelta = bytesTransferred - lastBytesTransferred
-
-          if (timeDelta >= PROGRESS_INTERVAL || bytesDelta >= MIN_BYTES_FOR_PROGRESS) {
-            const speed = timeDelta > 0 ? (bytesDelta / timeDelta) * 1000 : 0 // bytes per second
-            const percentage = totalBytes > 0 ? (bytesTransferred / totalBytes) * 100 : 0
-
-            options.onProgress({
-              bytesTransferred,
-              totalBytes,
-              percentage,
-              speed
-            })
-
-            lastProgressTime = now
-            lastBytesTransferred = bytesTransferred
-          }
-        }
-      })
-
-      let streamError: Error | null = null
-
-      readStream.on('error', (error) => {
-        // Capture error and flush write buffer to ensure clean shutdown
-        streamError = error
-        writeStream.end()
-      })
-
-      writeStream.on('error', (error) => {
-        readStream.destroy()
-        const nodeError = error as NodeJS.ErrnoException
-        reject(TransferError.fromNodeError(nodeError))
-      })
-
-      readStream.on('end', () => {
-        // Verify we read exactly what we expected
-        if (bytesTransferred !== totalBytes && !streamError) {
-          writeStream.destroy()
-          reject(
-            TransferError.fromValidation(
-              `Incomplete read: expected ${totalBytes} bytes, got ${bytesTransferred} bytes`
-            )
-          )
-        }
-      })
-
-      writeStream.on('finish', () => {
-        // If we had a read error, reject now that write buffers are flushed
-        if (streamError) {
-          const nodeError = streamError as NodeJS.ErrnoException
-          reject(TransferError.fromNodeError(nodeError))
-          return
-        }
-
-        // Final progress report
-        if (options?.onProgress) {
-          options.onProgress({
-            bytesTransferred: totalBytes,
-            totalBytes,
-            percentage: 100,
-            speed: 0
-          })
-        }
-
-        // Calculate final checksums
-        const sourceChecksum = sourceHasher.digest().toString('hex')
-        const destChecksum = destHasher.digest().toString('hex')
-
-        resolve({ sourceChecksum, destChecksum })
-      })
-
-      readStream.pipe(writeStream)
-    })
-  }
-
-  /**
-   * Copy file with progress tracking
-   */
-  private async copyFileWithProgress(
-    sourcePath: string,
-    destPath: string,
-    totalBytes: number,
-    bufferSize: number,
-    options?: TransferOptions
+    options: TransferOptions | undefined,
+    onChunk?: (buf: Buffer) => void,
+    onFinish?: (bytesTransferred: number) => Promise<void> | void
   ): Promise<void> {
     return new Promise((resolve, reject) => {
       let bytesTransferred = 0
@@ -799,10 +780,12 @@ export class FileTransferEngine {
         highWaterMark: bufferSize
       })
 
-      // Setup abort handler
+      // Setup abort handler with temp file cleanup
       const abort = (): void => {
         readStream.destroy()
         writeStream.destroy()
+        // Clean up temp file from tracking
+        this.activeTempFiles.delete(destPath)
         reject(new Error('Transfer stopped'))
       }
 
@@ -821,8 +804,15 @@ export class FileTransferEngine {
         if (bytesTransferred > totalBytes) {
           readStream.destroy()
           writeStream.destroy()
+          // Clean up temp file from tracking on corruption
+          this.activeTempFiles.delete(destPath)
           reject(TransferError.fromValidation('File size mismatch - possible source corruption'))
           return
+        }
+
+        // Call chunk processor if provided (for checksum calculation)
+        if (onChunk) {
+          onChunk(buf)
         }
 
         // Report progress only if enough time has passed AND enough bytes transferred
@@ -853,11 +843,15 @@ export class FileTransferEngine {
       readStream.on('error', (error) => {
         // Capture error and flush write buffer to ensure clean shutdown
         streamError = error
+        // Clean up temp file from tracking on read error
+        this.activeTempFiles.delete(destPath)
         writeStream.end()
       })
 
       writeStream.on('error', (error) => {
         readStream.destroy()
+        // Clean up temp file from tracking on write error
+        this.activeTempFiles.delete(destPath)
         const nodeError = error as NodeJS.ErrnoException
         reject(TransferError.fromNodeError(nodeError))
       })
@@ -866,6 +860,8 @@ export class FileTransferEngine {
         // Verify we read exactly what we expected
         if (bytesTransferred !== totalBytes && !streamError) {
           writeStream.destroy()
+          // Clean up temp file from tracking on incomplete read
+          this.activeTempFiles.delete(destPath)
           reject(
             TransferError.fromValidation(
               `Incomplete read: expected ${totalBytes} bytes, got ${bytesTransferred} bytes`
@@ -874,7 +870,7 @@ export class FileTransferEngine {
         }
       })
 
-      writeStream.on('finish', () => {
+      writeStream.on('finish', async () => {
         // If we had a read error, reject now that write buffers are flushed
         if (streamError) {
           const nodeError = streamError as NodeJS.ErrnoException
@@ -891,11 +887,97 @@ export class FileTransferEngine {
             speed: 0
           })
         }
-        resolve()
+
+        // Call finish callback if provided (for checksum calculation)
+        if (onFinish) {
+          try {
+            await onFinish(bytesTransferred)
+            // Note: onFinish may resolve/reject an outer promise, but we still resolve here
+            // The caller (copyFileWithStreamingChecksum) handles the actual return value
+            resolve()
+          } catch (error) {
+            reject(error)
+            return
+          }
+        } else {
+          // No finish callback, resolve normally
+          resolve()
+        }
       })
 
       readStream.pipe(writeStream)
     })
+  }
+
+  /**
+   * Copy file with streaming checksum calculation during transfer
+   * @param sourcePath - Source file path
+   * @param destPath - Destination file path (temp .TBPART file)
+   * @param totalBytes - Total bytes to transfer
+   * @param bufferSize - Buffer size for streaming
+   * @param options - Transfer options
+   * @returns Object with source and destination checksums
+   * @throws {TransferError} if copy fails or checksums don't match
+   */
+  private async copyFileWithStreamingChecksum(
+    sourcePath: string,
+    destPath: string,
+    totalBytes: number,
+    bufferSize: number,
+    options?: TransferOptions
+  ): Promise<{ sourceChecksum: string; destChecksum: string }> {
+    // Use XXHash64 for streaming checksum (imported at top of file)
+    const seed = Buffer.alloc(8)
+    const sourceHasher = new XXHash64(seed)
+    const destHasher = new XXHash64(seed)
+
+    // Store checksums to return after stream completes
+    let checksums: { sourceChecksum: string; destChecksum: string } | null = null
+
+    await this.copyFileStream(
+      sourcePath,
+      destPath,
+      totalBytes,
+      bufferSize,
+      options,
+      // onChunk: update hashers with each chunk
+      (buf: Buffer) => {
+        sourceHasher.update(buf)
+        destHasher.update(buf)
+      },
+      // onFinish: calculate checksums (stored for return)
+      () => {
+        const sourceChecksum = sourceHasher.digest().toString('hex')
+        const destChecksum = destHasher.digest().toString('hex')
+        checksums = { sourceChecksum, destChecksum }
+      }
+    )
+
+    // Return checksums after stream completes
+    if (!checksums) {
+      throw new Error('Checksums not calculated')
+    }
+    return checksums
+  }
+
+  /**
+   * Copy file with progress tracking
+   * @param sourcePath - Source file path
+   * @param destPath - Destination file path (temp .TBPART file)
+   * @param totalBytes - Total bytes to transfer
+   * @param bufferSize - Buffer size for streaming
+   * @param options - Transfer options
+   * @throws {TransferError} if copy fails or file size mismatch detected
+   */
+  private async copyFileWithProgress(
+    sourcePath: string,
+    destPath: string,
+    totalBytes: number,
+    bufferSize: number,
+    options?: TransferOptions
+  ): Promise<void> {
+    // Use shared streaming logic without checksum processing
+    return this.copyFileStream(sourcePath, destPath, totalBytes, bufferSize, options)
   }
 }
 
