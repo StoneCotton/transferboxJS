@@ -2,7 +2,7 @@
  * App Component Tests
  */
 import React from 'react'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import App from '../../src/renderer/src/App'
 
 // Mock the hooks and stores
@@ -118,15 +118,23 @@ jest.mock('../../src/renderer/src/store', () => ({
 }))
 
 describe('App Component', () => {
-  it('renders without crashing', () => {
+  it('renders without crashing', async () => {
     render(<App />)
     expect(screen.getByText('TransferBox')).toBeDefined()
+    // Wait for async state updates to complete
+    await waitFor(() => {
+      expect(screen.getByText(/v\d+\.\d+\.\d+/)).toBeDefined()
+    })
   })
 
-  it('shows basic workflow components', () => {
+  it('shows basic workflow components', async () => {
     render(<App />)
     expect(screen.getByText('Select Drive')).toBeDefined()
     expect(screen.getByText('Set Destination')).toBeDefined()
     expect(screen.getByText('Start Transfer')).toBeDefined()
+    // Wait for async state updates to complete
+    await waitFor(() => {
+      expect(screen.getByText(/v\d+\.\d+\.\d+/)).toBeDefined()
+    })
   })
 })
