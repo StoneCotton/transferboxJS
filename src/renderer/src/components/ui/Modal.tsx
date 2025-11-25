@@ -13,8 +13,10 @@ interface ModalProps {
   onClose: () => void
   title?: string
   children: React.ReactNode
-  size?: 'sm' | 'md' | 'lg' | 'xl'
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full'
   showCloseButton?: boolean
+  /** Hide the default header (title + close button) for custom headers */
+  hideHeader?: boolean
 }
 
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
@@ -24,7 +26,8 @@ export function Modal({
   title,
   children,
   size = 'md',
-  showCloseButton = true
+  showCloseButton = true,
+  hideHeader = false
 }: ModalProps) {
   // Close on escape key
   useEffect(() => {
@@ -56,7 +59,9 @@ export function Modal({
     sm: 'max-w-md',
     md: 'max-w-lg',
     lg: 'max-w-2xl',
-    xl: 'max-w-4xl'
+    xl: 'max-w-4xl',
+    '2xl': 'max-w-5xl',
+    full: 'max-w-[90vw]'
   }
 
   return (
@@ -80,7 +85,7 @@ export function Modal({
       >
         <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-gray-800 dark:bg-gray-900">
           {/* Header */}
-          {(title || showCloseButton) && (
+          {!hideHeader && (title || showCloseButton) && (
             <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-800">
               {title && (
                 <h2 id="modal-title" className="text-xl font-bold text-gray-900 dark:text-white">
@@ -102,7 +107,7 @@ export function Modal({
           )}
 
           {/* Content */}
-          <div className="p-6">{children}</div>
+          <div className={cn(hideHeader ? 'p-0' : 'p-6')}>{children}</div>
         </div>
       </div>
     </div>

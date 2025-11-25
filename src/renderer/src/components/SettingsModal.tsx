@@ -1,9 +1,22 @@
 /**
  * Settings Modal Component
- * Configure transfer modes and other settings
+ * Modern sidebar-based settings interface
  */
 
-import { Save, CheckCircle2, FolderOpen, Plus, X } from 'lucide-react'
+import {
+  Save,
+  CheckCircle2,
+  FolderOpen,
+  Plus,
+  X,
+  Settings,
+  FileText,
+  Filter,
+  Shield,
+  Zap,
+  Palette,
+  ScrollText
+} from 'lucide-react'
 import { useState, useEffect } from 'react'
 import type { TransferMode, AppConfig, UiDensity } from '../../../shared/types'
 import { Modal } from './ui/Modal'
@@ -12,12 +25,75 @@ import { useConfigStore, useUIStore, useTransferStore, useStore } from '../store
 import { useIpc } from '../hooks/useIpc'
 import { cn } from '../lib/utils'
 
+type SettingsCategory =
+  | 'general'
+  | 'files'
+  | 'filtering'
+  | 'verification'
+  | 'performance'
+  | 'interface'
+  | 'logging'
+
+interface CategoryConfig {
+  id: SettingsCategory
+  label: string
+  icon: React.ReactNode
+  description: string
+}
+
+const categories: CategoryConfig[] = [
+  {
+    id: 'general',
+    label: 'General',
+    icon: <Settings className="h-5 w-5" />,
+    description: 'Transfer mode and destination'
+  },
+  {
+    id: 'files',
+    label: 'Files',
+    icon: <FileText className="h-5 w-5" />,
+    description: 'Naming and folder structure'
+  },
+  {
+    id: 'filtering',
+    label: 'Filtering',
+    icon: <Filter className="h-5 w-5" />,
+    description: 'Media file extensions'
+  },
+  {
+    id: 'verification',
+    label: 'Verification',
+    icon: <Shield className="h-5 w-5" />,
+    description: 'Checksums and integrity'
+  },
+  {
+    id: 'performance',
+    label: 'Performance',
+    icon: <Zap className="h-5 w-5" />,
+    description: 'Buffer and chunk settings'
+  },
+  {
+    id: 'interface',
+    label: 'Interface',
+    icon: <Palette className="h-5 w-5" />,
+    description: 'Display preferences'
+  },
+  {
+    id: 'logging',
+    label: 'Logging',
+    icon: <ScrollText className="h-5 w-5" />,
+    description: 'Log level and cleanup'
+  }
+]
+
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export function SettingsModal() {
   const { showSettings, toggleSettings } = useUIStore()
   const { config, setConfig } = useConfigStore()
   const { isTransferring } = useTransferStore()
   const ipc = useIpc()
+
+  const [activeCategory, setActiveCategory] = useState<SettingsCategory>('general')
 
   const [transferMode, setTransferMode] = useState<TransferMode>(config.transferMode)
   const [defaultDestination, setDefaultDestination] = useState<string | null>(
@@ -225,653 +301,758 @@ export function SettingsModal() {
     }
   ]
 
-  return (
-    <Modal isOpen={showSettings} onClose={toggleSettings} title="Settings" size="xl">
-      <div className="flex max-h-[80vh] flex-col">
-        {/* Transfer in progress warning */}
-        {isTransferring && (
-          <div className="mb-4 rounded-lg border-2 border-yellow-400 bg-yellow-50 p-3 dark:border-yellow-600 dark:bg-yellow-950/50">
-            <p className="text-sm font-medium text-yellow-900 dark:text-yellow-100">
-              ⚠️ Transfer in progress - Settings are disabled to prevent conflicts
-            </p>
-          </div>
-        )}
-
-        <div className="flex-1 overflow-y-auto">
-          <div className="space-y-8">
-            {/* Transfer Modes */}
-            <div>
-              <h3 className="mb-3 text-lg font-semibold text-gray-900 dark:text-white">
-                Transfer Mode
-              </h3>
-              <div className="space-y-3">
-                {modes.map((mode) => (
-                  <button
-                    key={mode.id}
-                    onClick={() => setTransferMode(mode.id)}
-                    disabled={isFormDisabled}
+  // Render functions for each category
+  const renderGeneralSettings = (): React.ReactNode => (
+    <div className="space-y-6">
+      {/* Transfer Modes */}
+      <div>
+        <h4 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+          Transfer Mode
+        </h4>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {modes.map((mode) => (
+            <button
+              key={mode.id}
+              onClick={() => setTransferMode(mode.id)}
+              disabled={isFormDisabled}
+              className={cn(
+                'group relative rounded-xl border-2 p-4 text-left transition-all duration-200',
+                transferMode === mode.id
+                  ? 'border-brand-500 bg-brand-50/80 shadow-md shadow-brand-500/10 dark:border-brand-400 dark:bg-brand-950/30'
+                  : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm dark:border-gray-700 dark:bg-gray-800/50 dark:hover:border-gray-600',
+                isFormDisabled && 'cursor-not-allowed opacity-50'
+              )}
+            >
+              <div className="flex items-start gap-3">
+                <span className="text-xl">{mode.icon}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <h4
+                      className={cn(
+                        'font-semibold text-sm',
+                        transferMode === mode.id
+                          ? 'text-brand-900 dark:text-brand-100'
+                          : 'text-gray-900 dark:text-white'
+                      )}
+                    >
+                      {mode.name}
+                    </h4>
+                    {transferMode === mode.id && (
+                      <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-brand-500" />
+                    )}
+                  </div>
+                  <p
                     className={cn(
-                      'w-full rounded-xl border-2 p-4 text-left transition-all',
+                      'mt-1 text-xs leading-relaxed',
                       transferMode === mode.id
-                        ? 'border-brand-500 bg-brand-50 dark:border-brand-400 dark:bg-brand-950/50'
-                        : 'border-gray-200 bg-white hover:border-brand-300 dark:border-gray-700 dark:bg-gray-800/50',
-                      isFormDisabled && 'opacity-50 cursor-not-allowed'
+                        ? 'text-brand-700 dark:text-brand-300'
+                        : 'text-gray-500 dark:text-gray-400'
                     )}
                   >
-                    <div className="flex items-start gap-3">
-                      <span className="text-2xl">{mode.icon}</span>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between">
-                          <h4
-                            className={cn(
-                              'font-semibold',
-                              transferMode === mode.id
-                                ? 'text-brand-900 dark:text-brand-100'
-                                : 'text-gray-900 dark:text-white'
-                            )}
-                          >
-                            {mode.name}
-                          </h4>
-                          {transferMode === mode.id && (
-                            <CheckCircle2 className="h-5 w-5 text-brand-500" />
-                          )}
-                        </div>
-                        <p
-                          className={cn(
-                            'mt-1 text-sm',
-                            transferMode === mode.id
-                              ? 'text-brand-700 dark:text-brand-300'
-                              : 'text-gray-600 dark:text-gray-400'
-                          )}
-                        >
-                          {mode.description}
-                        </p>
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Default Destination (for Fully Autonomous mode) */}
-            {transferMode === 'fully-autonomous' && (
-              <div className="animate-in fade-in slide-in-from-top-4 duration-300">
-                <h3 className="mb-3 text-lg font-semibold text-gray-900 dark:text-white">
-                  Default Destination
-                </h3>
-                <div className="space-y-3">
-                  {defaultDestination ? (
-                    <div className="rounded-lg border-2 border-green-400 bg-green-50 p-3 dark:border-green-600 dark:bg-green-950/50">
-                      <p className="text-sm font-medium text-green-900 dark:text-green-100">
-                        {defaultDestination}
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="rounded-lg border-2 border-dashed border-yellow-400 bg-yellow-50 p-3 dark:border-yellow-600 dark:bg-yellow-950/50">
-                      <p className="text-sm font-medium text-yellow-900 dark:text-yellow-100">
-                        ⚠️ No destination set - Fully Autonomous mode requires a default destination
-                      </p>
-                    </div>
-                  )}
-                  <Button
-                    onClick={handleSelectDestination}
-                    disabled={isFormDisabled}
-                    className="w-full bg-gradient-to-r from-slate-600 to-slate-700"
-                  >
-                    <FolderOpen className="mr-2 h-4 w-4" />
-                    {defaultDestination ? 'Change Destination' : 'Set Default Destination'}
-                  </Button>
+                    {mode.description}
+                  </p>
                 </div>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Default Destination (for Fully Autonomous mode) */}
+      {transferMode === 'fully-autonomous' && (
+        <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+          <h4 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+            Default Destination
+          </h4>
+          <div className="space-y-3">
+            {defaultDestination ? (
+              <div className="rounded-xl border-2 border-emerald-400/50 bg-emerald-50/50 p-4 dark:border-emerald-500/30 dark:bg-emerald-950/20">
+                <p className="break-all font-mono text-sm text-emerald-800 dark:text-emerald-200">
+                  {defaultDestination}
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-xl border-2 border-dashed border-amber-400/50 bg-amber-50/50 p-4 dark:border-amber-500/30 dark:bg-amber-950/20">
+                <p className="text-sm text-amber-800 dark:text-amber-200">
+                  ⚠️ No destination set - Fully Autonomous mode requires a default destination
+                </p>
               </div>
             )}
+            <Button
+              onClick={handleSelectDestination}
+              disabled={isFormDisabled}
+              variant="outline"
+              className="w-full"
+            >
+              <FolderOpen className="mr-2 h-4 w-4" />
+              {defaultDestination ? 'Change Destination' : 'Set Default Destination'}
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
 
-            {/* File Naming Settings */}
-            <div>
-              <h3 className="mb-3 text-lg font-semibold text-gray-900 dark:text-white">
-                File Naming
-              </h3>
-              <div className="space-y-4">
-                <label className="flex items-center gap-3 rounded-lg border-2 border-gray-200 bg-white p-4 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800/50">
-                  <input
-                    type="checkbox"
-                    checked={addTimestampToFilename}
-                    onChange={(e) => setAddTimestampToFilename(e.target.checked)}
-                    disabled={isFormDisabled}
-                    className="h-5 w-5 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
-                  />
-                  <div>
-                    <p className="font-medium text-gray-900 dark:text-white">
-                      Add Timestamp to Filename
-                    </p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Automatically add a timestamp to file names to prevent duplicates and track
-                      when files were ingested
-                    </p>
-                  </div>
-                </label>
+  const renderFilesSettings = (): React.ReactNode => (
+    <div className="space-y-6">
+      {/* File Naming */}
+      <div>
+        <h4 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+          File Naming
+        </h4>
+        <div className="space-y-3">
+          <SettingToggle
+            checked={addTimestampToFilename}
+            onChange={setAddTimestampToFilename}
+            disabled={isFormDisabled}
+            title="Add Timestamp to Filename"
+            description="Add a timestamp to prevent duplicates and track ingestion time"
+          />
 
-                {addTimestampToFilename && (
-                  <div className="ml-8 space-y-4 animate-in fade-in slide-in-from-top-4 duration-300">
-                    <label className="flex items-center gap-3 rounded-lg border-2 border-gray-200 bg-white p-4 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800/50">
-                      <input
-                        type="checkbox"
-                        checked={keepOriginalFilename}
-                        onChange={(e) => setKeepOriginalFilename(e.target.checked)}
-                        disabled={isFormDisabled}
-                        className="h-5 w-5 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
-                      />
-                      <div>
-                        <p className="font-medium text-gray-900 dark:text-white">
-                          Keep Original Filename
-                        </p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          Preserve the original filename when adding timestamps
-                        </p>
-                      </div>
-                    </label>
+          {addTimestampToFilename && (
+            <div className="ml-4 space-y-3 border-l-2 border-gray-200 pl-4 dark:border-gray-700">
+              <SettingToggle
+                checked={keepOriginalFilename}
+                onChange={setKeepOriginalFilename}
+                disabled={isFormDisabled}
+                title="Keep Original Filename"
+                description="Preserve the original filename when adding timestamps"
+              />
 
-                    <div className="space-y-2">
-                      <label className="block text-sm font-medium text-gray-900 dark:text-white">
-                        Filename Template
-                      </label>
-                      <input
-                        type="text"
-                        value={filenameTemplate}
-                        onChange={(e) => setFilenameTemplate(e.target.value)}
-                        placeholder="{original}_{timestamp}"
-                        disabled={isFormDisabled}
-                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-brand-500 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                      />
-                      <p className="text-xs text-gray-600 dark:text-gray-400">
-                        Use {'{original}'} for original name and {'{timestamp}'} for timestamp
-                      </p>
-                    </div>
+              <SettingInput
+                label="Filename Template"
+                value={filenameTemplate}
+                onChange={setFilenameTemplate}
+                disabled={isFormDisabled}
+                placeholder="{original}_{timestamp}"
+                hint="Use {original} for original name and {timestamp} for timestamp"
+              />
 
-                    <div className="space-y-2">
-                      <label className="block text-sm font-medium text-gray-900 dark:text-white">
-                        Timestamp Format
-                      </label>
-                      <input
-                        type="text"
-                        value={timestampFormat}
-                        onChange={(e) => setTimestampFormat(e.target.value)}
-                        placeholder="%Y%m%d_%H%M%S"
-                        disabled={isFormDisabled}
-                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-brand-500 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                      />
-                      <p className="text-xs text-gray-600 dark:text-gray-400">
-                        Format: %Y (year), %m (month), %d (day), %H (hour), %M (minute), %S (second)
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
+              <SettingInput
+                label="Timestamp Format"
+                value={timestampFormat}
+                onChange={setTimestampFormat}
+                disabled={isFormDisabled}
+                placeholder="%Y%m%d_%H%M%S"
+                hint="%Y (year), %m (month), %d (day), %H (hour), %M (min), %S (sec)"
+              />
             </div>
+          )}
+        </div>
+      </div>
 
-            {/* Directory Structure Settings */}
-            <div>
-              <h3 className="mb-3 text-lg font-semibold text-gray-900 dark:text-white">
-                Directory Structure
-              </h3>
-              <div className="space-y-4">
-                <label className="flex items-center gap-3 rounded-lg border-2 border-gray-200 bg-white p-4 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800/50">
-                  <input
-                    type="checkbox"
-                    checked={keepFolderStructure}
-                    onChange={(e) => setKeepFolderStructure(e.target.checked)}
-                    disabled={isFormDisabled}
-                    className="h-5 w-5 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
-                  />
-                  <div>
-                    <p className="font-medium text-gray-900 dark:text-white">
-                      Keep Folder Structure
-                    </p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Maintain the original folder structure from the source drive
-                    </p>
-                  </div>
-                </label>
+      {/* Directory Structure */}
+      <div>
+        <h4 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+          Directory Structure
+        </h4>
+        <div className="space-y-3">
+          <SettingToggle
+            checked={keepFolderStructure}
+            onChange={setKeepFolderStructure}
+            disabled={isFormDisabled}
+            title="Keep Folder Structure"
+            description="Maintain the original folder structure from the source drive"
+          />
 
-                <label className="flex items-center gap-3 rounded-lg border-2 border-gray-200 bg-white p-4 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800/50">
-                  <input
-                    type="checkbox"
-                    checked={createDateBasedFolders}
-                    onChange={(e) => setCreateDateBasedFolders(e.target.checked)}
-                    disabled={isFormDisabled}
-                    className="h-5 w-5 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
-                  />
-                  <div>
-                    <p className="font-medium text-gray-900 dark:text-white">
-                      Create Date-Based Folders
-                    </p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Organize files into folders based on their creation date
-                    </p>
-                  </div>
-                </label>
+          <SettingToggle
+            checked={createDateBasedFolders}
+            onChange={setCreateDateBasedFolders}
+            disabled={isFormDisabled}
+            title="Create Date-Based Folders"
+            description="Organize files into folders based on their creation date"
+          />
 
-                {createDateBasedFolders && (
-                  <div className="ml-8 space-y-2 animate-in fade-in slide-in-from-top-4 duration-300">
-                    <label className="block text-sm font-medium text-gray-900 dark:text-white">
-                      Date Folder Format
-                    </label>
-                    <input
-                      type="text"
-                      value={dateFolderFormat}
-                      onChange={(e) => setDateFolderFormat(e.target.value)}
-                      placeholder="%Y/%m/%d"
-                      disabled={isFormDisabled}
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-brand-500 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                    />
-                    <p className="text-xs text-gray-600 dark:text-gray-400">
-                      Example: %Y/%m/%d creates YYYY/MM/DD folder structure
-                    </p>
-                  </div>
-                )}
-
-                <label className="flex items-center gap-3 rounded-lg border-2 border-gray-200 bg-white p-4 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800/50">
-                  <input
-                    type="checkbox"
-                    checked={createDeviceBasedFolders}
-                    onChange={(e) => setCreateDeviceBasedFolders(e.target.checked)}
-                    disabled={isFormDisabled}
-                    className="h-5 w-5 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
-                  />
-                  <div>
-                    <p className="font-medium text-gray-900 dark:text-white">
-                      Create Device-Based Folders
-                    </p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Create separate folders for each source device or drive
-                    </p>
-                  </div>
-                </label>
-
-                {createDeviceBasedFolders && (
-                  <div className="ml-8 space-y-2 animate-in fade-in slide-in-from-top-4 duration-300">
-                    <label className="block text-sm font-medium text-gray-900 dark:text-white">
-                      Device Folder Template
-                    </label>
-                    <input
-                      type="text"
-                      value={deviceFolderTemplate}
-                      onChange={(e) => setDeviceFolderTemplate(e.target.value)}
-                      placeholder="{device_name}"
-                      disabled={isFormDisabled}
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-brand-500 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                    />
-                    <p className="text-xs text-gray-600 dark:text-gray-400">
-                      Use {'{device_name}'} for the device name
-                    </p>
-                  </div>
-                )}
-              </div>
+          {createDateBasedFolders && (
+            <div className="ml-4 border-l-2 border-gray-200 pl-4 dark:border-gray-700">
+              <SettingInput
+                label="Date Folder Format"
+                value={dateFolderFormat}
+                onChange={setDateFolderFormat}
+                disabled={isFormDisabled}
+                placeholder="%Y/%m/%d"
+                hint="Example: %Y/%m/%d creates YYYY/MM/DD folder structure"
+              />
             </div>
+          )}
 
-            {/* Media File Filtering */}
-            <div>
-              <h3 className="mb-3 text-lg font-semibold text-gray-900 dark:text-white">
-                Media File Filtering
-              </h3>
-              <div className="space-y-4">
-                <label className="flex items-center gap-3 rounded-lg border-2 border-gray-200 bg-white p-4 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800/50">
-                  <input
-                    type="checkbox"
-                    checked={transferOnlyMediaFiles}
-                    onChange={(e) => setTransferOnlyMediaFiles(e.target.checked)}
-                    disabled={isFormDisabled}
-                    className="h-5 w-5 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
-                  />
-                  <div>
-                    <p className="font-medium text-gray-900 dark:text-white">
-                      Transfer Only Media Files
-                    </p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Only transfer files with media extensions, ignoring other file types
-                    </p>
-                  </div>
-                </label>
+          <SettingToggle
+            checked={createDeviceBasedFolders}
+            onChange={setCreateDeviceBasedFolders}
+            disabled={isFormDisabled}
+            title="Create Device-Based Folders"
+            description="Create separate folders for each source device or drive"
+          />
 
-                <div className="space-y-3">
-                  <label className="block text-sm font-medium text-gray-900 dark:text-white">
-                    Media File Extensions
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={newExtension}
-                      onChange={(e) => setNewExtension(e.target.value)}
-                      onKeyPress={handleKeyPress}
-                      placeholder="e.g., .mp4, .mov"
-                      disabled={isFormDisabled}
-                      className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-brand-500 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                    />
-                    <Button onClick={handleAddExtension} size="sm" disabled={isFormDisabled}>
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {mediaExtensions.map((ext) => (
-                      <span
-                        key={ext}
-                        className="inline-flex items-center gap-1 rounded-full bg-brand-100 px-3 py-1 text-sm text-brand-800 dark:bg-brand-900 dark:text-brand-200"
-                      >
-                        {ext}
-                        <button
-                          onClick={() => handleRemoveExtension(ext)}
-                          disabled={isFormDisabled}
-                          className="ml-1 hover:text-brand-600 dark:hover:text-brand-400 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
+          {createDeviceBasedFolders && (
+            <div className="ml-4 border-l-2 border-gray-200 pl-4 dark:border-gray-700">
+              <SettingInput
+                label="Device Folder Template"
+                value={deviceFolderTemplate}
+                onChange={setDeviceFolderTemplate}
+                disabled={isFormDisabled}
+                placeholder="{device_name}"
+                hint="Use {device_name} for the device name"
+              />
             </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
 
-            {/* Transfer Options */}
-            <div>
-              <h3 className="mb-3 text-lg font-semibold text-gray-900 dark:text-white">
-                Transfer Options
-              </h3>
-              <div className="space-y-4">
-                <label className="flex items-center gap-3 rounded-lg border-2 border-gray-200 bg-white p-4 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800/50">
-                  <input
-                    type="checkbox"
-                    checked={verifyChecksums}
-                    onChange={(e) => setVerifyChecksums(e.target.checked)}
-                    disabled={isFormDisabled}
-                    className="h-5 w-5 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
-                  />
-                  <div>
-                    <p className="font-medium text-gray-900 dark:text-white">Verify Checksums</p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Verify file integrity after transfer (recommended)
-                    </p>
-                  </div>
-                </label>
+  const renderFilteringSettings = (): React.ReactNode => (
+    <div className="space-y-6">
+      <div>
+        <h4 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+          Media File Filtering
+        </h4>
+        <div className="space-y-4">
+          <SettingToggle
+            checked={transferOnlyMediaFiles}
+            onChange={setTransferOnlyMediaFiles}
+            disabled={isFormDisabled}
+            title="Transfer Only Media Files"
+            description="Only transfer files with media extensions, ignoring other file types"
+          />
 
-                <label className="flex items-center gap-3 rounded-lg border-2 border-gray-200 bg-white p-4 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800/50">
-                  <input
-                    type="checkbox"
-                    checked={generateMHLChecksumFiles}
-                    onChange={(e) => setGenerateMHLChecksumFiles(e.target.checked)}
-                    disabled={isFormDisabled}
-                    className="h-5 w-5 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
-                  />
-                  <div>
-                    <p className="font-medium text-gray-900 dark:text-white">
-                      Generate MHL Checksum Files
-                    </p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Create Media Hash List (MHL) files for data integrity verification
-                    </p>
-                  </div>
-                </label>
-              </div>
+          <div className="space-y-3">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Media File Extensions
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newExtension}
+                onChange={(e) => setNewExtension(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="e.g., .mp4, .mov"
+                disabled={isFormDisabled}
+                className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 transition-colors focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500"
+              />
+              <Button onClick={handleAddExtension} size="sm" disabled={isFormDisabled}>
+                <Plus className="h-4 w-4" />
+              </Button>
             </div>
-
-            {/* Performance Settings */}
-            <div>
-              <h3 className="mb-3 text-lg font-semibold text-gray-900 dark:text-white">
-                Performance Settings
-              </h3>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-900 dark:text-white">
-                    Buffer Size (bytes)
-                  </label>
-                  <input
-                    type="number"
-                    value={bufferSize}
-                    onChange={(e) => setBufferSize(parseInt(e.target.value) || 0)}
-                    disabled={isFormDisabled}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-brand-500 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                  />
-                  <p className="text-xs text-gray-600 dark:text-gray-400">
-                    Buffer size for file operations (default: 4MB). Higher values may improve
-                    performance for large files.
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-900 dark:text-white">
-                    Chunk Size (bytes)
-                  </label>
-                  <input
-                    type="number"
-                    value={chunkSize}
-                    onChange={(e) => setChunkSize(parseInt(e.target.value) || 0)}
-                    disabled={isFormDisabled}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-brand-500 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                  />
-                  <p className="text-xs text-gray-600 dark:text-gray-400">
-                    Chunk size for progress updates (default: 1MB). Smaller values provide more
-                    frequent progress updates.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* UI Preferences */}
-            <div>
-              <h3 className="mb-3 text-lg font-semibold text-gray-900 dark:text-white">
-                UI Preferences
-              </h3>
-              <div className="space-y-4">
-                {/* Log Level */}
-                <div className="rounded-lg border-2 border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800/50">
-                  <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
-                    Log Level
-                  </label>
-                  <select
-                    value={logLevel || 'info'}
-                    onChange={(e) => setLogLevel(e.target.value as AppConfig['logLevel'])}
-                    disabled={isFormDisabled}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-brand-500 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+            <div className="flex flex-wrap gap-2 rounded-xl border border-gray-200 bg-gray-50/50 p-3 dark:border-gray-700 dark:bg-gray-800/30">
+              {mediaExtensions.length === 0 ? (
+                <p className="text-sm text-gray-500 dark:text-gray-400">No extensions added</p>
+              ) : (
+                mediaExtensions.map((ext) => (
+                  <span
+                    key={ext}
+                    className="inline-flex items-center gap-1 rounded-full bg-brand-100 px-2.5 py-1 text-xs font-medium text-brand-800 dark:bg-brand-900/50 dark:text-brand-200"
                   >
-                    <option value="error">error</option>
-                    <option value="warn">warn</option>
-                    <option value="info">info</option>
-                    <option value="debug">debug</option>
-                  </select>
-                  <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
-                    Controls what the app records. The Logs panel filter only affects display.
-                  </p>
-                </div>
-
-                <label className="flex items-center gap-3 rounded-lg border-2 border-gray-200 bg-white p-4 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800/50">
-                  <input
-                    type="checkbox"
-                    checked={showDetailedProgress}
-                    onChange={(e) => setShowDetailedProgress(e.target.checked)}
-                    disabled={isFormDisabled}
-                    className="h-5 w-5 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
-                  />
-                  <div>
-                    <p className="font-medium text-gray-900 dark:text-white">
-                      Show Detailed Progress
-                    </p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Display detailed progress information during transfers
-                    </p>
-                  </div>
-                </label>
-
-                <label className="flex items-center gap-3 rounded-lg border-2 border-gray-200 bg-white p-4 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800/50">
-                  <input
-                    type="checkbox"
-                    checked={autoCleanupLogs}
-                    onChange={(e) => setAutoCleanupLogs(e.target.checked)}
-                    disabled={isFormDisabled}
-                    className="h-5 w-5 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
-                  />
-                  <div>
-                    <p className="font-medium text-gray-900 dark:text-white">Auto Cleanup Logs</p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Automatically clean up old log entries based on retention settings
-                    </p>
-                  </div>
-                </label>
-
-                {autoCleanupLogs && (
-                  <div className="ml-8 space-y-2 animate-in fade-in slide-in-from-top-4 duration-300">
-                    <label className="block text-sm font-medium text-gray-900 dark:text-white">
-                      Log Retention Days
-                    </label>
-                    <input
-                      type="number"
-                      value={logRetentionDays}
-                      onChange={(e) => setLogRetentionDays(parseInt(e.target.value) || 0)}
-                      min="0"
+                    {ext}
+                    <button
+                      onClick={() => handleRemoveExtension(ext)}
                       disabled={isFormDisabled}
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-brand-500 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                    />
-                    <p className="text-xs text-gray-600 dark:text-gray-400">
-                      Number of days to keep log entries (0 = keep forever)
-                    </p>
-                  </div>
-                )}
-
-                {/* Unit System - Can be changed during transfers since it's display-only */}
-                <div className="rounded-lg border-2 border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800/50">
-                  <label className="block text-sm font-medium text-gray-900 dark:text-white mb-3">
-                    File Size Display Units
-                  </label>
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-3">
-                      <input
-                        type="radio"
-                        name="unitSystem"
-                        value="decimal"
-                        checked={unitSystem === 'decimal'}
-                        onChange={(e) => setUnitSystem(e.target.value as 'decimal')}
-                        disabled={isUiOnlyDisabled}
-                        className="h-4 w-4 text-brand-500 focus:ring-brand-500"
-                      />
-                      <div>
-                        <p className="font-medium text-gray-900 dark:text-white">
-                          Decimal (GB, MB, KB) - 1000-based
-                        </p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          Matches standard storage device displays (1 GB = 1,000,000,000 bytes)
-                        </p>
-                      </div>
-                    </label>
-                    <label className="flex items-center gap-3">
-                      <input
-                        type="radio"
-                        name="unitSystem"
-                        value="binary"
-                        checked={unitSystem === 'binary'}
-                        onChange={(e) => setUnitSystem(e.target.value as 'binary')}
-                        disabled={isUiOnlyDisabled}
-                        className="h-4 w-4 text-brand-500 focus:ring-brand-500"
-                      />
-                      <div>
-                        <p className="font-medium text-gray-900 dark:text-white">
-                          Binary (GiB, MiB, KiB) - 1024-based
-                        </p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          Traditional computer science units (1 GiB = 1,073,741,824 bytes)
-                        </p>
-                      </div>
-                    </label>
-                  </div>
-                </div>
-
-                {/* UI Density - Can be changed during transfers since it's UI-only */}
-                <div className="rounded-lg border-2 border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800/50">
-                  <label className="block text-sm font-medium text-gray-900 dark:text-white mb-3">
-                    UI Density
-                  </label>
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-3">
-                      <input
-                        type="radio"
-                        name="uiDensity"
-                        value="comfortable"
-                        checked={uiDensity === 'comfortable'}
-                        onChange={(e) => setUiDensity(e.target.value as UiDensity)}
-                        disabled={isUiOnlyDisabled}
-                        className="h-4 w-4 text-brand-500 focus:ring-brand-500"
-                      />
-                      <div>
-                        <p className="font-medium text-gray-900 dark:text-white">Comfortable</p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          Spacious layout with larger elements and more padding
-                        </p>
-                      </div>
-                    </label>
-                    <label className="flex items-center gap-3">
-                      <input
-                        type="radio"
-                        name="uiDensity"
-                        value="condensed"
-                        checked={uiDensity === 'condensed'}
-                        onChange={(e) => setUiDensity(e.target.value as UiDensity)}
-                        disabled={isUiOnlyDisabled}
-                        className="h-4 w-4 text-brand-500 focus:ring-brand-500"
-                      />
-                      <div>
-                        <p className="font-medium text-gray-900 dark:text-white">Condensed</p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          Compact layout optimized for small screens
-                        </p>
-                      </div>
-                    </label>
-                  </div>
-                </div>
-
-                {/* Tooltips Toggle - Can be changed during transfers since it's UI-only */}
-                <label className="flex items-center gap-3 rounded-lg border-2 border-gray-200 bg-white p-4 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800/50">
-                  <input
-                    type="checkbox"
-                    checked={showTooltips}
-                    onChange={(e) => setShowTooltips(e.target.checked)}
-                    disabled={isUiOnlyDisabled}
-                    className="h-5 w-5 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
-                  />
-                  <div>
-                    <p className="font-medium text-gray-900 dark:text-white">Show Tooltips</p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Display helpful hints when hovering over buttons and icons
-                    </p>
-                  </div>
-                </label>
-              </div>
+                      className="ml-0.5 rounded-full p-0.5 transition-colors hover:bg-brand-200 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-brand-800"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))
+              )}
             </div>
           </div>
         </div>
+      </div>
+    </div>
+  )
 
-        {/* Sticky Actions */}
-        <div className="flex gap-3 border-t border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
-          <Button
-            variant="outline"
-            onClick={toggleSettings}
-            disabled={isSaving}
-            className="flex-1 border-gray-300 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-800"
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSave}
-            disabled={isSaving}
-            className="flex-1 bg-gradient-to-r from-brand-500 to-brand-600 text-white"
-          >
-            {isSaving ? (
-              'Saving...'
-            ) : (
-              <>
-                <Save className="mr-2 h-4 w-4" />
-                Save Settings
-              </>
-            )}
-          </Button>
+  const renderVerificationSettings = (): React.ReactNode => (
+    <div className="space-y-6">
+      <div>
+        <h4 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+          Transfer Verification
+        </h4>
+        <div className="space-y-3">
+          <SettingToggle
+            checked={verifyChecksums}
+            onChange={setVerifyChecksums}
+            disabled={isFormDisabled}
+            title="Verify Checksums"
+            description="Verify file integrity after transfer (recommended)"
+            badge="Recommended"
+          />
+
+          <SettingToggle
+            checked={generateMHLChecksumFiles}
+            onChange={setGenerateMHLChecksumFiles}
+            disabled={isFormDisabled}
+            title="Generate MHL Checksum Files"
+            description="Create Media Hash List (MHL) files for data integrity verification"
+          />
+        </div>
+      </div>
+    </div>
+  )
+
+  const renderPerformanceSettings = (): React.ReactNode => (
+    <div className="space-y-6">
+      <div>
+        <h4 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+          Transfer Performance
+        </h4>
+        <div className="space-y-4">
+          <SettingNumberInput
+            label="Buffer Size"
+            value={bufferSize}
+            onChange={setBufferSize}
+            disabled={isFormDisabled}
+            hint="Buffer size for file operations (default: 4MB). Higher values may improve performance for large files."
+            suffix="bytes"
+          />
+
+          <SettingNumberInput
+            label="Chunk Size"
+            value={chunkSize}
+            onChange={setChunkSize}
+            disabled={isFormDisabled}
+            hint="Chunk size for progress updates (default: 1MB). Smaller values provide more frequent progress updates."
+            suffix="bytes"
+          />
+        </div>
+      </div>
+    </div>
+  )
+
+  const renderInterfaceSettings = (): React.ReactNode => (
+    <div className="space-y-6">
+      <div>
+        <h4 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+          Display Preferences
+        </h4>
+        <div className="space-y-4">
+          <SettingToggle
+            checked={showDetailedProgress}
+            onChange={setShowDetailedProgress}
+            disabled={isFormDisabled}
+            title="Show Detailed Progress"
+            description="Display detailed progress information during transfers"
+          />
+
+          <SettingToggle
+            checked={showTooltips}
+            onChange={setShowTooltips}
+            disabled={isUiOnlyDisabled}
+            title="Show Tooltips"
+            description="Display helpful hints when hovering over buttons and icons"
+          />
+
+          {/* UI Density */}
+          <div className="space-y-3">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              UI Density
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => setUiDensity('comfortable')}
+                disabled={isUiOnlyDisabled}
+                className={cn(
+                  'rounded-xl border-2 p-4 text-left transition-all',
+                  uiDensity === 'comfortable'
+                    ? 'border-brand-500 bg-brand-50/50 dark:border-brand-400 dark:bg-brand-950/20'
+                    : 'border-gray-200 bg-white hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800/50',
+                  isUiOnlyDisabled && 'cursor-not-allowed opacity-50'
+                )}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-gray-900 dark:text-white">Comfortable</span>
+                  {uiDensity === 'comfortable' && (
+                    <CheckCircle2 className="h-4 w-4 text-brand-500" />
+                  )}
+                </div>
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  Spacious layout with larger elements
+                </p>
+              </button>
+              <button
+                onClick={() => setUiDensity('condensed')}
+                disabled={isUiOnlyDisabled}
+                className={cn(
+                  'rounded-xl border-2 p-4 text-left transition-all',
+                  uiDensity === 'condensed'
+                    ? 'border-brand-500 bg-brand-50/50 dark:border-brand-400 dark:bg-brand-950/20'
+                    : 'border-gray-200 bg-white hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800/50',
+                  isUiOnlyDisabled && 'cursor-not-allowed opacity-50'
+                )}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-gray-900 dark:text-white">Condensed</span>
+                  {uiDensity === 'condensed' && (
+                    <CheckCircle2 className="h-4 w-4 text-brand-500" />
+                  )}
+                </div>
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  Compact layout for small screens
+                </p>
+              </button>
+            </div>
+          </div>
+
+          {/* Unit System */}
+          <div className="space-y-3">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              File Size Display Units
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => setUnitSystem('decimal')}
+                disabled={isUiOnlyDisabled}
+                className={cn(
+                  'rounded-xl border-2 p-4 text-left transition-all',
+                  unitSystem === 'decimal'
+                    ? 'border-brand-500 bg-brand-50/50 dark:border-brand-400 dark:bg-brand-950/20'
+                    : 'border-gray-200 bg-white hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800/50',
+                  isUiOnlyDisabled && 'cursor-not-allowed opacity-50'
+                )}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-gray-900 dark:text-white">Decimal</span>
+                  {unitSystem === 'decimal' && (
+                    <CheckCircle2 className="h-4 w-4 text-brand-500" />
+                  )}
+                </div>
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  GB, MB, KB (1000-based)
+                </p>
+              </button>
+              <button
+                onClick={() => setUnitSystem('binary')}
+                disabled={isUiOnlyDisabled}
+                className={cn(
+                  'rounded-xl border-2 p-4 text-left transition-all',
+                  unitSystem === 'binary'
+                    ? 'border-brand-500 bg-brand-50/50 dark:border-brand-400 dark:bg-brand-950/20'
+                    : 'border-gray-200 bg-white hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800/50',
+                  isUiOnlyDisabled && 'cursor-not-allowed opacity-50'
+                )}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-gray-900 dark:text-white">Binary</span>
+                  {unitSystem === 'binary' && <CheckCircle2 className="h-4 w-4 text-brand-500" />}
+                </div>
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  GiB, MiB, KiB (1024-based)
+                </p>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+
+  const renderLoggingSettings = (): React.ReactNode => (
+    <div className="space-y-6">
+      <div>
+        <h4 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+          Log Settings
+        </h4>
+        <div className="space-y-4">
+          {/* Log Level */}
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Log Level
+            </label>
+            <select
+              value={logLevel || 'info'}
+              onChange={(e) => setLogLevel(e.target.value as AppConfig['logLevel'])}
+              disabled={isFormDisabled}
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 transition-colors focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+            >
+              <option value="error">Error</option>
+              <option value="warn">Warning</option>
+              <option value="info">Info</option>
+              <option value="debug">Debug</option>
+            </select>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Controls what the app records. The Logs panel filter only affects display.
+            </p>
+          </div>
+
+          <SettingToggle
+            checked={autoCleanupLogs}
+            onChange={setAutoCleanupLogs}
+            disabled={isFormDisabled}
+            title="Auto Cleanup Logs"
+            description="Automatically clean up old log entries based on retention settings"
+          />
+
+          {autoCleanupLogs && (
+            <div className="ml-4 border-l-2 border-gray-200 pl-4 dark:border-gray-700">
+              <SettingNumberInput
+                label="Log Retention Days"
+                value={logRetentionDays}
+                onChange={setLogRetentionDays}
+                disabled={isFormDisabled}
+                hint="Number of days to keep log entries (0 = keep forever)"
+                min={0}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+
+  const renderActiveCategory = (): React.ReactNode => {
+    switch (activeCategory) {
+      case 'general':
+        return renderGeneralSettings()
+      case 'files':
+        return renderFilesSettings()
+      case 'filtering':
+        return renderFilteringSettings()
+      case 'verification':
+        return renderVerificationSettings()
+      case 'performance':
+        return renderPerformanceSettings()
+      case 'interface':
+        return renderInterfaceSettings()
+      case 'logging':
+        return renderLoggingSettings()
+      default:
+        return null
+    }
+  }
+
+  return (
+    <Modal isOpen={showSettings} onClose={toggleSettings} size="2xl" hideHeader>
+      <div className="flex h-[600px] max-h-[85vh]">
+        {/* Sidebar */}
+        <div className="flex w-56 flex-col border-r border-gray-200 bg-gray-50/50 dark:border-gray-800 dark:bg-gray-900/50">
+          {/* Header */}
+          <div className="flex items-center gap-3 border-b border-gray-200 px-5 py-4 dark:border-gray-800">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-400 to-brand-600 shadow-lg shadow-brand-500/20">
+              <Settings className="h-5 w-5 text-white" />
+            </div>
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Settings</h2>
+          </div>
+
+          {/* Navigation */}
+          <nav className="flex-1 space-y-1 overflow-y-auto p-3">
+            {categories.map((category) => (
+              <button
+                key={category.id}
+                onClick={() => setActiveCategory(category.id)}
+                className={cn(
+                  'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-all duration-150',
+                  activeCategory === category.id
+                    ? 'bg-white text-brand-600 shadow-sm dark:bg-gray-800 dark:text-brand-400'
+                    : 'text-gray-600 hover:bg-white/50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800/50 dark:hover:text-gray-200'
+                )}
+              >
+                <span
+                  className={cn(
+                    'flex-shrink-0 transition-colors',
+                    activeCategory === category.id
+                      ? 'text-brand-500'
+                      : 'text-gray-400 dark:text-gray-500'
+                  )}
+                >
+                  {category.icon}
+                </span>
+                <span className="text-sm font-medium">{category.label}</span>
+              </button>
+            ))}
+          </nav>
+
+          {/* Transfer warning */}
+          {isTransferring && (
+            <div className="border-t border-gray-200 p-3 dark:border-gray-800">
+              <div className="rounded-lg bg-amber-50 p-2.5 dark:bg-amber-950/30">
+                <p className="text-xs font-medium text-amber-800 dark:text-amber-200">
+                  ⚠️ Transfer in progress
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Main Content */}
+        <div className="flex flex-1 flex-col">
+          {/* Content Header */}
+          <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-800">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                {categories.find((c) => c.id === activeCategory)?.label}
+              </h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                {categories.find((c) => c.id === activeCategory)?.description}
+              </p>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toggleSettings}
+              className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            >
+              <X className="h-5 w-5" />
+            </Button>
+          </div>
+
+          {/* Scrollable Content */}
+          <div className="flex-1 overflow-y-auto p-6">{renderActiveCategory()}</div>
+
+          {/* Actions Footer */}
+          <div className="flex justify-end gap-3 border-t border-gray-200 bg-gray-50/50 px-6 py-4 dark:border-gray-800 dark:bg-gray-900/50">
+            <Button
+              variant="outline"
+              onClick={toggleSettings}
+              disabled={isSaving}
+              className="min-w-[100px]"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={isSaving}
+              className="min-w-[120px] bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-lg shadow-brand-500/20"
+            >
+              {isSaving ? (
+                'Saving...'
+              ) : (
+                <>
+                  <Save className="mr-2 h-4 w-4" />
+                  Save Changes
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </div>
     </Modal>
+  )
+}
+
+// Reusable setting components
+
+interface SettingToggleProps {
+  checked: boolean
+  onChange: (checked: boolean) => void
+  disabled?: boolean
+  title: string
+  description: string
+  badge?: string
+}
+
+function SettingToggle({
+  checked,
+  onChange,
+  disabled,
+  title,
+  description,
+  badge
+}: SettingToggleProps): React.ReactElement {
+  return (
+    <label
+      className={cn(
+        'flex cursor-pointer items-start gap-4 rounded-xl border-2 p-4 transition-all',
+        checked
+          ? 'border-brand-500/30 bg-brand-50/30 dark:border-brand-500/20 dark:bg-brand-950/10'
+          : 'border-gray-200 bg-white hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800/50 dark:hover:border-gray-600',
+        disabled && 'cursor-not-allowed opacity-50'
+      )}
+    >
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        disabled={disabled}
+        className="mt-0.5 h-5 w-5 rounded border-gray-300 text-brand-500 focus:ring-brand-500 focus:ring-offset-0"
+      />
+      <div className="flex-1">
+        <div className="flex items-center gap-2">
+          <p className="font-medium text-gray-900 dark:text-white">{title}</p>
+          {badge && (
+            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">
+              {badge}
+            </span>
+          )}
+        </div>
+        <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">{description}</p>
+      </div>
+    </label>
+  )
+}
+
+interface SettingInputProps {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  disabled?: boolean
+  placeholder?: string
+  hint?: string
+}
+
+function SettingInput({
+  label,
+  value,
+  onChange,
+  disabled,
+  placeholder,
+  hint
+}: SettingInputProps): React.ReactElement {
+  return (
+    <div className="space-y-2">
+      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{label}</label>
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        disabled={disabled}
+        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 transition-colors focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500"
+      />
+      {hint && <p className="text-xs text-gray-500 dark:text-gray-400">{hint}</p>}
+    </div>
+  )
+}
+
+interface SettingNumberInputProps {
+  label: string
+  value: number
+  onChange: (value: number) => void
+  disabled?: boolean
+  hint?: string
+  min?: number
+  suffix?: string
+}
+
+function SettingNumberInput({
+  label,
+  value,
+  onChange,
+  disabled,
+  hint,
+  min,
+  suffix
+}: SettingNumberInputProps): React.ReactElement {
+  return (
+    <div className="space-y-2">
+      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{label}</label>
+      <div className="relative">
+        <input
+          type="number"
+          value={value}
+          onChange={(e) => onChange(parseInt(e.target.value) || 0)}
+          min={min}
+          disabled={disabled}
+          className={cn(
+            'w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 transition-colors focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-white',
+            suffix && 'pr-16'
+          )}
+        />
+        {suffix && (
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">
+            {suffix}
+          </span>
+        )}
+      </div>
+      {hint && <p className="text-xs text-gray-500 dark:text-gray-400">{hint}</p>}
+    </div>
   )
 }
