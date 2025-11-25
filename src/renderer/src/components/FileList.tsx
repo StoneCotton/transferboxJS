@@ -20,6 +20,7 @@ import { useMemo, useState, type ReactElement } from 'react'
 import { useDriveStore, useTransferStore } from '../store'
 import { useUiDensity } from '../hooks/useUiDensity'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/Card'
+import { Tooltip } from './ui/Tooltip'
 import { cn, formatDuration } from '../lib/utils'
 
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
@@ -297,25 +298,33 @@ export function FileList() {
   if (scanInProgress) {
     return (
       <Card className="border-0 bg-white/70 shadow-xl shadow-purple-500/10 backdrop-blur-sm dark:bg-gray-900/70">
-        <CardContent className={cn(
-          'flex flex-col items-center justify-center',
-          isCondensed ? 'py-8' : 'py-16'
-        )}>
+        <CardContent
+          className={cn(
+            'flex flex-col items-center justify-center',
+            isCondensed ? 'py-8' : 'py-16'
+          )}
+        >
           <div className="relative">
-            <div className={cn(
-              'absolute inset-0 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600',
-              isCondensed && 'border-2'
-            )} />
+            <div
+              className={cn(
+                'absolute inset-0 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600',
+                isCondensed && 'border-2'
+              )}
+            />
             <div className={isCondensed ? 'h-10 w-10' : 'h-16 w-16'} />
           </div>
-          <p className={cn(
-            'font-semibold text-gray-900 dark:text-white',
-            isCondensed ? 'mt-4 text-base' : 'mt-6 text-lg'
-          )}>
+          <p
+            className={cn(
+              'font-semibold text-gray-900 dark:text-white',
+              isCondensed ? 'mt-4 text-base' : 'mt-6 text-lg'
+            )}
+          >
             Scanning for Media Files
           </p>
           {!isCondensed && (
-            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">This may take a moment...</p>
+            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+              This may take a moment...
+            </p>
           )}
         </CardContent>
       </Card>
@@ -325,26 +334,42 @@ export function FileList() {
   if (scannedFiles.length === 0) {
     return (
       <Card className="border-2 border-dashed border-gray-300 bg-white/50 backdrop-blur-sm dark:border-gray-700 dark:bg-gray-900/50">
-        <CardContent className={cn(
-          'flex flex-col items-center justify-center',
-          isCondensed ? 'py-8' : 'py-16'
-        )}>
+        <CardContent
+          className={cn(
+            'flex flex-col items-center justify-center',
+            isCondensed ? 'py-8' : 'py-16'
+          )}
+        >
           <div className="relative">
-            <div className={cn(
-              'flex items-center justify-center rounded-full bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30',
-              isCondensed ? 'h-14 w-14' : 'h-20 w-20'
-            )}>
-              <Folder className={isCondensed ? 'h-7 w-7 text-purple-600 dark:text-purple-400' : 'h-10 w-10 text-purple-600 dark:text-purple-400'} />
+            <div
+              className={cn(
+                'flex items-center justify-center rounded-full bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30',
+                isCondensed ? 'h-14 w-14' : 'h-20 w-20'
+              )}
+            >
+              <Folder
+                className={
+                  isCondensed
+                    ? 'h-7 w-7 text-purple-600 dark:text-purple-400'
+                    : 'h-10 w-10 text-purple-600 dark:text-purple-400'
+                }
+              />
             </div>
           </div>
-          <p className={cn(
-            'font-bold text-gray-900 dark:text-white',
-            isCondensed ? 'mt-4 text-base' : 'mt-6 text-xl'
-          )}>No Files Found</p>
-          <p className={cn(
-            'text-center text-gray-600 dark:text-gray-400',
-            isCondensed ? 'mt-1 text-xs' : 'mt-2 text-sm'
-          )}>
+          <p
+            className={cn(
+              'font-bold text-gray-900 dark:text-white',
+              isCondensed ? 'mt-4 text-base' : 'mt-6 text-xl'
+            )}
+          >
+            No Files Found
+          </p>
+          <p
+            className={cn(
+              'text-center text-gray-600 dark:text-gray-400',
+              isCondensed ? 'mt-1 text-xs' : 'mt-2 text-sm'
+            )}
+          >
             Select a drive to scan for media files
           </p>
         </CardContent>
@@ -357,10 +382,12 @@ export function FileList() {
       <CardHeader className={isCondensed ? 'p-3' : undefined}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className={cn(
-              'flex items-center justify-center rounded-lg bg-gradient-to-br from-purple-500 to-pink-600 text-white shadow-lg shadow-purple-500/30',
-              isCondensed ? 'h-6 w-6' : 'h-8 w-8'
-            )}>
+            <div
+              className={cn(
+                'flex items-center justify-center rounded-lg bg-gradient-to-br from-purple-500 to-pink-600 text-white shadow-lg shadow-purple-500/30',
+                isCondensed ? 'h-6 w-6' : 'h-8 w-8'
+              )}
+            >
               <FileType className={isCondensed ? 'h-3 w-3' : 'h-4 w-4'} />
             </div>
             <div>
@@ -374,68 +401,155 @@ export function FileList() {
           {/* Transfer Status Statistics */}
           <div className={cn('flex', isCondensed ? 'gap-1' : 'gap-2')}>
             {transferStats.complete > 0 && (
-              <div className={cn(
-                'flex items-center rounded-lg bg-green-100 dark:bg-green-900/30',
-                isCondensed ? 'gap-1 px-1.5 py-0.5' : 'gap-1.5 px-2 py-1'
-              )}>
-                <CheckCircle2 className={cn('text-green-600 dark:text-green-400', isCondensed ? 'h-2.5 w-2.5' : 'h-3 w-3')} />
-                <span className={cn('font-bold text-green-900 dark:text-green-100', isCondensed ? 'text-[10px]' : 'text-xs')}>
-                  {transferStats.complete}
-                </span>
-              </div>
+              <Tooltip
+                content={`${transferStats.complete} file${transferStats.complete !== 1 ? 's' : ''} successfully transferred and verified`}
+                position="bottom"
+              >
+                <div
+                  className={cn(
+                    'flex items-center rounded-lg bg-green-100 dark:bg-green-900/30',
+                    isCondensed ? 'gap-1 px-1.5 py-0.5' : 'gap-1.5 px-2 py-1'
+                  )}
+                >
+                  <CheckCircle2
+                    className={cn(
+                      'text-green-600 dark:text-green-400',
+                      isCondensed ? 'h-2.5 w-2.5' : 'h-3 w-3'
+                    )}
+                  />
+                  <span
+                    className={cn(
+                      'font-bold text-green-900 dark:text-green-100',
+                      isCondensed ? 'text-[10px]' : 'text-xs'
+                    )}
+                  >
+                    {transferStats.complete}
+                  </span>
+                </div>
+              </Tooltip>
             )}
             {transferStats.transferring > 0 && (
-              <div className={cn(
-                'flex items-center rounded-lg bg-blue-100 dark:bg-blue-900/30',
-                isCondensed ? 'gap-1 px-1.5 py-0.5' : 'gap-1.5 px-2 py-1'
-              )}>
-                <Loader2 className={cn('animate-spin text-blue-600 dark:text-blue-400', isCondensed ? 'h-2.5 w-2.5' : 'h-3 w-3')} />
-                <span className={cn('font-bold text-blue-900 dark:text-blue-100', isCondensed ? 'text-[10px]' : 'text-xs')}>
-                  {transferStats.transferring}
-                </span>
-              </div>
+              <Tooltip
+                content={`${transferStats.transferring} file${transferStats.transferring !== 1 ? 's' : ''} currently being transferred`}
+                position="bottom"
+              >
+                <div
+                  className={cn(
+                    'flex items-center rounded-lg bg-blue-100 dark:bg-blue-900/30',
+                    isCondensed ? 'gap-1 px-1.5 py-0.5' : 'gap-1.5 px-2 py-1'
+                  )}
+                >
+                  <Loader2
+                    className={cn(
+                      'animate-spin text-blue-600 dark:text-blue-400',
+                      isCondensed ? 'h-2.5 w-2.5' : 'h-3 w-3'
+                    )}
+                  />
+                  <span
+                    className={cn(
+                      'font-bold text-blue-900 dark:text-blue-100',
+                      isCondensed ? 'text-[10px]' : 'text-xs'
+                    )}
+                  >
+                    {transferStats.transferring}
+                  </span>
+                </div>
+              </Tooltip>
             )}
             {transferStats.verifying > 0 && (
-              <div className={cn(
-                'flex items-center rounded-lg bg-yellow-100 dark:bg-yellow-900/30',
-                isCondensed ? 'gap-1 px-1.5 py-0.5' : 'gap-1.5 px-2 py-1'
-              )}>
-                <Clock className={cn('text-yellow-600 dark:text-yellow-400', isCondensed ? 'h-2.5 w-2.5' : 'h-3 w-3')} />
-                <span className={cn('font-bold text-yellow-900 dark:text-yellow-100', isCondensed ? 'text-[10px]' : 'text-xs')}>
-                  {transferStats.verifying}
-                </span>
-              </div>
+              <Tooltip
+                content={`${transferStats.verifying} file${transferStats.verifying !== 1 ? 's' : ''} being verified with checksum`}
+                position="bottom"
+              >
+                <div
+                  className={cn(
+                    'flex items-center rounded-lg bg-yellow-100 dark:bg-yellow-900/30',
+                    isCondensed ? 'gap-1 px-1.5 py-0.5' : 'gap-1.5 px-2 py-1'
+                  )}
+                >
+                  <Clock
+                    className={cn(
+                      'text-yellow-600 dark:text-yellow-400',
+                      isCondensed ? 'h-2.5 w-2.5' : 'h-3 w-3'
+                    )}
+                  />
+                  <span
+                    className={cn(
+                      'font-bold text-yellow-900 dark:text-yellow-100',
+                      isCondensed ? 'text-[10px]' : 'text-xs'
+                    )}
+                  >
+                    {transferStats.verifying}
+                  </span>
+                </div>
+              </Tooltip>
             )}
             {transferStats.error > 0 && (
-              <div className={cn(
-                'flex items-center rounded-lg bg-red-100 dark:bg-red-900/30',
-                isCondensed ? 'gap-1 px-1.5 py-0.5' : 'gap-1.5 px-2 py-1'
-              )}>
-                <XCircle className={cn('text-red-600 dark:text-red-400', isCondensed ? 'h-2.5 w-2.5' : 'h-3 w-3')} />
-                <span className={cn('font-bold text-red-900 dark:text-red-100', isCondensed ? 'text-[10px]' : 'text-xs')}>
-                  {transferStats.error}
-                </span>
-              </div>
+              <Tooltip
+                content={`${transferStats.error} file${transferStats.error !== 1 ? 's' : ''} failed to transfer`}
+                position="bottom"
+              >
+                <div
+                  className={cn(
+                    'flex items-center rounded-lg bg-red-100 dark:bg-red-900/30',
+                    isCondensed ? 'gap-1 px-1.5 py-0.5' : 'gap-1.5 px-2 py-1'
+                  )}
+                >
+                  <XCircle
+                    className={cn(
+                      'text-red-600 dark:text-red-400',
+                      isCondensed ? 'h-2.5 w-2.5' : 'h-3 w-3'
+                    )}
+                  />
+                  <span
+                    className={cn(
+                      'font-bold text-red-900 dark:text-red-100',
+                      isCondensed ? 'text-[10px]' : 'text-xs'
+                    )}
+                  >
+                    {transferStats.error}
+                  </span>
+                </div>
+              </Tooltip>
             )}
             {transferStats.pending > 0 && (
-              <div className={cn(
-                'flex items-center rounded-lg bg-gray-100 dark:bg-gray-800',
-                isCondensed ? 'gap-1 px-1.5 py-0.5' : 'gap-1.5 px-2 py-1'
-              )}>
-                <Clock className={cn('text-gray-600 dark:text-gray-400', isCondensed ? 'h-2.5 w-2.5' : 'h-3 w-3')} />
-                <span className={cn('font-bold text-gray-900 dark:text-gray-100', isCondensed ? 'text-[10px]' : 'text-xs')}>
-                  {transferStats.pending}
-                </span>
-              </div>
+              <Tooltip
+                content={`${transferStats.pending} file${transferStats.pending !== 1 ? 's' : ''} waiting to be transferred`}
+                position="bottom"
+              >
+                <div
+                  className={cn(
+                    'flex items-center rounded-lg bg-gray-100 dark:bg-gray-800',
+                    isCondensed ? 'gap-1 px-1.5 py-0.5' : 'gap-1.5 px-2 py-1'
+                  )}
+                >
+                  <Clock
+                    className={cn(
+                      'text-gray-600 dark:text-gray-400',
+                      isCondensed ? 'h-2.5 w-2.5' : 'h-3 w-3'
+                    )}
+                  />
+                  <span
+                    className={cn(
+                      'font-bold text-gray-900 dark:text-gray-100',
+                      isCondensed ? 'text-[10px]' : 'text-xs'
+                    )}
+                  >
+                    {transferStats.pending}
+                  </span>
+                </div>
+              </Tooltip>
             )}
           </div>
         </div>
       </CardHeader>
       <CardContent className={isCondensed ? 'p-3 pt-0' : undefined}>
-        <div className={cn(
-          'overflow-y-auto rounded-lg bg-gradient-to-br from-gray-50 to-white dark:from-gray-800/50 dark:to-gray-900/50',
-          isCondensed ? 'max-h-[300px] space-y-1 p-2' : 'max-h-[500px] space-y-2 p-3'
-        )}>
+        <div
+          className={cn(
+            'overflow-y-auto rounded-lg bg-gradient-to-br from-gray-50 to-white dark:from-gray-800/50 dark:to-gray-900/50',
+            isCondensed ? 'max-h-[300px] space-y-1 p-2' : 'max-h-[500px] space-y-2 p-3'
+          )}
+        >
           {scannedFiles.map((file, index) => {
             const filePath = file.path
             const Icon = getFileIcon(filePath)
@@ -444,7 +558,7 @@ export function FileList() {
             const status = getFileTransferStatus(filePath, progress)
             const checksum = getFileChecksum(filePath, progress)
             const elapsedTime = getFileElapsedTime(filePath, progress)
-            
+
             // Format creation date and time
             const creationDate = new Date(file.birthtime)
             const formattedDate = creationDate.toLocaleDateString('en-US', {
@@ -525,10 +639,12 @@ export function FileList() {
                 {/* File Info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className={cn(
-                      'truncate font-medium text-gray-900 dark:text-gray-100',
-                      isCondensed ? 'text-xs' : 'text-sm'
-                    )}>
+                    <span
+                      className={cn(
+                        'truncate font-medium text-gray-900 dark:text-gray-100',
+                        isCondensed ? 'text-xs' : 'text-sm'
+                      )}
+                    >
                       {fileName}
                     </span>
                     {isCondensed ? null : getStatusIcon()}
@@ -558,16 +674,26 @@ export function FileList() {
                   {!isCondensed && status === 'complete' && checksum && (
                     <div className="mt-1 flex items-center gap-2">
                       <span className="text-xs text-gray-500 dark:text-gray-400">Checksum:</span>
-                      <code className="text-xs bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded font-mono text-gray-700 dark:text-gray-300">
-                        {checksum}
-                      </code>
-                      <button
-                        onClick={() => handleCopyChecksum(checksum)}
-                        className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+                      <Tooltip
+                        content="XXH3 checksum used to verify file integrity after transfer"
+                        position="top"
                       >
-                        <Copy className="h-3 w-3" />
-                        {copiedChecksum === checksum ? 'Copied!' : 'Copy'}
-                      </button>
+                        <code className="text-xs bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded font-mono text-gray-700 dark:text-gray-300 cursor-help">
+                          {checksum}
+                        </code>
+                      </Tooltip>
+                      <Tooltip
+                        content="Copy checksum to clipboard for manual verification"
+                        position="top"
+                      >
+                        <button
+                          onClick={() => handleCopyChecksum(checksum)}
+                          className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+                        >
+                          <Copy className="h-3 w-3" />
+                          {copiedChecksum === checksum ? 'Copied!' : 'Copy'}
+                        </button>
+                      </Tooltip>
                     </div>
                   )}
                 </div>

@@ -24,6 +24,7 @@ import {
   X
 } from 'lucide-react'
 import { cn } from '../lib/utils'
+import { Tooltip } from './ui/Tooltip'
 
 interface HistoryViewerProps {
   onClose: () => void
@@ -209,62 +210,78 @@ ${session.errorMessage ? `Error: ${session.errorMessage}` : ''}
             </div>
             <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
               <span>Total: {history.length}</span>
-              <span className="flex items-center gap-1">
-                <CheckCircle className="h-3 w-3 text-green-500" />
-                {statusCounts.complete}
-              </span>
-              <span className="flex items-center gap-1">
-                <XCircle className="h-3 w-3 text-red-500" />
-                {statusCounts.error}
-              </span>
-              <span className="flex items-center gap-1">
-                <AlertTriangle className="h-3 w-3 text-yellow-500" />
-                {statusCounts.cancelled}
-              </span>
-              <span className="flex items-center gap-1">
-                <Clock className="h-3 w-3 text-blue-500" />
-                {statusCounts.running}
-              </span>
+              <Tooltip content="Completed transfers" position="bottom">
+                <span className="flex items-center gap-1 cursor-help">
+                  <CheckCircle className="h-3 w-3 text-green-500" />
+                  {statusCounts.complete}
+                </span>
+              </Tooltip>
+              <Tooltip content="Failed transfers" position="bottom">
+                <span className="flex items-center gap-1 cursor-help">
+                  <XCircle className="h-3 w-3 text-red-500" />
+                  {statusCounts.error}
+                </span>
+              </Tooltip>
+              <Tooltip content="Cancelled transfers" position="bottom">
+                <span className="flex items-center gap-1 cursor-help">
+                  <AlertTriangle className="h-3 w-3 text-yellow-500" />
+                  {statusCounts.cancelled}
+                </span>
+              </Tooltip>
+              <Tooltip content="Running transfers" position="bottom">
+                <span className="flex items-center gap-1 cursor-help">
+                  <Clock className="h-3 w-3 text-blue-500" />
+                  {statusCounts.running}
+                </span>
+              </Tooltip>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={refreshHistory}
-              disabled={isRefreshing}
-              className="flex items-center gap-2"
-            >
-              <RefreshCw className={cn('h-4 w-4', isRefreshing && 'animate-spin')} />
-              Refresh
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExportHistory}
-              className="flex items-center gap-2"
-            >
-              <Download className="h-4 w-4" />
-              Export
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowClearConfirm(true)}
-              className="flex items-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/20"
-            >
-              <Trash2 className="h-4 w-4" />
-              Clear
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onClose}
-              className="flex items-center gap-2 bg-red-50 text-red-700 border-red-200 hover:bg-red-100 hover:text-red-800 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800 dark:hover:bg-red-900/30"
-            >
-              <X className="h-4 w-4" />
-              Close
-            </Button>
+            <Tooltip content="Reload transfer history from disk" position="bottom">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={refreshHistory}
+                disabled={isRefreshing}
+                className="flex items-center gap-2"
+              >
+                <RefreshCw className={cn('h-4 w-4', isRefreshing && 'animate-spin')} />
+                Refresh
+              </Button>
+            </Tooltip>
+            <Tooltip content="Export history to a text file" position="bottom">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportHistory}
+                className="flex items-center gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Export
+              </Button>
+            </Tooltip>
+            <Tooltip content="Delete all transfer history permanently" position="bottom">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowClearConfirm(true)}
+                className="flex items-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/20"
+              >
+                <Trash2 className="h-4 w-4" />
+                Clear
+              </Button>
+            </Tooltip>
+            <Tooltip content="Close history viewer (Esc)" position="bottom">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onClose}
+                className="flex items-center gap-2 bg-red-50 text-red-700 border-red-200 hover:bg-red-100 hover:text-red-800 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800 dark:hover:bg-red-900/30"
+              >
+                <X className="h-4 w-4" />
+                Close
+              </Button>
+            </Tooltip>
           </div>
         </div>
 

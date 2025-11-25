@@ -33,6 +33,7 @@ export const IPC_CHANNELS = {
   DRIVE_UNMOUNTED: 'drive:unmounted', // Event from main to renderer when drive is unmounted but still connected
 
   // Transfer operations
+  TRANSFER_VALIDATE: 'transfer:validate', // Pre-transfer validation
   TRANSFER_START: 'transfer:start',
   TRANSFER_STOP: 'transfer:stop',
   TRANSFER_STATUS: 'transfer:status',
@@ -87,6 +88,68 @@ export interface TransferStartRequest {
   destinationRoot: string
   driveInfo: DriveInfo
   files: string[]
+  conflictResolutions?: Record<string, ConflictResolutionChoice>
+}
+
+/**
+ * Conflict resolution choice for a specific file
+ */
+export type ConflictResolutionChoice = 'skip' | 'rename' | 'overwrite'
+
+/**
+ * File conflict information
+ */
+export interface FileConflictInfo {
+  sourcePath: string
+  destinationPath: string
+  fileName: string
+  sourceSize: number
+  sourceModified: number
+  existingSize: number
+  existingModified: number
+}
+
+/**
+ * Validation warning types
+ */
+export type ValidationWarningType =
+  | 'same_directory'
+  | 'nested_source_in_dest'
+  | 'nested_dest_in_source'
+  | 'insufficient_space'
+  | 'file_conflicts'
+
+/**
+ * Validation warning structure
+ */
+export interface ValidationWarning {
+  type: ValidationWarningType
+  message: string
+  details?: Record<string, unknown>
+}
+
+/**
+ * Pre-transfer validation request
+ */
+export interface TransferValidateRequest {
+  sourceRoot: string
+  destinationRoot: string
+  driveInfo: DriveInfo
+  files: string[]
+}
+
+/**
+ * Pre-transfer validation response
+ */
+export interface TransferValidateResponse {
+  isValid: boolean
+  canProceed: boolean
+  requiresConfirmation: boolean
+  warnings: ValidationWarning[]
+  conflicts: FileConflictInfo[]
+  spaceRequired: number
+  spaceAvailable: number
+  error?: string
 }
 
 export interface TransferStatusResponse {
@@ -128,6 +191,7 @@ export interface IpcHandlers {
   [IPC_CHANNELS.DRIVE_SCAN]: (device: string) => Promise<ScannedMedia>
   [IPC_CHANNELS.DRIVE_UNMOUNT]: (device: string) => Promise<boolean>
 
+  [IPC_CHANNELS.TRANSFER_VALIDATE]: (request: TransferValidateRequest) => Promise<TransferValidateResponse>
   [IPC_CHANNELS.TRANSFER_START]: (request: TransferStartRequest) => Promise<void>
   [IPC_CHANNELS.TRANSFER_STOP]: () => Promise<void>
   [IPC_CHANNELS.TRANSFER_STATUS]: () => Promise<TransferStatusResponse>

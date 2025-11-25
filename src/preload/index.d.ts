@@ -4,6 +4,8 @@ import type {
   PathValidationRequest,
   PathValidationResponse,
   TransferStartRequest,
+  TransferValidateRequest,
+  TransferValidateResponse,
   TransferSession,
   TransferStatusResponse,
   LogEntry,
@@ -28,6 +30,7 @@ interface IpcApi {
   unmountDrive: (device: string) => Promise<boolean>
 
   // Transfer operations
+  validateTransfer: (request: TransferValidateRequest) => Promise<TransferValidateResponse>
   startTransfer: (request: TransferStartRequest) => Promise<void>
   stopTransfer: () => Promise<void>
   getTransferStatus: () => Promise<TransferStatusResponse>

@@ -28,6 +28,7 @@ import {
   FileText
 } from 'lucide-react'
 import { cn } from '../lib/utils'
+import { Tooltip } from './ui/Tooltip'
 
 interface LogViewerProps {
   onClose: () => void
@@ -291,154 +292,196 @@ export function LogViewer({ onClose }: LogViewerProps): React.ReactElement {
             {activeTab === 'logs' ? (
               <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
                 <span>Total: {logs.length}</span>
-                <span className="flex items-center gap-1">
-                  <AlertCircle className="h-3 w-3 text-red-500" />
-                  {logCounts.error}
-                </span>
-                <span className="flex items-center gap-1">
-                  <AlertTriangle className="h-3 w-3 text-yellow-500" />
-                  {logCounts.warn}
-                </span>
-                <span className="flex items-center gap-1">
-                  <Info className="h-3 w-3 text-blue-500" />
-                  {logCounts.info}
-                </span>
-                <span className="flex items-center gap-1">
-                  <Bug className="h-3 w-3 text-gray-500" />
-                  {logCounts.debug}
-                </span>
+                <Tooltip content="Error logs - critical issues" position="bottom">
+                  <span className="flex items-center gap-1 cursor-help">
+                    <AlertCircle className="h-3 w-3 text-red-500" />
+                    {logCounts.error}
+                  </span>
+                </Tooltip>
+                <Tooltip content="Warning logs - potential issues" position="bottom">
+                  <span className="flex items-center gap-1 cursor-help">
+                    <AlertTriangle className="h-3 w-3 text-yellow-500" />
+                    {logCounts.warn}
+                  </span>
+                </Tooltip>
+                <Tooltip content="Info logs - general information" position="bottom">
+                  <span className="flex items-center gap-1 cursor-help">
+                    <Info className="h-3 w-3 text-blue-500" />
+                    {logCounts.info}
+                  </span>
+                </Tooltip>
+                <Tooltip content="Debug logs - detailed debugging info" position="bottom">
+                  <span className="flex items-center gap-1 cursor-help">
+                    <Bug className="h-3 w-3 text-gray-500" />
+                    {logCounts.debug}
+                  </span>
+                </Tooltip>
               </div>
             ) : (
               <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
                 <span>Total: {(notificationHistory || []).length}</span>
-                <span className="flex items-center gap-1">
-                  <CheckCircle2 className="h-3 w-3 text-green-500" />
-                  {notificationCounts.success}
-                </span>
-                <span className="flex items-center gap-1">
-                  <AlertTriangle className="h-3 w-3 text-yellow-500" />
-                  {notificationCounts.warning}
-                </span>
-                <span className="flex items-center gap-1">
-                  <XCircle className="h-3 w-3 text-red-500" />
-                  {notificationCounts.error}
-                </span>
-                <span className="flex items-center gap-1">
-                  <Info className="h-3 w-3 text-blue-500" />
-                  {notificationCounts.info}
-                </span>
+                <Tooltip content="Success notifications" position="bottom">
+                  <span className="flex items-center gap-1 cursor-help">
+                    <CheckCircle2 className="h-3 w-3 text-green-500" />
+                    {notificationCounts.success}
+                  </span>
+                </Tooltip>
+                <Tooltip content="Warning notifications" position="bottom">
+                  <span className="flex items-center gap-1 cursor-help">
+                    <AlertTriangle className="h-3 w-3 text-yellow-500" />
+                    {notificationCounts.warning}
+                  </span>
+                </Tooltip>
+                <Tooltip content="Error notifications" position="bottom">
+                  <span className="flex items-center gap-1 cursor-help">
+                    <XCircle className="h-3 w-3 text-red-500" />
+                    {notificationCounts.error}
+                  </span>
+                </Tooltip>
+                <Tooltip content="Info notifications" position="bottom">
+                  <span className="flex items-center gap-1 cursor-help">
+                    <Info className="h-3 w-3 text-blue-500" />
+                    {notificationCounts.info}
+                  </span>
+                </Tooltip>
               </div>
             )}
           </div>
           <div className="flex items-center gap-2">
             {activeTab === 'logs' ? (
               <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setAutoRefresh(!autoRefresh)}
-                  className={cn(
-                    'flex items-center gap-2',
-                    autoRefresh &&
-                      'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800'
-                  )}
-                >
-                  <RefreshCw className={cn('h-4 w-4', autoRefresh && 'animate-spin')} />
-                  Auto-refresh
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={refreshLogs}
-                  disabled={isRefreshing}
-                  className="flex items-center gap-2"
-                >
-                  <RefreshCw className={cn('h-4 w-4', isRefreshing && 'animate-spin')} />
-                  Refresh
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleExportLogs}
-                  className="flex items-center gap-2"
-                >
-                  <Download className="h-4 w-4" />
-                  Export
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowClearConfirm(true)}
-                  className="flex items-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/20"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Clear
-                </Button>
+                <Tooltip content="Automatically refresh logs every 2 seconds" position="bottom">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setAutoRefresh(!autoRefresh)}
+                    className={cn(
+                      'flex items-center gap-2',
+                      autoRefresh &&
+                        'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800'
+                    )}
+                  >
+                    <RefreshCw className={cn('h-4 w-4', autoRefresh && 'animate-spin')} />
+                    Auto-refresh
+                  </Button>
+                </Tooltip>
+                <Tooltip content="Manually refresh logs now" position="bottom">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={refreshLogs}
+                    disabled={isRefreshing}
+                    className="flex items-center gap-2"
+                  >
+                    <RefreshCw className={cn('h-4 w-4', isRefreshing && 'animate-spin')} />
+                    Refresh
+                  </Button>
+                </Tooltip>
+                <Tooltip content="Export logs to a text file" position="bottom">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleExportLogs}
+                    className="flex items-center gap-2"
+                  >
+                    <Download className="h-4 w-4" />
+                    Export
+                  </Button>
+                </Tooltip>
+                <Tooltip content="Delete all logs permanently" position="bottom">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowClearConfirm(true)}
+                    className="flex items-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/20"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Clear
+                  </Button>
+                </Tooltip>
               </>
             ) : (
               <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleExportNotifications}
-                  className="flex items-center gap-2"
-                >
-                  <Download className="h-4 w-4" />
-                  Export
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowClearConfirm(true)}
-                  className="flex items-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/20"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Clear
-                </Button>
+                <Tooltip content="Export notifications to a text file" position="bottom">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleExportNotifications}
+                    className="flex items-center gap-2"
+                  >
+                    <Download className="h-4 w-4" />
+                    Export
+                  </Button>
+                </Tooltip>
+                <Tooltip content="Delete all notifications permanently" position="bottom">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowClearConfirm(true)}
+                    className="flex items-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/20"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Clear
+                  </Button>
+                </Tooltip>
               </>
             )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onClose}
-              className="flex items-center gap-2 bg-red-50 text-red-700 border-red-200 hover:bg-red-100 hover:text-red-800 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800 dark:hover:bg-red-900/30"
-            >
-              <X className="h-4 w-4" />
-              Close
-            </Button>
+            <Tooltip content="Close log viewer (Esc)" position="bottom">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onClose}
+                className="flex items-center gap-2 bg-red-50 text-red-700 border-red-200 hover:bg-red-100 hover:text-red-800 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800 dark:hover:bg-red-900/30"
+              >
+                <X className="h-4 w-4" />
+                Close
+              </Button>
+            </Tooltip>
           </div>
         </div>
 
         {/* Tabs */}
         <div className="flex border-b border-gray-200 dark:border-gray-700">
-          <button
-            onClick={() => setActiveTab('logs')}
-            className={cn(
-              'flex-1 px-6 py-3 text-sm font-medium transition-colors border-b-2',
-              activeTab === 'logs'
-                ? 'border-blue-500 text-blue-600 dark:border-blue-400 dark:text-blue-400'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
-            )}
+          <Tooltip
+            content="View detailed application logs from the main process"
+            position="bottom"
+            disabled={activeTab === 'logs'}
           >
-            <div className="flex items-center justify-center gap-2">
-              <FileText className="h-4 w-4" />
-              Logs
-            </div>
-          </button>
-          <button
-            onClick={() => setActiveTab('notifications')}
-            className={cn(
-              'flex-1 px-6 py-3 text-sm font-medium transition-colors border-b-2',
-              activeTab === 'notifications'
-                ? 'border-blue-500 text-blue-600 dark:border-blue-400 dark:text-blue-400'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
-            )}
+            <button
+              onClick={() => setActiveTab('logs')}
+              className={cn(
+                'flex-1 px-6 py-3 text-sm font-medium transition-colors border-b-2',
+                activeTab === 'logs'
+                  ? 'border-blue-500 text-blue-600 dark:border-blue-400 dark:text-blue-400'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+              )}
+            >
+              <div className="flex items-center justify-center gap-2">
+                <FileText className="h-4 w-4" />
+                Logs
+              </div>
+            </button>
+          </Tooltip>
+          <Tooltip
+            content="View history of toast notifications shown in the app"
+            position="bottom"
+            disabled={activeTab === 'notifications'}
           >
-            <div className="flex items-center justify-center gap-2">
-              <Bell className="h-4 w-4" />
-              Notifications
-            </div>
-          </button>
+            <button
+              onClick={() => setActiveTab('notifications')}
+              className={cn(
+                'flex-1 px-6 py-3 text-sm font-medium transition-colors border-b-2',
+                activeTab === 'notifications'
+                  ? 'border-blue-500 text-blue-600 dark:border-blue-400 dark:text-blue-400'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+              )}
+            >
+              <div className="flex items-center justify-center gap-2">
+                <Bell className="h-4 w-4" />
+                Notifications
+              </div>
+            </button>
+          </Tooltip>
         </div>
 
         {/* Filters */}

@@ -4,21 +4,28 @@
 
 import { Play, Loader2, Rocket, AlertCircle } from 'lucide-react'
 import { useState } from 'react'
-import { useDriveStore, useTransferStore, useUIStore, useStore } from '../store'
+import { useDriveStore, useTransferStore, useUIStore, useStore, useConfigStore } from '../store'
 import { useIpc } from '../hooks/useIpc'
 import { useUiDensity } from '../hooks/useUiDensity'
 import { Button } from './ui/Button'
 import { Card, CardContent } from './ui/Card'
+import { FileConflictDialog } from './FileConflictDialog'
 import { cn } from '../lib/utils'
+import type { FileConflictInfo, ConflictResolutionChoice, TransferValidateResponse } from '../../../shared/types'
 
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export function TransferActions() {
   const { selectedDrive, scannedFiles } = useDriveStore()
   const { isTransferring, startTransfer } = useTransferStore()
   const { selectedDestination } = useUIStore()
+  const { config } = useConfigStore()
   const { isCondensed } = useUiDensity()
   const ipc = useIpc()
   const [isStarting, setIsStarting] = useState(false)
+  const [isValidating, setIsValidating] = useState(false)
+  const [showConflictDialog, setShowConflictDialog] = useState(false)
+  const [conflicts, setConflicts] = useState<FileConflictInfo[]>([])
+  const [pendingResolutions, setPendingResolutions] = useState<Record<string, ConflictResolutionChoice>>({})
 
   const canTransfer =
     selectedDrive && scannedFiles.length > 0 && selectedDestination && !isTransferring
@@ -26,12 +33,78 @@ export function TransferActions() {
   const handleStartTransfer = async (): Promise<void> => {
     if (!canTransfer || !selectedDrive || !selectedDestination) return
 
-    // Start transfer directly - no additional confirmation needed
-    // The user is already confirming by clicking "Start Transfer"
-    await performTransfer()
+    // First, validate the transfer
+    await validateAndTransfer()
   }
 
-  const performTransfer = async (): Promise<void> => {
+  const validateAndTransfer = async (): Promise<void> => {
+    if (!selectedDrive || !selectedDestination) return
+
+    const store = useStore.getState()
+
+    try {
+      setIsValidating(true)
+
+      // Extract file paths from ScannedFile objects
+      const filePaths = scannedFiles.map((file) => file.path)
+
+      // Run pre-transfer validation
+      const validationResult: TransferValidateResponse = await ipc.validateTransfer({
+        driveInfo: selectedDrive,
+        sourceRoot: selectedDrive.mountpoints[0] || '',
+        destinationRoot: selectedDestination,
+        files: filePaths
+      })
+
+      console.log('Validation result:', validationResult)
+
+      // Check for blocking issues (same directory, nested directories, insufficient space)
+      if (!validationResult.canProceed) {
+        store.addToast({
+          type: 'error',
+          message: validationResult.error || 'Transfer validation failed',
+          duration: 5000
+        })
+        return
+      }
+
+      // Check for file conflicts
+      if (validationResult.conflicts.length > 0 && validationResult.requiresConfirmation) {
+        // Show conflict resolution dialog
+        setConflicts(validationResult.conflicts)
+        setShowConflictDialog(true)
+        return
+      }
+
+      // No conflicts or auto-resolution is configured - proceed with transfer
+      await performTransfer()
+    } catch (error) {
+      console.error('Validation failed:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Validation failed'
+      store.addToast({
+        type: 'error',
+        message: `Validation failed: ${errorMessage}`,
+        duration: 5000
+      })
+    } finally {
+      setIsValidating(false)
+    }
+  }
+
+  const handleConflictResolution = async (resolutions: Record<string, ConflictResolutionChoice>): Promise<void> => {
+    setShowConflictDialog(false)
+    setPendingResolutions(resolutions)
+
+    // Proceed with transfer, passing conflict resolutions
+    await performTransfer(resolutions)
+  }
+
+  const handleConflictCancel = (): void => {
+    setShowConflictDialog(false)
+    setConflicts([])
+  }
+
+  const performTransfer = async (conflictResolutions?: Record<string, ConflictResolutionChoice>): Promise<void> => {
     if (!selectedDrive || !selectedDestination) return
 
     try {
@@ -39,7 +112,22 @@ export function TransferActions() {
 
       // Create transfer request
       // Extract file paths from ScannedFile objects
-      const filePaths = scannedFiles.map((file) => file.path)
+      let filePaths = scannedFiles.map((file) => file.path)
+      
+      // If we have conflict resolutions, filter out skipped files
+      if (conflictResolutions) {
+        filePaths = filePaths.filter((filePath) => {
+          const resolution = conflictResolutions[filePath]
+          // Only include files that are not being skipped
+          return resolution !== 'skip'
+        })
+        
+        console.log('Filtered files after conflict resolution:', {
+          original: scannedFiles.length,
+          afterFilter: filePaths.length,
+          skipped: scannedFiles.length - filePaths.length
+        })
+      }
       
       // Debug: Check for empty file paths
       const emptyPaths = filePaths.filter((path, index) => {
@@ -59,14 +147,16 @@ export function TransferActions() {
         driveInfo: selectedDrive,
         sourceRoot: selectedDrive.mountpoints[0] || '',
         destinationRoot: selectedDestination,
-        files: filePaths
+        files: filePaths,
+        conflictResolutions: conflictResolutions
       }
 
       console.log('Starting transfer with request:', {
         ...request,
         fileCount: request.files.length,
         firstFile: request.files[0],
-        lastFile: request.files[request.files.length - 1]
+        lastFile: request.files[request.files.length - 1],
+        hasConflictResolutions: !!conflictResolutions
       })
 
       // Start the transfer via IPC
@@ -111,50 +201,56 @@ export function TransferActions() {
   }
 
   return (
-    <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-white/80 to-gray-50/80 shadow-xl backdrop-blur-sm dark:from-gray-900/80 dark:to-gray-800/80">
-      {canTransfer && (
-        <div className="absolute inset-0 bg-gradient-to-r from-green-400/10 via-blue-400/10 to-purple-400/10 animate-pulse" />
-      )}
-      <CardContent className={cn('relative', isCondensed ? 'p-3' : 'p-8')}>
-        <div className={isCondensed ? 'space-y-2' : 'space-y-4'}>
-          {/* Main Transfer Button */}
-          <Button
-            onClick={handleStartTransfer}
-            disabled={!canTransfer || isStarting}
-            className={cn(
-              'group relative w-full overflow-hidden font-bold shadow-2xl transition-all',
-              isCondensed ? 'h-10 text-sm' : 'h-16 text-lg',
-              canTransfer
-                ? 'bg-gradient-to-r from-brand-500 via-brand-400 to-orange-500 text-white hover:from-brand-600 hover:via-brand-500 hover:to-orange-600 hover:shadow-brand-500/50'
-                : 'bg-gray-300 text-gray-500 dark:bg-gray-700 dark:text-gray-500'
-            )}
-            size={isCondensed ? 'sm' : 'lg'}
-          >
-            {/* Animated background on hover */}
-            {canTransfer && (
-              <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-1000 group-hover:translate-x-full" />
-            )}
-
-            <div className={cn('relative flex items-center justify-center', isCondensed ? 'gap-2' : 'gap-3')}>
-              {isStarting ? (
-                <>
-                  <Loader2 className={cn('animate-spin', isCondensed ? 'h-4 w-4' : 'h-6 w-6')} />
-                  <span>{isCondensed ? 'Starting...' : 'Initializing Transfer...'}</span>
-                </>
-              ) : canTransfer ? (
-                <>
-                  <Rocket className={isCondensed ? 'h-4 w-4' : 'h-6 w-6'} />
-                  <span>Start Transfer</span>
-                  {!isCondensed && <Play className="h-6 w-6" />}
-                </>
-              ) : (
-                <>
-                  <AlertCircle className={isCondensed ? 'h-4 w-4' : 'h-5 w-5'} />
-                  <span>{isCondensed ? 'Setup Required' : 'Complete Setup to Start'}</span>
-                </>
+    <>
+      <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-white/80 to-gray-50/80 shadow-xl backdrop-blur-sm dark:from-gray-900/80 dark:to-gray-800/80">
+        {canTransfer && (
+          <div className="absolute inset-0 bg-gradient-to-r from-green-400/10 via-blue-400/10 to-purple-400/10 animate-pulse" />
+        )}
+        <CardContent className={cn('relative', isCondensed ? 'p-3' : 'p-8')}>
+          <div className={isCondensed ? 'space-y-2' : 'space-y-4'}>
+            {/* Main Transfer Button */}
+            <Button
+              onClick={handleStartTransfer}
+              disabled={!canTransfer || isStarting || isValidating}
+              className={cn(
+                'group relative w-full overflow-hidden font-bold shadow-2xl transition-all',
+                isCondensed ? 'h-10 text-sm' : 'h-16 text-lg',
+                canTransfer
+                  ? 'bg-gradient-to-r from-brand-500 via-brand-400 to-orange-500 text-white hover:from-brand-600 hover:via-brand-500 hover:to-orange-600 hover:shadow-brand-500/50'
+                  : 'bg-gray-300 text-gray-500 dark:bg-gray-700 dark:text-gray-500'
               )}
-            </div>
-          </Button>
+              size={isCondensed ? 'sm' : 'lg'}
+            >
+              {/* Animated background on hover */}
+              {canTransfer && (
+                <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-1000 group-hover:translate-x-full" />
+              )}
+
+              <div className={cn('relative flex items-center justify-center', isCondensed ? 'gap-2' : 'gap-3')}>
+                {isValidating ? (
+                  <>
+                    <Loader2 className={cn('animate-spin', isCondensed ? 'h-4 w-4' : 'h-6 w-6')} />
+                    <span>{isCondensed ? 'Validating...' : 'Checking for conflicts...'}</span>
+                  </>
+                ) : isStarting ? (
+                  <>
+                    <Loader2 className={cn('animate-spin', isCondensed ? 'h-4 w-4' : 'h-6 w-6')} />
+                    <span>{isCondensed ? 'Starting...' : 'Initializing Transfer...'}</span>
+                  </>
+                ) : canTransfer ? (
+                  <>
+                    <Rocket className={isCondensed ? 'h-4 w-4' : 'h-6 w-6'} />
+                    <span>Start Transfer</span>
+                    {!isCondensed && <Play className="h-6 w-6" />}
+                  </>
+                ) : (
+                  <>
+                    <AlertCircle className={isCondensed ? 'h-4 w-4' : 'h-5 w-5'} />
+                    <span>{isCondensed ? 'Setup Required' : 'Complete Setup to Start'}</span>
+                  </>
+                )}
+              </div>
+            </Button>
 
           {/* Status Message */}
           <div
@@ -225,5 +321,16 @@ export function TransferActions() {
         </div>
       </CardContent>
     </Card>
+
+      {/* File Conflict Dialog */}
+      <FileConflictDialog
+        isOpen={showConflictDialog}
+        onConfirm={handleConflictResolution}
+        onCancel={handleConflictCancel}
+        conflicts={conflicts}
+        driveName={selectedDrive?.displayName || 'Unknown Drive'}
+        destination={selectedDestination || ''}
+      />
+    </>
   )
 }

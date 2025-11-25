@@ -12,6 +12,8 @@ export type UnitSystem = 'binary' | 'decimal'
 
 export type UiDensity = 'comfortable' | 'condensed'
 
+export type ConflictResolution = 'skip' | 'rename' | 'overwrite' | 'ask'
+
 export interface AppConfig {
   // Config version for migration purposes (semantic versioning)
   // Set automatically from package.json by the config manager
@@ -66,6 +68,10 @@ export interface AppConfig {
   logRetentionDays: number
   unitSystem: UnitSystem // 'binary' for GiB/KiB/MiB (1024-based), 'decimal' for GB/KB/MB (1000-based)
   uiDensity: UiDensity // 'comfortable' for spacious layout, 'condensed' for compact layout (better for small screens)
+  showTooltips: boolean // Enable or disable tooltip hints throughout the app
+
+  // Conflict resolution settings
+  conflictResolution: ConflictResolution // 'skip' to skip conflicts, 'rename' to auto-rename, 'overwrite' to replace, 'ask' to prompt user
 
   // Internal properties (not user-configurable)
   _newerConfigWarning?: {
@@ -158,5 +164,9 @@ export const DEFAULT_CONFIG: AppConfig = {
   autoCleanupLogs: false,
   logRetentionDays: 30,
   unitSystem: 'decimal', // Default to decimal units (GB/KB/MB) to match standard storage displays
-  uiDensity: 'comfortable' // Default to comfortable layout
+  uiDensity: 'comfortable', // Default to comfortable layout
+  showTooltips: true, // Show tooltips by default
+
+  // Conflict resolution settings
+  conflictResolution: 'ask' // Default to asking user for conflict resolution
 }

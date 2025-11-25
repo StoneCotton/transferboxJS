@@ -7,6 +7,7 @@ import { useDriveStore, useConfigStore, useStore, useTransferStore } from '../st
 import { useIpc } from '../hooks/useIpc'
 import { useUiDensity } from '../hooks/useUiDensity'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/Card'
+import { Tooltip } from './ui/Tooltip'
 import { formatBytes, cn } from '../lib/utils'
 import type { DriveInfo } from '../../../shared/types'
 import { playErrorSound } from '../utils/soundManager'
@@ -97,29 +98,43 @@ export function DriveSelector() {
 
     return (
       <Card className="h-full border-2 border-dashed border-gray-300 bg-white/50 backdrop-blur-sm dark:border-gray-700 dark:bg-gray-900/50">
-        <CardContent className={cn(
-          'flex flex-col items-center justify-center',
-          isCondensed ? 'py-8' : 'py-16'
-        )}>
+        <CardContent
+          className={cn(
+            'flex flex-col items-center justify-center',
+            isCondensed ? 'py-8' : 'py-16'
+          )}
+        >
           <div className="relative">
             <div className="absolute inset-0 animate-ping rounded-full bg-brand-400 opacity-20" />
-            <div className={cn(
-              'relative flex items-center justify-center rounded-full bg-gradient-to-br from-brand-100 to-orange-100 dark:from-brand-900/30 dark:to-orange-900/30',
-              isCondensed ? 'h-14 w-14' : 'h-20 w-20'
-            )}>
-              <HardDrive className={isCondensed ? 'h-7 w-7 text-brand-600 dark:text-brand-400' : 'h-10 w-10 text-brand-600 dark:text-brand-400'} />
+            <div
+              className={cn(
+                'relative flex items-center justify-center rounded-full bg-gradient-to-br from-brand-100 to-orange-100 dark:from-brand-900/30 dark:to-orange-900/30',
+                isCondensed ? 'h-14 w-14' : 'h-20 w-20'
+              )}
+            >
+              <HardDrive
+                className={
+                  isCondensed
+                    ? 'h-7 w-7 text-brand-600 dark:text-brand-400'
+                    : 'h-10 w-10 text-brand-600 dark:text-brand-400'
+                }
+              />
             </div>
           </div>
-          <p className={cn(
-            'font-bold text-gray-900 dark:text-white',
-            isCondensed ? 'mt-4 text-base' : 'mt-6 text-xl'
-          )}>
+          <p
+            className={cn(
+              'font-bold text-gray-900 dark:text-white',
+              isCondensed ? 'mt-4 text-base' : 'mt-6 text-xl'
+            )}
+          >
             {isAutoMode ? 'Waiting for New Drive' : 'No Drives Detected'}
           </p>
-          <p className={cn(
-            'text-center text-gray-600 dark:text-gray-400',
-            isCondensed ? 'mt-1 text-xs' : 'mt-2 text-sm'
-          )}>
+          <p
+            className={cn(
+              'text-center text-gray-600 dark:text-gray-400',
+              isCondensed ? 'mt-1 text-xs' : 'mt-2 text-sm'
+            )}
+          >
             {isAutoMode
               ? 'Insert a new SD card or USB drive to begin auto-transfer'
               : 'Insert an SD card or USB drive to begin'}
@@ -143,10 +158,12 @@ export function DriveSelector() {
     <Card className="h-full border-0 bg-white/70 shadow-xl shadow-brand-500/10 backdrop-blur-sm dark:bg-gray-900/70">
       <CardHeader className={isCondensed ? 'p-3' : undefined}>
         <div className="flex items-center gap-2">
-          <div className={cn(
-            'flex items-center justify-center rounded-lg bg-gradient-to-br from-brand-400 to-brand-600 text-white shadow-lg shadow-brand-500/30',
-            isCondensed ? 'h-6 w-6' : 'h-8 w-8'
-          )}>
+          <div
+            className={cn(
+              'flex items-center justify-center rounded-lg bg-gradient-to-br from-brand-400 to-brand-600 text-white shadow-lg shadow-brand-500/30',
+              isCondensed ? 'h-6 w-6' : 'h-8 w-8'
+            )}
+          >
             <HardDrive className={isCondensed ? 'h-3 w-3' : 'h-4 w-4'} />
           </div>
           <div>
@@ -197,26 +214,44 @@ export function DriveSelector() {
               >
                 {/* Status indicators */}
                 {isUnmounted ? (
-                  <div className={cn(
-                    'absolute flex items-center justify-center rounded-full bg-red-500 text-white shadow-lg',
-                    isCondensed ? 'right-2 top-2 h-5 w-5' : 'right-3 top-3 h-7 w-7'
-                  )}>
-                    <PowerOff className={isCondensed ? 'h-3 w-3' : 'h-4 w-4'} strokeWidth={2.5} />
-                  </div>
+                  <Tooltip
+                    content="Drive disconnected. Please reconnect to use this drive."
+                    position="left"
+                  >
+                    <div
+                      className={cn(
+                        'absolute flex items-center justify-center rounded-full bg-red-500 text-white shadow-lg',
+                        isCondensed ? 'right-2 top-2 h-5 w-5' : 'right-3 top-3 h-7 w-7'
+                      )}
+                    >
+                      <PowerOff className={isCondensed ? 'h-3 w-3' : 'h-4 w-4'} strokeWidth={2.5} />
+                    </div>
+                  </Tooltip>
                 ) : isSelected ? (
-                  <div className={cn(
-                    'absolute flex items-center justify-center rounded-full bg-brand-500 text-white shadow-lg',
-                    isCondensed ? 'right-2 top-2 h-4 w-4' : 'right-3 top-3 h-6 w-6'
-                  )}>
-                    <Check className={isCondensed ? 'h-3 w-3' : 'h-4 w-4'} strokeWidth={3} />
-                  </div>
+                  <Tooltip content="Currently selected drive for transfer" position="left">
+                    <div
+                      className={cn(
+                        'absolute flex items-center justify-center rounded-full bg-brand-500 text-white shadow-lg',
+                        isCondensed ? 'right-2 top-2 h-4 w-4' : 'right-3 top-3 h-6 w-6'
+                      )}
+                    >
+                      <Check className={isCondensed ? 'h-3 w-3' : 'h-4 w-4'} strokeWidth={3} />
+                    </div>
+                  </Tooltip>
                 ) : isExisting && isAutoMode ? (
-                  <div className={cn(
-                    'absolute flex items-center justify-center rounded-full bg-amber-500 text-white shadow-lg',
-                    isCondensed ? 'right-2 top-2 h-4 w-4' : 'right-3 top-3 h-6 w-6'
-                  )}>
-                    <Clock className={isCondensed ? 'h-3 w-3' : 'h-4 w-4'} strokeWidth={3} />
-                  </div>
+                  <Tooltip
+                    content="Already connected drive. Click to scan manually."
+                    position="left"
+                  >
+                    <div
+                      className={cn(
+                        'absolute flex items-center justify-center rounded-full bg-amber-500 text-white shadow-lg',
+                        isCondensed ? 'right-2 top-2 h-4 w-4' : 'right-3 top-3 h-6 w-6'
+                      )}
+                    >
+                      <Clock className={isCondensed ? 'h-3 w-3' : 'h-4 w-4'} strokeWidth={3} />
+                    </div>
+                  </Tooltip>
                 ) : null}
 
                 <div className={cn('flex items-center', isCondensed ? 'gap-2' : 'gap-4')}>
@@ -233,7 +268,9 @@ export function DriveSelector() {
                     )}
                   >
                     {isScanningThis ? (
-                      <Loader2 className={isCondensed ? 'h-5 w-5 animate-spin' : 'h-7 w-7 animate-spin'} />
+                      <Loader2
+                        className={isCondensed ? 'h-5 w-5 animate-spin' : 'h-7 w-7 animate-spin'}
+                      />
                     ) : drive.busType === 'USB' ? (
                       <Usb className={isCondensed ? 'h-5 w-5' : 'h-7 w-7'} />
                     ) : (
@@ -298,10 +335,12 @@ export function DriveSelector() {
                       </div>
                     ) : isScanningThis ? (
                       <div className={cn('flex items-center gap-2', isCondensed ? 'mt-1' : 'mt-2')}>
-                        <div className={cn(
-                          'flex-1 overflow-hidden rounded-full bg-brand-200 dark:bg-brand-900',
-                          isCondensed ? 'h-1' : 'h-1.5'
-                        )}>
+                        <div
+                          className={cn(
+                            'flex-1 overflow-hidden rounded-full bg-brand-200 dark:bg-brand-900',
+                            isCondensed ? 'h-1' : 'h-1.5'
+                          )}
+                        >
                           <div className="h-full w-1/3 animate-pulse rounded-full bg-gradient-to-r from-brand-500 to-orange-500" />
                         </div>
                         <span className="text-xs font-semibold text-brand-600 dark:text-brand-400">

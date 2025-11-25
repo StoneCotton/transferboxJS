@@ -165,11 +165,65 @@ export function useAppInit(): null {
               console.error('[Fully-autonomous] All scanned files:', result.files)
             }
             
-            const request = {
+            // Run pre-transfer validation
+            console.log('[Fully-autonomous] Validating transfer...')
+            const validation = await ipc.validateTransfer({
               driveInfo: drive,
               sourceRoot: drive.mountpoints[0] || '',
               destinationRoot: config.defaultDestination,
               files: filePaths
+            })
+
+            // Check for blocking issues
+            if (!validation.canProceed) {
+              console.error('[Fully-autonomous] Validation failed:', validation.error)
+              store.addToast({
+                type: 'error',
+                message: validation.error || 'Transfer validation failed',
+                duration: 5000
+              })
+              playErrorSound()
+              return
+            }
+
+            // In fully-autonomous mode, handle conflicts based on config
+            let finalFilePaths = filePaths
+            if (validation.conflicts.length > 0) {
+              console.log(`[Fully-autonomous] ${validation.conflicts.length} file conflicts detected`)
+              
+              // Apply automatic conflict resolution based on config
+              if (config.conflictResolution === 'skip') {
+                // Skip all conflicting files
+                const conflictPaths = new Set(validation.conflicts.map((c) => c.sourcePath))
+                finalFilePaths = filePaths.filter((p) => !conflictPaths.has(p))
+                console.log(`[Fully-autonomous] Skipping ${validation.conflicts.length} conflicting files`)
+              } else if (config.conflictResolution === 'ask') {
+                // In autonomous mode with 'ask', show warning and skip conflicts
+                store.addToast({
+                  type: 'warning',
+                  message: `${validation.conflicts.length} file conflicts - skipping in autonomous mode`,
+                  duration: 4000
+                })
+                const conflictPaths = new Set(validation.conflicts.map((c) => c.sourcePath))
+                finalFilePaths = filePaths.filter((p) => !conflictPaths.has(p))
+              }
+              // For 'rename' and 'overwrite', the transfer engine will handle it
+            }
+
+            if (finalFilePaths.length === 0) {
+              store.addToast({
+                type: 'warning',
+                message: 'No files to transfer after conflict resolution',
+                duration: 4000
+              })
+              return
+            }
+            
+            const request = {
+              driveInfo: drive,
+              sourceRoot: drive.mountpoints[0] || '',
+              destinationRoot: config.defaultDestination,
+              files: finalFilePaths
             }
             
             console.log('[Fully-autonomous] Starting transfer with request:', {
@@ -183,7 +237,7 @@ export function useAppInit(): null {
             // Show toast notification (logs are already created in main process)
             store.addToast({
               type: 'info',
-              message: `Transfer started: ${result.files.length} file${result.files.length === 1 ? '' : 's'}`,
+              message: `Transfer started: ${finalFilePaths.length} file${finalFilePaths.length === 1 ? '' : 's'}`,
               duration: 3000
             })
             store.startTransfer({
@@ -195,7 +249,7 @@ export function useAppInit(): null {
               startTime: Date.now(),
               endTime: null,
               status: 'transferring',
-              fileCount: result.files.length,
+              fileCount: finalFilePaths.length,
               totalBytes: 0,
               files: []
             })

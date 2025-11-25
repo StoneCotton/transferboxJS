@@ -7,6 +7,8 @@ import { ipcMain, dialog } from 'electron'
 import { stat } from 'fs/promises'
 import { IPC_CHANNELS } from '../shared/types'
 import { validatePath, hasEnoughSpace, checkDiskSpace } from './pathValidator'
+import { validateTransfer, type TransferValidationOptions } from './transferValidator'
+import { FilenameUtils } from './utils/filenameUtils'
 import {
   validateTransferStartRequest,
   validatePathValidationRequest,
@@ -233,6 +235,86 @@ export function setupIpcHandlers(): void {
   })
 
   // Transfer operations handlers
+
+  // Pre-transfer validation handler
+  ipcMain.handle(IPC_CHANNELS.TRANSFER_VALIDATE, async (_, request: unknown) => {
+    const logger = getLogger()
+    
+    // Validate request structure
+    if (!request || typeof request !== 'object') {
+      throw new Error('Invalid validation request')
+    }
+    
+    const reqObj = request as Record<string, unknown>
+    if (!reqObj.sourceRoot || typeof reqObj.sourceRoot !== 'string') {
+      throw new Error('sourceRoot is required and must be a string')
+    }
+    if (!reqObj.destinationRoot || typeof reqObj.destinationRoot !== 'string') {
+      throw new Error('destinationRoot is required and must be a string')
+    }
+    if (!Array.isArray(reqObj.files)) {
+      throw new Error('files must be an array')
+    }
+
+    logger.debug('[IPC] Transfer validation requested', {
+      sourceRoot: reqObj.sourceRoot,
+      destinationRoot: reqObj.destinationRoot,
+      fileCount: reqObj.files.length
+    })
+
+    // Initialize path processor for destination path calculation
+    const config = getConfig()
+    const processor = createPathProcessor(config)
+
+    // Get drive info for device name
+    const driveInfo = reqObj.driveInfo as Record<string, unknown> | undefined
+    const deviceName = driveInfo?.displayName as string || 'Unknown Device'
+
+    // Process file paths to get source -> dest mapping
+    const processedFiles = await Promise.all(
+      (reqObj.files as string[]).map(async (sourcePath) => {
+        try {
+          const processed = await processor.processFilePath(
+            sourcePath,
+            reqObj.destinationRoot as string,
+            deviceName
+          )
+          return {
+            source: sourcePath,
+            dest: processed.destinationPath
+          }
+        } catch {
+          // Fallback to simple filename if processing fails
+          const fileName = sourcePath.split('/').pop() || 'file'
+          return {
+            source: sourcePath,
+            dest: `${reqObj.destinationRoot}/${fileName}`
+          }
+        }
+      })
+    )
+
+    // Run validation
+    const validationOptions: TransferValidationOptions = {
+      sourceRoot: reqObj.sourceRoot as string,
+      destinationRoot: reqObj.destinationRoot as string,
+      files: processedFiles,
+      conflictResolution: config.conflictResolution
+    }
+
+    const result = await validateTransfer(validationOptions)
+
+    logger.info('[IPC] Transfer validation complete', {
+      isValid: result.isValid,
+      canProceed: result.canProceed,
+      requiresConfirmation: result.requiresConfirmation,
+      warningCount: result.warnings.length,
+      conflictCount: result.conflicts.length
+    })
+
+    return result
+  })
+
   ipcMain.handle(IPC_CHANNELS.TRANSFER_START, async (event, request: unknown) => {
     const logger = getLogger()
     
@@ -285,8 +367,15 @@ export function setupIpcHandlers(): void {
       pathProcessor!.shouldTransferFile(file)
     )
 
-    // Process file paths using configuration
-    const transferFiles = await Promise.all(
+    // Get conflict resolutions from request (if provided)
+    const conflictResolutions = (validatedRequest as Record<string, unknown>).conflictResolutions as 
+      Record<string, 'skip' | 'rename' | 'overwrite'> | undefined
+
+    // Initialize FilenameUtils for conflict resolution
+    const filenameUtils = new FilenameUtils()
+
+    // Process file paths using configuration and apply conflict resolution
+    const transferFilesRaw = await Promise.all(
       filteredFiles.map(async (sourcePath) => {
         try {
           getLogger().debug('[IPC] Processing source path', { sourcePath })
@@ -295,10 +384,47 @@ export function setupIpcHandlers(): void {
             validatedRequest.destinationRoot,
             validatedRequest.driveInfo.displayName
           )
+          
+          let destPath = processedPath.destinationPath
+          let shouldSkip = false
+
+          // Apply conflict resolution if specified for this file
+          const resolution = conflictResolutions?.[sourcePath]
+          if (resolution) {
+            if (resolution === 'skip') {
+              shouldSkip = true
+              getLogger().debug('[IPC] Skipping file due to conflict resolution', { sourcePath })
+            } else if (resolution === 'rename') {
+              // Use FilenameUtils to generate a unique name
+              const resolved = await filenameUtils.resolveConflict(destPath, { strategy: 'rename' })
+              destPath = resolved.path
+              getLogger().debug('[IPC] Renamed file for conflict resolution', { 
+                sourcePath, 
+                originalDest: processedPath.destinationPath,
+                newDest: destPath 
+              })
+            }
+            // 'overwrite' doesn't change the path, just allows overwriting
+          } else if (config.conflictResolution !== 'ask') {
+            // Apply default config resolution for files without explicit resolution
+            if (config.conflictResolution === 'skip') {
+              const resolved = await filenameUtils.resolveConflict(destPath, { strategy: 'skip' })
+              if (resolved.action === 'skip') {
+                shouldSkip = true
+                getLogger().debug('[IPC] Skipping file due to config conflict resolution', { sourcePath })
+              }
+            } else if (config.conflictResolution === 'rename') {
+              const resolved = await filenameUtils.resolveConflict(destPath, { strategy: 'rename' })
+              destPath = resolved.path
+            }
+            // 'overwrite' doesn't change the path
+          }
+
           getLogger().debug('[IPC] Processed path result', {
-            destinationPath: processedPath.destinationPath
+            destinationPath: destPath,
+            skipped: shouldSkip
           })
-          return { source: sourcePath, dest: processedPath.destinationPath }
+          return { source: sourcePath, dest: destPath, skip: shouldSkip }
         } catch (error) {
           getLogger().warn('Failed to process path', {
             sourcePath,
@@ -308,10 +434,15 @@ export function setupIpcHandlers(): void {
           const fileName = sourcePath.split('/').pop() || 'file'
           const destPath = `${validatedRequest.destinationRoot}/${fileName}`
           getLogger().info('[IPC] Using fallback destination path', { destPath })
-          return { source: sourcePath, dest: destPath }
+          return { source: sourcePath, dest: destPath, skip: false }
         }
       })
     )
+
+    // Filter out skipped files
+    const transferFiles = transferFilesRaw
+      .filter((f) => !f.skip)
+      .map(({ source, dest }) => ({ source, dest }))
 
     // Get all file sizes upfront for accurate overall progress
     const fileSizes = await Promise.all(

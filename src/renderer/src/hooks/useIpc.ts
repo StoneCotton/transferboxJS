@@ -8,6 +8,8 @@ import type {
   PathValidationRequest,
   PathValidationResponse,
   TransferStartRequest,
+  TransferValidateRequest,
+  TransferValidateResponse,
   AppConfig,
   TransferSession,
   LogEntry,
@@ -32,6 +34,7 @@ export interface IpcApi {
   unmountDrive: (device: string) => Promise<boolean>
 
   // Transfer operations
+  validateTransfer: (request: TransferValidateRequest) => Promise<TransferValidateResponse>
   startTransfer: (request: TransferStartRequest) => Promise<void>
   stopTransfer: () => Promise<void>
 
@@ -122,6 +125,10 @@ export function useIpc(): IpcApi {
   }, [])
 
   // Transfer operations
+  const validateTransfer = useCallback(async (request: TransferValidateRequest) => {
+    return await window.api.validateTransfer(request)
+  }, [])
+
   const startTransfer = useCallback(async (request: TransferStartRequest) => {
     return await window.api.startTransfer(request)
   }, [])
@@ -243,6 +250,7 @@ export function useIpc(): IpcApi {
     listDrives,
     scanDrive,
     unmountDrive,
+    validateTransfer,
     startTransfer,
     stopTransfer,
     getHistory,

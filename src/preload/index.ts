@@ -20,6 +20,7 @@ const api = {
   unmountDrive: (device: string) => ipcRenderer.invoke(IPC_CHANNELS.DRIVE_UNMOUNT, device),
 
   // Transfer operations
+  validateTransfer: (request: any) => ipcRenderer.invoke(IPC_CHANNELS.TRANSFER_VALIDATE, request),
   startTransfer: (request: any) => ipcRenderer.invoke(IPC_CHANNELS.TRANSFER_START, request),
   stopTransfer: () => ipcRenderer.invoke(IPC_CHANNELS.TRANSFER_STOP),
   getTransferStatus: () => ipcRenderer.invoke(IPC_CHANNELS.TRANSFER_STATUS),

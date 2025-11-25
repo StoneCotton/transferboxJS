@@ -66,6 +66,7 @@ export function SettingsModal() {
   const [logRetentionDays, setLogRetentionDays] = useState(config.logRetentionDays)
   const [unitSystem, setUnitSystem] = useState(config.unitSystem)
   const [uiDensity, setUiDensity] = useState<UiDensity>(config.uiDensity || 'comfortable')
+  const [showTooltips, setShowTooltips] = useState(config.showTooltips ?? true)
   // Logging level
   const [logLevel, setLogLevel] = useState<AppConfig['logLevel']>(config.logLevel || 'info')
 
@@ -100,6 +101,7 @@ export function SettingsModal() {
     setLogRetentionDays(config.logRetentionDays)
     setUnitSystem(config.unitSystem)
     setUiDensity(config.uiDensity || 'comfortable')
+    setShowTooltips(config.showTooltips ?? true)
     setLogLevel(config.logLevel || 'info')
   }, [config])
 
@@ -168,6 +170,7 @@ export function SettingsModal() {
         logRetentionDays,
         unitSystem,
         uiDensity,
+        showTooltips,
 
         // Logging
         logLevel
@@ -825,6 +828,23 @@ export function SettingsModal() {
                     </label>
                   </div>
                 </div>
+
+                {/* Tooltips Toggle - Can be changed during transfers since it's UI-only */}
+                <label className="flex items-center gap-3 rounded-lg border-2 border-gray-200 bg-white p-4 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800/50">
+                  <input
+                    type="checkbox"
+                    checked={showTooltips}
+                    onChange={(e) => setShowTooltips(e.target.checked)}
+                    disabled={isUiOnlyDisabled}
+                    className="h-5 w-5 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
+                  />
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-white">Show Tooltips</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      Display helpful hints when hovering over buttons and icons
+                    </p>
+                  </div>
+                </label>
               </div>
             </div>
           </div>
