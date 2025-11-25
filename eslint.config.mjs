@@ -5,18 +5,20 @@ import eslintPluginReact from 'eslint-plugin-react'
 import eslintPluginReactHooks from 'eslint-plugin-react-hooks'
 import eslintPluginReactRefresh from 'eslint-plugin-react-refresh'
 
-export default defineConfig(
+export default defineConfig([
   { ignores: ['**/node_modules', '**/dist', '**/out'] },
+
   tseslint.configs.recommended,
   eslintPluginReact.configs.flat.recommended,
   eslintPluginReact.configs.flat['jsx-runtime'],
+
   {
     settings: {
-      react: {
-        version: 'detect'
-      }
+      react: { version: 'detect' }
     }
   },
+
+  // Base TS/TSX rules
   {
     files: ['**/*.{ts,tsx}'],
     plugins: {
@@ -26,7 +28,6 @@ export default defineConfig(
     rules: {
       ...eslintPluginReactHooks.configs.recommended.rules,
       ...eslintPluginReactRefresh.configs.vite.rules,
-      // Allow unused vars when prefixed with underscore
       '@typescript-eslint/no-unused-vars': [
         'error',
         {
@@ -35,39 +36,44 @@ export default defineConfig(
           caughtErrorsIgnorePattern: '^_'
         }
       ],
-      // Allow explicit any in specific cases (preload bridge, IPC)
       '@typescript-eslint/no-explicit-any': 'warn',
-      // Disable control-regex since we intentionally check for control chars
-      'no-control-regex': 'off',
-      // These escape chars are valid in some contexts
+      'no-control-regex': 'off', // Intentional control char checks
       'no-useless-escape': 'warn'
     }
   },
-  // Preload files need any types for the contextBridge
+
+  // Consolidated: preload, renderer, and tests don't need explicit return types
+  {
+    files: [
+      '**/preload/**/*.ts',
+      '**/renderer/**/*.{ts,tsx}',
+      '**/tests/**/*.{ts,tsx}',
+      '**/*.test.{ts,tsx}',
+      '**/__mocks__/**/*.ts'
+    ],
+    rules: {
+      '@typescript-eslint/explicit-function-return-type': 'off'
+    }
+  },
+
+  // Preload: contextBridge needs any
   {
     files: ['**/preload/**/*.ts'],
     rules: {
-      '@typescript-eslint/no-explicit-any': 'off',
-      '@typescript-eslint/explicit-function-return-type': 'off'
+      '@typescript-eslint/no-explicit-any': 'off'
     }
   },
-  // Renderer files - React components have implicit return types
-  {
-    files: ['**/renderer/**/*.{ts,tsx}'],
-    rules: {
-      '@typescript-eslint/explicit-function-return-type': 'off'
-    }
-  },
-  // Test files have more relaxed rules
+
+  // Test files: relaxed but not completely open
   {
     files: ['**/tests/**/*.{ts,tsx}', '**/*.test.{ts,tsx}', '**/__mocks__/**/*.ts'],
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
-      '@typescript-eslint/explicit-function-return-type': 'off',
-      '@typescript-eslint/no-unused-vars': 'off',
       '@typescript-eslint/no-require-imports': 'off',
       '@typescript-eslint/no-unsafe-function-type': 'off'
+      // Keep no-unused-vars with underscore pattern from base config
     }
   },
+
   eslintConfigPrettier
-)
+])
