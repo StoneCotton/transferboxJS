@@ -176,6 +176,7 @@ export interface UpdateCheckResult {
   releaseUrl: string
   releaseNotes: string | null
   publishedAt: string | null
+  isPrerelease: boolean
 }
 
 // Type definitions for IPC handlers

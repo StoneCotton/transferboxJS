@@ -825,7 +825,7 @@ export function SettingsModal() {
     setIsCheckingUpdate(true)
     setUpdateCheckResult(null)
     try {
-      const result = await ipc.checkForUpdates()
+      const result = await ipc.checkForUpdates(true) // Force refresh to bypass cache
       setUpdateCheckResult({
         hasUpdate: result.hasUpdate,
         latestVersion: result.latestVersion

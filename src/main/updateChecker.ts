@@ -1,6 +1,7 @@
 /**
  * Update Checker Module
  * Fetches latest release from GitHub and compares with current version
+ * Supports both stable releases and pre-releases (beta, alpha, etc.)
  */
 
 import { app } from 'electron'
@@ -10,7 +11,8 @@ import { getLogger } from './logger'
 
 /** GitHub repository for releases */
 const GITHUB_REPO = 'StoneCotton/transferboxJS'
-const GITHUB_API_URL = `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`
+// Use /releases endpoint (not /releases/latest) to include pre-releases
+const GITHUB_API_URL = `https://api.github.com/repos/${GITHUB_REPO}/releases`
 const GITHUB_RELEASES_URL = `https://github.com/${GITHUB_REPO}/releases`
 
 /** Cache duration in milliseconds (1 hour) */
@@ -24,6 +26,7 @@ export interface UpdateCheckResult {
   releaseUrl: string
   releaseNotes: string | null
   publishedAt: string | null
+  isPrerelease: boolean
 }
 
 /** Cached update check result */
@@ -112,6 +115,7 @@ interface GitHubRelease {
 /**
  * Check for updates from GitHub releases
  * Results are cached for 1 hour to avoid excessive API calls
+ * Includes pre-releases (beta, alpha) in the check
  *
  * @param forceRefresh - If true, bypass cache and fetch fresh data
  * @returns Update check result
@@ -134,9 +138,28 @@ export async function checkForUpdates(forceRefresh = false): Promise<UpdateCheck
   logger.info('Checking for updates', { currentVersion })
 
   try {
-    const release = await fetchJson<GitHubRelease>(GITHUB_API_URL)
+    // Fetch all releases (includes pre-releases, unlike /releases/latest)
+    const releases = await fetchJson<GitHubRelease[]>(GITHUB_API_URL)
 
-    const latestVersion = parseVersion(release.tag_name)
+    // Filter out drafts and find the most recent published release
+    const publishedReleases = releases.filter((r) => !r.draft)
+
+    if (publishedReleases.length === 0) {
+      logger.info('No published releases found')
+      return {
+        hasUpdate: false,
+        currentVersion,
+        latestVersion: currentVersion,
+        releaseUrl: GITHUB_RELEASES_URL,
+        releaseNotes: null,
+        publishedAt: null,
+        isPrerelease: false
+      }
+    }
+
+    // The first release in the array is the most recent
+    const latestRelease = publishedReleases[0]
+    const latestVersion = parseVersion(latestRelease.tag_name)
 
     // Compare versions: if latest > current, update is available
     const comparison = VersionUtils.compare(latestVersion, currentVersion)
@@ -146,9 +169,10 @@ export async function checkForUpdates(forceRefresh = false): Promise<UpdateCheck
       hasUpdate,
       currentVersion,
       latestVersion,
-      releaseUrl: release.html_url || GITHUB_RELEASES_URL,
-      releaseNotes: release.body,
-      publishedAt: release.published_at
+      releaseUrl: latestRelease.html_url || GITHUB_RELEASES_URL,
+      releaseNotes: latestRelease.body,
+      publishedAt: latestRelease.published_at,
+      isPrerelease: latestRelease.prerelease
     }
 
     // Cache the result
@@ -160,7 +184,8 @@ export async function checkForUpdates(forceRefresh = false): Promise<UpdateCheck
     logger.info('Update check complete', {
       currentVersion,
       latestVersion,
-      hasUpdate
+      hasUpdate,
+      isPrerelease: latestRelease.prerelease
     })
 
     return result
@@ -176,7 +201,8 @@ export async function checkForUpdates(forceRefresh = false): Promise<UpdateCheck
       latestVersion: currentVersion,
       releaseUrl: GITHUB_RELEASES_URL,
       releaseNotes: null,
-      publishedAt: null
+      publishedAt: null,
+      isPrerelease: false
     }
   }
 }

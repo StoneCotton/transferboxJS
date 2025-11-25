@@ -43,7 +43,8 @@ const api = {
   getAppVersion: () => ipcRenderer.invoke(IPC_CHANNELS.APP_VERSION),
 
   // Update checking
-  checkForUpdates: () => ipcRenderer.invoke(IPC_CHANNELS.UPDATE_CHECK),
+  checkForUpdates: (forceRefresh?: boolean) =>
+    ipcRenderer.invoke(IPC_CHANNELS.UPDATE_CHECK, forceRefresh),
   openReleasesPage: () => ipcRenderer.invoke(IPC_CHANNELS.UPDATE_OPEN_RELEASES),
 
   // Config version management

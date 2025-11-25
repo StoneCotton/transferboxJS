@@ -52,7 +52,7 @@ export interface IpcApi {
   getAppVersion: () => Promise<string>
 
   // Update checking
-  checkForUpdates: () => Promise<UpdateCheckResult>
+  checkForUpdates: (forceRefresh?: boolean) => Promise<UpdateCheckResult>
   openReleasesPage: () => Promise<void>
 
   // Config version management
@@ -171,8 +171,8 @@ export function useIpc(): IpcApi {
   }, [])
 
   // Update checking
-  const checkForUpdates = useCallback(async () => {
-    return await window.api.checkForUpdates()
+  const checkForUpdates = useCallback(async (forceRefresh?: boolean) => {
+    return await window.api.checkForUpdates(forceRefresh)
   }, [])
 
   const openReleasesPage = useCallback(async () => {

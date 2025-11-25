@@ -54,7 +54,7 @@ interface IpcApi {
   getAppVersion: () => Promise<string>
 
   // Update checking
-  checkForUpdates: () => Promise<UpdateCheckResult>
+  checkForUpdates: (forceRefresh?: boolean) => Promise<UpdateCheckResult>
   openReleasesPage: () => Promise<void>
 
   // Config version management

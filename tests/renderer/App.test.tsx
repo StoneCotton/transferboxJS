@@ -35,7 +35,9 @@ jest.mock('../../src/renderer/src/hooks/useIpc', () => ({
         currentVersion: '2.0.1-alpha.2',
         latestVersion: '2.0.1-alpha.2',
         releaseUrl: 'https://github.com/StoneCotton/transferboxJS/releases',
-        releaseNotes: ''
+        releaseNotes: '',
+        publishedAt: null,
+        isPrerelease: true
       })
     ),
     openReleasesPage: jest.fn(),

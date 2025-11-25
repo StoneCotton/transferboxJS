@@ -979,8 +979,8 @@ export function setupIpcHandlers(): void {
   })
 
   // Update checking handlers
-  ipcMain.handle(IPC_CHANNELS.UPDATE_CHECK, async () => {
-    return checkForUpdates()
+  ipcMain.handle(IPC_CHANNELS.UPDATE_CHECK, async (_, forceRefresh?: boolean) => {
+    return checkForUpdates(forceRefresh ?? false)
   })
 
   ipcMain.handle(IPC_CHANNELS.UPDATE_OPEN_RELEASES, async () => {
