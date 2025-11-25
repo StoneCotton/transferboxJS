@@ -799,9 +799,7 @@ export function SettingsModal() {
                         className="h-4 w-4 text-brand-500 focus:ring-brand-500"
                       />
                       <div>
-                        <p className="font-medium text-gray-900 dark:text-white">
-                          Comfortable
-                        </p>
+                        <p className="font-medium text-gray-900 dark:text-white">Comfortable</p>
                         <p className="text-sm text-gray-600 dark:text-gray-400">
                           Spacious layout with larger elements and more padding
                         </p>
@@ -818,9 +816,7 @@ export function SettingsModal() {
                         className="h-4 w-4 text-brand-500 focus:ring-brand-500"
                       />
                       <div>
-                        <p className="font-medium text-gray-900 dark:text-white">
-                          Condensed
-                        </p>
+                        <p className="font-medium text-gray-900 dark:text-white">Condensed</p>
                         <p className="text-sm text-gray-600 dark:text-gray-400">
                           Compact layout optimized for small screens
                         </p>
