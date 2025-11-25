@@ -97,7 +97,10 @@ export const createConfigSlice: StateCreator<ConfigSlice> = (set) => ({
     logRetentionDays: 30,
 
     // Unit system for file size display
-    unitSystem: 'decimal' as const
+    unitSystem: 'decimal' as const,
+
+    // UI density for layout
+    uiDensity: 'comfortable' as const
   },
   isLoading: false,
   error: null,

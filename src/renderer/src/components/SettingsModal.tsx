@@ -5,7 +5,7 @@
 
 import { Save, CheckCircle2, FolderOpen, Plus, X } from 'lucide-react'
 import { useState, useEffect } from 'react'
-import type { TransferMode, AppConfig } from '../../../shared/types'
+import type { TransferMode, AppConfig, UiDensity } from '../../../shared/types'
 import { Modal } from './ui/Modal'
 import { Button } from './ui/Button'
 import { useConfigStore, useUIStore, useTransferStore, useStore } from '../store'
@@ -65,13 +65,16 @@ export function SettingsModal() {
   const [autoCleanupLogs, setAutoCleanupLogs] = useState(config.autoCleanupLogs)
   const [logRetentionDays, setLogRetentionDays] = useState(config.logRetentionDays)
   const [unitSystem, setUnitSystem] = useState(config.unitSystem)
+  const [uiDensity, setUiDensity] = useState<UiDensity>(config.uiDensity || 'comfortable')
   // Logging level
   const [logLevel, setLogLevel] = useState<AppConfig['logLevel']>(config.logLevel || 'info')
 
   const [isSaving, setIsSaving] = useState(false)
 
-  // Disable form controls during transfers
+  // Disable form controls during transfers (except UI-only settings like density)
   const isFormDisabled = isTransferring || isSaving
+  // UI-only settings can be changed during transfers since they don't affect transfer logic
+  const isUiOnlyDisabled = isSaving
 
   // Sync local state with config changes
   useEffect(() => {
@@ -96,6 +99,7 @@ export function SettingsModal() {
     setAutoCleanupLogs(config.autoCleanupLogs)
     setLogRetentionDays(config.logRetentionDays)
     setUnitSystem(config.unitSystem)
+    setUiDensity(config.uiDensity || 'comfortable')
     setLogLevel(config.logLevel || 'info')
   }, [config])
 
@@ -163,6 +167,7 @@ export function SettingsModal() {
         autoCleanupLogs,
         logRetentionDays,
         unitSystem,
+        uiDensity,
 
         // Logging
         logLevel
@@ -727,7 +732,7 @@ export function SettingsModal() {
                   </div>
                 )}
 
-                {/* Unit System */}
+                {/* Unit System - Can be changed during transfers since it's display-only */}
                 <div className="rounded-lg border-2 border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800/50">
                   <label className="block text-sm font-medium text-gray-900 dark:text-white mb-3">
                     File Size Display Units
@@ -740,7 +745,7 @@ export function SettingsModal() {
                         value="decimal"
                         checked={unitSystem === 'decimal'}
                         onChange={(e) => setUnitSystem(e.target.value as 'decimal')}
-                        disabled={isFormDisabled}
+                        disabled={isUiOnlyDisabled}
                         className="h-4 w-4 text-brand-500 focus:ring-brand-500"
                       />
                       <div>
@@ -759,7 +764,7 @@ export function SettingsModal() {
                         value="binary"
                         checked={unitSystem === 'binary'}
                         onChange={(e) => setUnitSystem(e.target.value as 'binary')}
-                        disabled={isFormDisabled}
+                        disabled={isUiOnlyDisabled}
                         className="h-4 w-4 text-brand-500 focus:ring-brand-500"
                       />
                       <div>
@@ -768,6 +773,53 @@ export function SettingsModal() {
                         </p>
                         <p className="text-sm text-gray-600 dark:text-gray-400">
                           Traditional computer science units (1 GiB = 1,073,741,824 bytes)
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                {/* UI Density - Can be changed during transfers since it's UI-only */}
+                <div className="rounded-lg border-2 border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800/50">
+                  <label className="block text-sm font-medium text-gray-900 dark:text-white mb-3">
+                    UI Density
+                  </label>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-3">
+                      <input
+                        type="radio"
+                        name="uiDensity"
+                        value="comfortable"
+                        checked={uiDensity === 'comfortable'}
+                        onChange={(e) => setUiDensity(e.target.value as UiDensity)}
+                        disabled={isUiOnlyDisabled}
+                        className="h-4 w-4 text-brand-500 focus:ring-brand-500"
+                      />
+                      <div>
+                        <p className="font-medium text-gray-900 dark:text-white">
+                          Comfortable
+                        </p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          Spacious layout with larger elements and more padding
+                        </p>
+                      </div>
+                    </label>
+                    <label className="flex items-center gap-3">
+                      <input
+                        type="radio"
+                        name="uiDensity"
+                        value="condensed"
+                        checked={uiDensity === 'condensed'}
+                        onChange={(e) => setUiDensity(e.target.value as UiDensity)}
+                        disabled={isUiOnlyDisabled}
+                        className="h-4 w-4 text-brand-500 focus:ring-brand-500"
+                      />
+                      <div>
+                        <p className="font-medium text-gray-900 dark:text-white">
+                          Condensed
+                        </p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          Compact layout optimized for small screens
                         </p>
                       </div>
                     </label>
@@ -783,14 +835,14 @@ export function SettingsModal() {
           <Button
             variant="outline"
             onClick={toggleSettings}
-            disabled={isFormDisabled}
+            disabled={isSaving}
             className="flex-1 border-gray-300 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-800"
           >
             Cancel
           </Button>
           <Button
             onClick={handleSave}
-            disabled={isFormDisabled}
+            disabled={isSaving}
             className="flex-1 bg-gradient-to-r from-brand-500 to-brand-600 text-white"
           >
             {isSaving ? (

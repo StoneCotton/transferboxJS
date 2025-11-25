@@ -10,6 +10,8 @@ export type ChecksumAlgorithm = 'xxhash64'
 
 export type UnitSystem = 'binary' | 'decimal'
 
+export type UiDensity = 'comfortable' | 'condensed'
+
 export interface AppConfig {
   // Config version for migration purposes (semantic versioning)
   // Set automatically from package.json by the config manager
@@ -63,6 +65,7 @@ export interface AppConfig {
   autoCleanupLogs: boolean
   logRetentionDays: number
   unitSystem: UnitSystem // 'binary' for GiB/KiB/MiB (1024-based), 'decimal' for GB/KB/MB (1000-based)
+  uiDensity: UiDensity // 'comfortable' for spacious layout, 'condensed' for compact layout (better for small screens)
 
   // Internal properties (not user-configurable)
   _newerConfigWarning?: {
@@ -154,5 +157,6 @@ export const DEFAULT_CONFIG: AppConfig = {
   showDetailedProgress: true,
   autoCleanupLogs: false,
   logRetentionDays: 30,
-  unitSystem: 'decimal' // Default to decimal units (GB/KB/MB) to match standard storage displays
+  unitSystem: 'decimal', // Default to decimal units (GB/KB/MB) to match standard storage displays
+  uiDensity: 'comfortable' // Default to comfortable layout
 }

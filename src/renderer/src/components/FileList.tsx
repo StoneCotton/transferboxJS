@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { useMemo, useState, type ReactElement } from 'react'
 import { useDriveStore, useTransferStore } from '../store'
+import { useUiDensity } from '../hooks/useUiDensity'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/Card'
 import { cn, formatDuration } from '../lib/utils'
 
@@ -264,6 +265,7 @@ function copyToClipboard(text: string): void {
 export function FileList() {
   const { scannedFiles, scanInProgress } = useDriveStore()
   const { progress } = useTransferStore()
+  const { isCondensed } = useUiDensity()
   const [copiedChecksum, setCopiedChecksum] = useState<string | null>(null)
 
   // Calculate transfer status statistics
@@ -295,15 +297,26 @@ export function FileList() {
   if (scanInProgress) {
     return (
       <Card className="border-0 bg-white/70 shadow-xl shadow-purple-500/10 backdrop-blur-sm dark:bg-gray-900/70">
-        <CardContent className="flex flex-col items-center justify-center py-16">
+        <CardContent className={cn(
+          'flex flex-col items-center justify-center',
+          isCondensed ? 'py-8' : 'py-16'
+        )}>
           <div className="relative">
-            <div className="absolute inset-0 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600" />
-            <div className="h-16 w-16" />
+            <div className={cn(
+              'absolute inset-0 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600',
+              isCondensed && 'border-2'
+            )} />
+            <div className={isCondensed ? 'h-10 w-10' : 'h-16 w-16'} />
           </div>
-          <p className="mt-6 text-lg font-semibold text-gray-900 dark:text-white">
+          <p className={cn(
+            'font-semibold text-gray-900 dark:text-white',
+            isCondensed ? 'mt-4 text-base' : 'mt-6 text-lg'
+          )}>
             Scanning for Media Files
           </p>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">This may take a moment...</p>
+          {!isCondensed && (
+            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">This may take a moment...</p>
+          )}
         </CardContent>
       </Card>
     )
@@ -312,14 +325,26 @@ export function FileList() {
   if (scannedFiles.length === 0) {
     return (
       <Card className="border-2 border-dashed border-gray-300 bg-white/50 backdrop-blur-sm dark:border-gray-700 dark:bg-gray-900/50">
-        <CardContent className="flex flex-col items-center justify-center py-16">
+        <CardContent className={cn(
+          'flex flex-col items-center justify-center',
+          isCondensed ? 'py-8' : 'py-16'
+        )}>
           <div className="relative">
-            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30">
-              <Folder className="h-10 w-10 text-purple-600 dark:text-purple-400" />
+            <div className={cn(
+              'flex items-center justify-center rounded-full bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30',
+              isCondensed ? 'h-14 w-14' : 'h-20 w-20'
+            )}>
+              <Folder className={isCondensed ? 'h-7 w-7 text-purple-600 dark:text-purple-400' : 'h-10 w-10 text-purple-600 dark:text-purple-400'} />
             </div>
           </div>
-          <p className="mt-6 text-xl font-bold text-gray-900 dark:text-white">No Files Found</p>
-          <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
+          <p className={cn(
+            'font-bold text-gray-900 dark:text-white',
+            isCondensed ? 'mt-4 text-base' : 'mt-6 text-xl'
+          )}>No Files Found</p>
+          <p className={cn(
+            'text-center text-gray-600 dark:text-gray-400',
+            isCondensed ? 'mt-1 text-xs' : 'mt-2 text-sm'
+          )}>
             Select a drive to scan for media files
           </p>
         </CardContent>
@@ -329,14 +354,17 @@ export function FileList() {
 
   return (
     <Card className="border-0 bg-white/70 shadow-xl shadow-purple-500/10 backdrop-blur-sm dark:bg-gray-900/70">
-      <CardHeader>
+      <CardHeader className={isCondensed ? 'p-3' : undefined}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-purple-500 to-pink-600 text-white shadow-lg shadow-purple-500/30">
-              <FileType className="h-4 w-4" />
+            <div className={cn(
+              'flex items-center justify-center rounded-lg bg-gradient-to-br from-purple-500 to-pink-600 text-white shadow-lg shadow-purple-500/30',
+              isCondensed ? 'h-6 w-6' : 'h-8 w-8'
+            )}>
+              <FileType className={isCondensed ? 'h-3 w-3' : 'h-4 w-4'} />
             </div>
             <div>
-              <CardTitle className="text-lg">Transfer Queue</CardTitle>
+              <CardTitle className={isCondensed ? 'text-sm' : 'text-lg'}>Transfer Queue</CardTitle>
               <CardDescription className="text-xs">
                 {scannedFiles.length} file{scannedFiles.length !== 1 ? 's' : ''} in queue
               </CardDescription>
@@ -344,43 +372,58 @@ export function FileList() {
           </div>
 
           {/* Transfer Status Statistics */}
-          <div className="flex gap-2">
+          <div className={cn('flex', isCondensed ? 'gap-1' : 'gap-2')}>
             {transferStats.complete > 0 && (
-              <div className="flex items-center gap-1.5 rounded-lg bg-green-100 px-2 py-1 dark:bg-green-900/30">
-                <CheckCircle2 className="h-3 w-3 text-green-600 dark:text-green-400" />
-                <span className="text-xs font-bold text-green-900 dark:text-green-100">
+              <div className={cn(
+                'flex items-center rounded-lg bg-green-100 dark:bg-green-900/30',
+                isCondensed ? 'gap-1 px-1.5 py-0.5' : 'gap-1.5 px-2 py-1'
+              )}>
+                <CheckCircle2 className={cn('text-green-600 dark:text-green-400', isCondensed ? 'h-2.5 w-2.5' : 'h-3 w-3')} />
+                <span className={cn('font-bold text-green-900 dark:text-green-100', isCondensed ? 'text-[10px]' : 'text-xs')}>
                   {transferStats.complete}
                 </span>
               </div>
             )}
             {transferStats.transferring > 0 && (
-              <div className="flex items-center gap-1.5 rounded-lg bg-blue-100 px-2 py-1 dark:bg-blue-900/30">
-                <Loader2 className="h-3 w-3 animate-spin text-blue-600 dark:text-blue-400" />
-                <span className="text-xs font-bold text-blue-900 dark:text-blue-100">
+              <div className={cn(
+                'flex items-center rounded-lg bg-blue-100 dark:bg-blue-900/30',
+                isCondensed ? 'gap-1 px-1.5 py-0.5' : 'gap-1.5 px-2 py-1'
+              )}>
+                <Loader2 className={cn('animate-spin text-blue-600 dark:text-blue-400', isCondensed ? 'h-2.5 w-2.5' : 'h-3 w-3')} />
+                <span className={cn('font-bold text-blue-900 dark:text-blue-100', isCondensed ? 'text-[10px]' : 'text-xs')}>
                   {transferStats.transferring}
                 </span>
               </div>
             )}
             {transferStats.verifying > 0 && (
-              <div className="flex items-center gap-1.5 rounded-lg bg-yellow-100 px-2 py-1 dark:bg-yellow-900/30">
-                <Clock className="h-3 w-3 text-yellow-600 dark:text-yellow-400" />
-                <span className="text-xs font-bold text-yellow-900 dark:text-yellow-100">
+              <div className={cn(
+                'flex items-center rounded-lg bg-yellow-100 dark:bg-yellow-900/30',
+                isCondensed ? 'gap-1 px-1.5 py-0.5' : 'gap-1.5 px-2 py-1'
+              )}>
+                <Clock className={cn('text-yellow-600 dark:text-yellow-400', isCondensed ? 'h-2.5 w-2.5' : 'h-3 w-3')} />
+                <span className={cn('font-bold text-yellow-900 dark:text-yellow-100', isCondensed ? 'text-[10px]' : 'text-xs')}>
                   {transferStats.verifying}
                 </span>
               </div>
             )}
             {transferStats.error > 0 && (
-              <div className="flex items-center gap-1.5 rounded-lg bg-red-100 px-2 py-1 dark:bg-red-900/30">
-                <XCircle className="h-3 w-3 text-red-600 dark:text-red-400" />
-                <span className="text-xs font-bold text-red-900 dark:text-red-100">
+              <div className={cn(
+                'flex items-center rounded-lg bg-red-100 dark:bg-red-900/30',
+                isCondensed ? 'gap-1 px-1.5 py-0.5' : 'gap-1.5 px-2 py-1'
+              )}>
+                <XCircle className={cn('text-red-600 dark:text-red-400', isCondensed ? 'h-2.5 w-2.5' : 'h-3 w-3')} />
+                <span className={cn('font-bold text-red-900 dark:text-red-100', isCondensed ? 'text-[10px]' : 'text-xs')}>
                   {transferStats.error}
                 </span>
               </div>
             )}
             {transferStats.pending > 0 && (
-              <div className="flex items-center gap-1.5 rounded-lg bg-gray-100 px-2 py-1 dark:bg-gray-800">
-                <Clock className="h-3 w-3 text-gray-600 dark:text-gray-400" />
-                <span className="text-xs font-bold text-gray-900 dark:text-gray-100">
+              <div className={cn(
+                'flex items-center rounded-lg bg-gray-100 dark:bg-gray-800',
+                isCondensed ? 'gap-1 px-1.5 py-0.5' : 'gap-1.5 px-2 py-1'
+              )}>
+                <Clock className={cn('text-gray-600 dark:text-gray-400', isCondensed ? 'h-2.5 w-2.5' : 'h-3 w-3')} />
+                <span className={cn('font-bold text-gray-900 dark:text-gray-100', isCondensed ? 'text-[10px]' : 'text-xs')}>
                   {transferStats.pending}
                 </span>
               </div>
@@ -388,8 +431,11 @@ export function FileList() {
           </div>
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="max-h-[500px] space-y-2 overflow-y-auto rounded-lg bg-gradient-to-br from-gray-50 to-white p-3 dark:from-gray-800/50 dark:to-gray-900/50">
+      <CardContent className={isCondensed ? 'p-3 pt-0' : undefined}>
+        <div className={cn(
+          'overflow-y-auto rounded-lg bg-gradient-to-br from-gray-50 to-white dark:from-gray-800/50 dark:to-gray-900/50',
+          isCondensed ? 'max-h-[300px] space-y-1 p-2' : 'max-h-[500px] space-y-2 p-3'
+        )}>
           {scannedFiles.map((file, index) => {
             const filePath = file.path
             const Icon = getFileIcon(filePath)
@@ -452,7 +498,8 @@ export function FileList() {
               <div
                 key={index}
                 className={cn(
-                  'group flex items-center gap-3 rounded-lg border p-3 transition-colors',
+                  'group flex items-center rounded-lg border transition-colors',
+                  isCondensed ? 'gap-2 p-2' : 'gap-3 p-3',
                   getStatusColor(),
                   'hover:shadow-sm'
                 )}
@@ -460,7 +507,8 @@ export function FileList() {
                 {/* File Icon */}
                 <div
                   className={cn(
-                    'flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg',
+                    'flex flex-shrink-0 items-center justify-center rounded-lg',
+                    isCondensed ? 'h-7 w-7' : 'h-10 w-10',
                     fileType === 'video' &&
                       'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
                     fileType === 'image' &&
@@ -471,28 +519,33 @@ export function FileList() {
                       'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
                   )}
                 >
-                  <Icon className="h-5 w-5" />
+                  <Icon className={isCondensed ? 'h-3.5 w-3.5' : 'h-5 w-5'} />
                 </div>
 
                 {/* File Info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">
+                    <span className={cn(
+                      'truncate font-medium text-gray-900 dark:text-gray-100',
+                      isCondensed ? 'text-xs' : 'text-sm'
+                    )}>
                       {fileName}
                     </span>
-                    {getStatusIcon()}
+                    {isCondensed ? null : getStatusIcon()}
                   </div>
 
-                  {/* File creation date and time */}
-                  <div className="mt-1 flex items-center gap-2">
-                    <Clock className="h-3 w-3 text-gray-500 dark:text-gray-400" />
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
-                      Created: {formattedDate} at {formattedTime}
-                    </span>
-                  </div>
+                  {/* File creation date and time - hide in condensed mode */}
+                  {!isCondensed && (
+                    <div className="mt-1 flex items-center gap-2">
+                      <Clock className="h-3 w-3 text-gray-500 dark:text-gray-400" />
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        Created: {formattedDate} at {formattedTime}
+                      </span>
+                    </div>
+                  )}
 
-                  {/* Elapsed time for completed files */}
-                  {elapsedTime !== null && status === 'complete' && (
+                  {/* Elapsed time for completed files - hide in condensed mode */}
+                  {!isCondensed && elapsedTime !== null && status === 'complete' && (
                     <div className="mt-1 flex items-center gap-2">
                       <Clock className="h-3 w-3 text-gray-500 dark:text-gray-400" />
                       <span className="text-xs text-gray-500 dark:text-gray-400">
@@ -501,8 +554,8 @@ export function FileList() {
                     </div>
                   )}
 
-                  {/* Checksum for completed files */}
-                  {status === 'complete' && checksum && (
+                  {/* Checksum for completed files - hide in condensed mode */}
+                  {!isCondensed && status === 'complete' && checksum && (
                     <div className="mt-1 flex items-center gap-2">
                       <span className="text-xs text-gray-500 dark:text-gray-400">Checksum:</span>
                       <code className="text-xs bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded font-mono text-gray-700 dark:text-gray-300">
@@ -523,7 +576,8 @@ export function FileList() {
                 <div className="flex-shrink-0">
                   <span
                     className={cn(
-                      'inline-flex items-center rounded-full px-2 py-1 text-xs font-medium',
+                      'inline-flex items-center rounded-full font-medium',
+                      isCondensed ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-1 text-xs',
                       status === 'complete' &&
                         'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
                       status === 'transferring' &&
@@ -538,7 +592,9 @@ export function FileList() {
                         'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400'
                     )}
                   >
-                    {status.charAt(0).toUpperCase() + status.slice(1)}
+                    {isCondensed
+                      ? status.charAt(0).toUpperCase()
+                      : status.charAt(0).toUpperCase() + status.slice(1)}
                   </span>
                 </div>
               </div>

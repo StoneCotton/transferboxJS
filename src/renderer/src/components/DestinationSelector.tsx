@@ -6,6 +6,7 @@ import { FolderOpen, CheckCircle2, AlertCircle, FolderPlus } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 import { useUIStore, useDriveStore, useConfigStore, useTransferStore, useStore } from '../store'
 import { useIpc } from '../hooks/useIpc'
+import { useUiDensity } from '../hooks/useUiDensity'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/Card'
 import { Button } from './ui/Button'
 import { cn } from '../lib/utils'
@@ -15,6 +16,7 @@ export function DestinationSelector() {
   const { selectedDrive, scannedFiles } = useDriveStore()
   const { config } = useConfigStore()
   const { isTransferring, startTransfer } = useTransferStore()
+  const { isCondensed } = useUiDensity()
   const ipc = useIpc()
   const [isValidating, setIsValidating] = useState(false)
   const [validationError, setValidationError] = useState<string | null>(null)
@@ -146,48 +148,54 @@ export function DestinationSelector() {
 
   return (
     <Card className="h-full border-0 bg-white/70 shadow-xl shadow-slate-500/10 backdrop-blur-sm dark:bg-gray-900/70">
-      <CardHeader>
+      <CardHeader className={isCondensed ? 'p-3' : undefined}>
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-slate-600 to-slate-700 text-white shadow-lg shadow-slate-500/30">
-            <FolderOpen className="h-4 w-4" />
+          <div className={cn(
+            'flex items-center justify-center rounded-lg bg-gradient-to-br from-slate-600 to-slate-700 text-white shadow-lg shadow-slate-500/30',
+            isCondensed ? 'h-6 w-6' : 'h-8 w-8'
+          )}>
+            <FolderOpen className={isCondensed ? 'h-3 w-3' : 'h-4 w-4'} />
           </div>
           <div>
-            <CardTitle className="text-lg">Destination</CardTitle>
+            <CardTitle className={isCondensed ? 'text-sm' : 'text-lg'}>Destination</CardTitle>
             <CardDescription className="text-xs">
               {selectedDestination ? 'Location configured' : 'Choose save location'}
             </CardDescription>
           </div>
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
+      <CardContent className={isCondensed ? 'p-3 pt-0' : undefined}>
+        <div className={isCondensed ? 'space-y-2' : 'space-y-4'}>
           {/* Selected Path Display */}
           {selectedDestination ? (
             <div
               className={cn(
-                'relative overflow-hidden rounded-xl border-2 p-4 transition-all',
+                'relative overflow-hidden rounded-xl border-2 transition-all',
+                isCondensed ? 'p-2' : 'p-4',
                 validationError
                   ? 'border-red-400 bg-gradient-to-br from-red-50 to-red-100 dark:border-red-600 dark:from-red-950/50 dark:to-red-900/50'
                   : 'border-green-400 bg-gradient-to-br from-green-50 to-emerald-50 dark:border-green-600 dark:from-green-950/50 dark:to-emerald-950/50'
               )}
             >
-              <div className="flex items-start gap-3">
+              <div className={cn('flex items-start', isCondensed ? 'gap-2' : 'gap-3')}>
                 <div
                   className={cn(
-                    'flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg',
+                    'flex flex-shrink-0 items-center justify-center rounded-lg',
+                    isCondensed ? 'h-7 w-7' : 'h-10 w-10',
                     validationError ? 'bg-red-500 text-white' : 'bg-green-500 text-white'
                   )}
                 >
                   {validationError ? (
-                    <AlertCircle className="h-5 w-5" />
+                    <AlertCircle className={isCondensed ? 'h-3.5 w-3.5' : 'h-5 w-5'} />
                   ) : (
-                    <CheckCircle2 className="h-5 w-5" />
+                    <CheckCircle2 className={isCondensed ? 'h-3.5 w-3.5' : 'h-5 w-5'} />
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
                   <p
                     className={cn(
-                      'text-sm font-bold',
+                      'font-bold',
+                      isCondensed ? 'text-xs' : 'text-sm',
                       validationError
                         ? 'text-red-900 dark:text-red-100'
                         : 'text-green-900 dark:text-green-100'
@@ -197,7 +205,8 @@ export function DestinationSelector() {
                   </p>
                   <p
                     className={cn(
-                      'mt-1 break-all text-xs font-medium',
+                      'break-all font-medium',
+                      isCondensed ? 'text-[10px]' : 'mt-1 text-xs',
                       validationError
                         ? 'text-red-700 dark:text-red-300'
                         : 'text-green-700 dark:text-green-300'
@@ -205,7 +214,7 @@ export function DestinationSelector() {
                   >
                     {selectedDestination}
                   </p>
-                  {validationError && (
+                  {validationError && !isCondensed && (
                     <p className="mt-2 text-xs font-medium text-red-600 dark:text-red-400">
                       {validationError}
                     </p>
@@ -214,17 +223,22 @@ export function DestinationSelector() {
               </div>
             </div>
           ) : (
-            <div className="relative overflow-hidden rounded-xl border-2 border-dashed border-gray-300 bg-gradient-to-br from-gray-50 to-gray-100 p-12 text-center dark:border-gray-700 dark:from-gray-800/50 dark:to-gray-900/50">
+            <div className={cn(
+              'relative overflow-hidden rounded-xl border-2 border-dashed border-gray-300 bg-gradient-to-br from-gray-50 to-gray-100 text-center dark:border-gray-700 dark:from-gray-800/50 dark:to-gray-900/50',
+              isCondensed ? 'p-6' : 'p-12'
+            )}>
               <div className="relative">
                 <div className="absolute inset-0 animate-pulse rounded-full bg-slate-400 opacity-20" />
-                <FolderPlus className="relative mx-auto h-16 w-16 text-slate-600 dark:text-slate-400" />
+                <FolderPlus className={cn('relative mx-auto text-slate-600 dark:text-slate-400', isCondensed ? 'h-10 w-10' : 'h-16 w-16')} />
               </div>
-              <p className="mt-4 text-sm font-semibold text-gray-900 dark:text-white">
+              <p className={cn('font-semibold text-gray-900 dark:text-white', isCondensed ? 'mt-2 text-xs' : 'mt-4 text-sm')}>
                 No Destination Selected
               </p>
-              <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
-                Click below to choose a folder
-              </p>
+              {!isCondensed && (
+                <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
+                  Click below to choose a folder
+                </p>
+              )}
             </div>
           )}
 
@@ -233,9 +247,9 @@ export function DestinationSelector() {
             onClick={handleSelectFolder}
             disabled={isValidating || isSelectingDestination || isTransferring}
             className="w-full bg-gradient-to-r from-slate-600 to-slate-700 text-white shadow-lg shadow-slate-500/30 transition-all hover:from-slate-700 hover:to-slate-800 hover:shadow-xl hover:shadow-slate-500/40"
-            size="lg"
+            size={isCondensed ? 'sm' : 'lg'}
           >
-            <FolderOpen className="mr-2 h-5 w-5" />
+            <FolderOpen className={cn('mr-2', isCondensed ? 'h-4 w-4' : 'h-5 w-5')} />
             {isValidating
               ? 'Validating...'
               : isTransferring

@@ -6,11 +6,13 @@
 import { Zap, CheckCircle2, Bot, Hand } from 'lucide-react'
 import type { TransferMode } from '../../../shared/types'
 import { useConfigStore } from '../store'
+import { useUiDensity } from '../hooks/useUiDensity'
 import { cn } from '../lib/utils'
 
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export function ModeIndicator() {
   const { config } = useConfigStore()
+  const { isCondensed } = useUiDensity()
   const mode = config.transferMode
 
   const modeConfig: Record<
@@ -59,13 +61,18 @@ export function ModeIndicator() {
   return (
     <div
       className={cn(
-        'flex items-center gap-2 rounded-lg border-2 px-3 py-1.5 transition-all',
+        'flex items-center rounded-lg border-2 transition-all',
+        isCondensed ? 'gap-1 px-2 py-1' : 'gap-2 px-3 py-1.5',
         currentMode.bgColor,
         currentMode.borderColor
       )}
     >
-      <Icon className={cn('h-4 w-4', currentMode.color)} />
-      <span className={cn('text-xs font-bold uppercase tracking-wide', currentMode.color)}>
+      <Icon className={cn(isCondensed ? 'h-3 w-3' : 'h-4 w-4', currentMode.color)} />
+      <span className={cn(
+        'font-bold uppercase tracking-wide',
+        isCondensed ? 'text-[10px]' : 'text-xs',
+        currentMode.color
+      )}>
         {currentMode.label}
       </span>
     </div>

@@ -3,6 +3,7 @@
  */
 
 import { useAppInit } from './hooks/useAppInit'
+import { useUiDensity } from './hooks/useUiDensity'
 import { Header } from './components/Header'
 import { DriveSelector } from './components/DriveSelector'
 import { DestinationSelector } from './components/DestinationSelector'
@@ -29,6 +30,7 @@ function App() {
   const { selectedDestination, showLogs, showHistory, closeAllModals } = useUIStore()
   const { isTransferring, progress } = useTransferStore()
   const { config } = useConfigStore()
+  const { isCondensed } = useUiDensity()
 
   // Calculate step completion based on transfer mode
   const step1Complete = !!selectedDrive
@@ -89,26 +91,42 @@ function App() {
   const workflowSteps = getWorkflowSteps(config.transferMode)
 
   return (
-    <div className="flex h-screen flex-col bg-gradient-to-br from-slate-50 via-brand-50 to-orange-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900">
+    <div className={cn(
+      'flex h-screen flex-col bg-gradient-to-br from-slate-50 via-brand-50 to-orange-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900',
+      isCondensed && 'ui-condensed'
+    )}>
       {/* Header */}
       <Header />
 
       {/* Main Content */}
-      <main className="flex-1 overflow-auto p-4 md:p-8">
+      <main className={cn(
+        'flex-1 overflow-auto',
+        isCondensed ? 'p-2 md:p-4' : 'p-4 md:p-8'
+      )}>
         <div className="mx-auto max-w-7xl">
           {/* Mode Indicator */}
-          <div className="mb-6 flex justify-center">
+          <div className={cn(
+            'flex justify-center',
+            isCondensed ? 'mb-3' : 'mb-6'
+          )}>
             <ModeIndicator />
           </div>
 
           {/* Dynamic Workflow Steps Indicator */}
-          <div className="mb-8 flex items-center justify-center gap-4">
+          <div className={cn(
+            'flex items-center justify-center',
+            isCondensed ? 'mb-4 gap-2' : 'mb-8 gap-4'
+          )}>
             {workflowSteps.map((step, index) => (
-              <div key={step.id} className="flex items-center gap-2">
+              <div key={step.id} className={cn(
+                'flex items-center',
+                isCondensed ? 'gap-1' : 'gap-2'
+              )}>
                 {/* Step Circle */}
                 <div
                   className={cn(
-                    'flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all',
+                    'flex items-center justify-center rounded-full border-2 transition-all',
+                    isCondensed ? 'h-7 w-7' : 'h-10 w-10',
                     step.complete
                       ? 'border-green-500 bg-green-500 text-white shadow-lg shadow-green-500/20'
                       : index === 0 || (index > 0 && workflowSteps[index - 1]?.complete)
@@ -117,18 +135,19 @@ function App() {
                   )}
                 >
                   {step.complete ? (
-                    <CheckCircle2 className="h-5 w-5" />
+                    <CheckCircle2 className={isCondensed ? 'h-3.5 w-3.5' : 'h-5 w-5'} />
                   ) : index === 0 || (index > 0 && workflowSteps[index - 1]?.complete) ? (
-                    <CircleDot className="h-5 w-5" />
+                    <CircleDot className={isCondensed ? 'h-3.5 w-3.5' : 'h-5 w-5'} />
                   ) : (
-                    <Circle className="h-5 w-5" />
+                    <Circle className={isCondensed ? 'h-3.5 w-3.5' : 'h-5 w-5'} />
                   )}
                 </div>
 
                 {/* Step Label */}
                 <span
                   className={cn(
-                    'hidden text-sm font-semibold md:inline',
+                    'hidden font-semibold md:inline',
+                    isCondensed ? 'text-xs' : 'text-sm',
                     step.complete
                       ? 'text-green-700 dark:text-green-400'
                       : index === 0 || (index > 0 && workflowSteps[index - 1]?.complete)
@@ -143,7 +162,8 @@ function App() {
                 {index < workflowSteps.length - 1 && (
                   <div
                     className={cn(
-                      'h-0.5 w-12 rounded-full transition-all md:w-20',
+                      'h-0.5 rounded-full transition-all',
+                      isCondensed ? 'w-6 md:w-10' : 'w-12 md:w-20',
                       step.complete ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-700'
                     )}
                   />
@@ -154,17 +174,21 @@ function App() {
 
           {/* Transfer Progress (shown when transferring) */}
           {(isTransferring || progress) && (
-            <div className="mb-6 animate-in fade-in slide-in-from-top-4 duration-500">
+            <div className={cn(
+              'animate-in fade-in slide-in-from-top-4 duration-500',
+              isCondensed ? 'mb-3' : 'mb-6'
+            )}>
               <TransferProgress />
             </div>
           )}
 
           {/* Dynamic Main Content Grid */}
-          <div className="space-y-6">
+          <div className={isCondensed ? 'space-y-3' : 'space-y-6'}>
             {/* Top Section: Drive & Destination */}
             <div
               className={cn(
-                'grid gap-6',
+                'grid',
+                isCondensed ? 'gap-3' : 'gap-6',
                 shouldShowDestinationSelector(config.transferMode)
                   ? 'grid-cols-1 xl:grid-cols-2'
                   : 'grid-cols-1'
