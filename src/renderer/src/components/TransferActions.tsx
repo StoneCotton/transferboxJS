@@ -4,7 +4,7 @@
 
 import { Play, Loader2, Rocket, AlertCircle } from 'lucide-react'
 import { useState } from 'react'
-import { useDriveStore, useTransferStore, useUIStore, useStore, useConfigStore } from '../store'
+import { useDriveStore, useTransferStore, useUIStore, useStore } from '../store'
 import { useIpc } from '../hooks/useIpc'
 import { useUiDensity } from '../hooks/useUiDensity'
 import { Button } from './ui/Button'
@@ -18,14 +18,12 @@ export function TransferActions() {
   const { selectedDrive, scannedFiles } = useDriveStore()
   const { isTransferring, startTransfer } = useTransferStore()
   const { selectedDestination } = useUIStore()
-  const { config } = useConfigStore()
   const { isCondensed } = useUiDensity()
   const ipc = useIpc()
   const [isStarting, setIsStarting] = useState(false)
   const [isValidating, setIsValidating] = useState(false)
   const [showConflictDialog, setShowConflictDialog] = useState(false)
   const [conflicts, setConflicts] = useState<FileConflictInfo[]>([])
-  const [pendingResolutions, setPendingResolutions] = useState<Record<string, ConflictResolutionChoice>>({})
 
   const canTransfer =
     selectedDrive && scannedFiles.length > 0 && selectedDestination && !isTransferring
@@ -93,7 +91,6 @@ export function TransferActions() {
 
   const handleConflictResolution = async (resolutions: Record<string, ConflictResolutionChoice>): Promise<void> => {
     setShowConflictDialog(false)
-    setPendingResolutions(resolutions)
 
     // Proceed with transfer, passing conflict resolutions
     await performTransfer(resolutions)

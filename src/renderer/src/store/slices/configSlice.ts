@@ -100,7 +100,13 @@ export const createConfigSlice: StateCreator<ConfigSlice> = (set) => ({
     unitSystem: 'decimal' as const,
 
     // UI density for layout
-    uiDensity: 'comfortable' as const
+    uiDensity: 'comfortable' as const,
+
+    // Tooltip settings
+    showTooltips: true,
+
+    // Conflict resolution settings
+    conflictResolution: 'ask' as const
   },
   isLoading: false,
   error: null,
