@@ -330,7 +330,7 @@ describe('FileTransferEngine', () => {
       } catch (error) {
         // Transfer was cancelled - expected behavior
         expect((error as Error).message).toMatch(/cancelled|stopped|stopping/i)
-        
+
         // .TBPART file should be cleaned up
         const tbpartPath = destFile + '.TBPART'
         await expect(fs.access(tbpartPath)).rejects.toThrow()
@@ -526,7 +526,7 @@ describe('FileTransferEngine', () => {
       // We simulate an old file by creating it and changing its mtime
       const oldFile = path.join(destDir, 'old.txt.TBPART')
       await fs.writeFile(oldFile, 'old data')
-      
+
       // Set mtime to 25 hours ago
       const oldTime = new Date(Date.now() - 25 * 60 * 60 * 1000)
       await fs.utimes(oldFile, oldTime, oldTime)

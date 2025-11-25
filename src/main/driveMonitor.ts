@@ -245,7 +245,7 @@ export class DriveMonitor {
 
     try {
       const currentDrives = await this.listRemovableDrives()
-      
+
       // Check monitoring flag again after async operation
       if (!this.monitoring) {
         return

@@ -19,7 +19,6 @@ interface ConfirmTransferDialogProps {
   totalSize?: number
 }
 
-// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export function ConfirmTransferDialog({
   isOpen,
   onConfirm,

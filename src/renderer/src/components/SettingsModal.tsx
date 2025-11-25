@@ -99,7 +99,6 @@ const categories: CategoryConfig[] = [
   }
 ]
 
-// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export function SettingsModal() {
   const { showSettings, toggleSettings } = useUIStore()
   const { config, setConfig } = useConfigStore()

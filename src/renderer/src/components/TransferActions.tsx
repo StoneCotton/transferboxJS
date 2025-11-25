@@ -11,9 +11,12 @@ import { Button } from './ui/Button'
 import { Card, CardContent } from './ui/Card'
 import { FileConflictDialog } from './FileConflictDialog'
 import { cn } from '../lib/utils'
-import type { FileConflictInfo, ConflictResolutionChoice, TransferValidateResponse } from '../../../shared/types'
+import type {
+  FileConflictInfo,
+  ConflictResolutionChoice,
+  TransferValidateResponse
+} from '../../../shared/types'
 
-// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export function TransferActions() {
   const { selectedDrive, scannedFiles } = useDriveStore()
   const { isTransferring, startTransfer } = useTransferStore()
@@ -89,7 +92,9 @@ export function TransferActions() {
     }
   }
 
-  const handleConflictResolution = async (resolutions: Record<string, ConflictResolutionChoice>): Promise<void> => {
+  const handleConflictResolution = async (
+    resolutions: Record<string, ConflictResolutionChoice>
+  ): Promise<void> => {
     setShowConflictDialog(false)
 
     // Proceed with transfer, passing conflict resolutions
@@ -101,7 +106,9 @@ export function TransferActions() {
     setConflicts([])
   }
 
-  const performTransfer = async (conflictResolutions?: Record<string, ConflictResolutionChoice>): Promise<void> => {
+  const performTransfer = async (
+    conflictResolutions?: Record<string, ConflictResolutionChoice>
+  ): Promise<void> => {
     if (!selectedDrive || !selectedDestination) return
 
     try {
@@ -110,7 +117,7 @@ export function TransferActions() {
       // Create transfer request
       // Extract file paths from ScannedFile objects
       let filePaths = scannedFiles.map((file) => file.path)
-      
+
       // If we have conflict resolutions, filter out skipped files
       if (conflictResolutions) {
         filePaths = filePaths.filter((filePath) => {
@@ -118,14 +125,14 @@ export function TransferActions() {
           // Only include files that are not being skipped
           return resolution !== 'skip'
         })
-        
+
         console.log('Filtered files after conflict resolution:', {
           original: scannedFiles.length,
           afterFilter: filePaths.length,
           skipped: scannedFiles.length - filePaths.length
         })
       }
-      
+
       // Debug: Check for empty file paths
       const emptyPaths = filePaths.filter((path, index) => {
         if (!path || path.trim() === '') {
@@ -134,12 +141,12 @@ export function TransferActions() {
         }
         return false
       })
-      
+
       if (emptyPaths.length > 0) {
         console.error(`Found ${emptyPaths.length} empty file paths!`)
         console.error('All scanned files:', scannedFiles)
       }
-      
+
       const request = {
         driveInfo: selectedDrive,
         sourceRoot: selectedDrive.mountpoints[0] || '',
@@ -223,7 +230,12 @@ export function TransferActions() {
                 <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-1000 group-hover:translate-x-full" />
               )}
 
-              <div className={cn('relative flex items-center justify-center', isCondensed ? 'gap-2' : 'gap-3')}>
+              <div
+                className={cn(
+                  'relative flex items-center justify-center',
+                  isCondensed ? 'gap-2' : 'gap-3'
+                )}
+              >
                 {isValidating ? (
                   <>
                     <Loader2 className={cn('animate-spin', isCondensed ? 'h-4 w-4' : 'h-6 w-6')} />
@@ -249,75 +261,101 @@ export function TransferActions() {
               </div>
             </Button>
 
-          {/* Status Message */}
-          <div
-            className={cn(
-              'rounded-lg border-2 text-center transition-all',
-              isCondensed ? 'p-2' : 'p-4',
-              canTransfer
-                ? 'border-green-300 bg-green-50 dark:border-green-700 dark:bg-green-950/50'
-                : 'border-gray-300 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50'
-            )}
-          >
-            {canTransfer ? (
-              <div className={cn('flex items-center justify-center', isCondensed ? 'gap-1' : 'gap-2')}>
-                <div className={cn('animate-pulse rounded-full bg-green-500', isCondensed ? 'h-1.5 w-1.5' : 'h-2 w-2')} />
-                <p className={cn('font-bold text-green-900 dark:text-green-100', isCondensed ? 'text-xs' : 'text-sm')}>
-                  Ready to Transfer {scannedFiles.length} File{scannedFiles.length !== 1 ? 's' : ''}
-                </p>
-              </div>
-            ) : isTransferring ? (
-              <p className={cn('font-semibold text-blue-900 dark:text-blue-100', isCondensed ? 'text-xs' : 'text-sm')}>
-                Transfer in progress...
-              </p>
-            ) : (
-              <div className={isCondensed ? 'space-y-1' : 'space-y-2'}>
-                {!isCondensed && (
-                  <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                    Setup Required
+            {/* Status Message */}
+            <div
+              className={cn(
+                'rounded-lg border-2 text-center transition-all',
+                isCondensed ? 'p-2' : 'p-4',
+                canTransfer
+                  ? 'border-green-300 bg-green-50 dark:border-green-700 dark:bg-green-950/50'
+                  : 'border-gray-300 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50'
+              )}
+            >
+              {canTransfer ? (
+                <div
+                  className={cn(
+                    'flex items-center justify-center',
+                    isCondensed ? 'gap-1' : 'gap-2'
+                  )}
+                >
+                  <div
+                    className={cn(
+                      'animate-pulse rounded-full bg-green-500',
+                      isCondensed ? 'h-1.5 w-1.5' : 'h-2 w-2'
+                    )}
+                  />
+                  <p
+                    className={cn(
+                      'font-bold text-green-900 dark:text-green-100',
+                      isCondensed ? 'text-xs' : 'text-sm'
+                    )}
+                  >
+                    Ready to Transfer {scannedFiles.length} File
+                    {scannedFiles.length !== 1 ? 's' : ''}
                   </p>
-                )}
-                <div className={cn('flex flex-wrap items-center justify-center', isCondensed ? 'gap-1 text-[10px]' : 'gap-2 text-xs')}>
-                  <span
-                    className={cn(
-                      'rounded-full',
-                      isCondensed ? 'px-2 py-0.5' : 'px-3 py-1',
-                      selectedDrive
-                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                        : 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
-                    )}
-                  >
-                    {selectedDrive ? '✓ Drive' : '○ Drive'}
-                  </span>
-                  <span
-                    className={cn(
-                      'rounded-full',
-                      isCondensed ? 'px-2 py-0.5' : 'px-3 py-1',
-                      selectedDestination
-                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                        : 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
-                    )}
-                  >
-                    {selectedDestination ? '✓ Dest' : '○ Dest'}
-                  </span>
-                  <span
-                    className={cn(
-                      'rounded-full',
-                      isCondensed ? 'px-2 py-0.5' : 'px-3 py-1',
-                      scannedFiles.length > 0
-                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                        : 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
-                    )}
-                  >
-                    {scannedFiles.length > 0 ? '✓ Files' : '○ Files'}
-                  </span>
                 </div>
-              </div>
-            )}
+              ) : isTransferring ? (
+                <p
+                  className={cn(
+                    'font-semibold text-blue-900 dark:text-blue-100',
+                    isCondensed ? 'text-xs' : 'text-sm'
+                  )}
+                >
+                  Transfer in progress...
+                </p>
+              ) : (
+                <div className={isCondensed ? 'space-y-1' : 'space-y-2'}>
+                  {!isCondensed && (
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                      Setup Required
+                    </p>
+                  )}
+                  <div
+                    className={cn(
+                      'flex flex-wrap items-center justify-center',
+                      isCondensed ? 'gap-1 text-[10px]' : 'gap-2 text-xs'
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        'rounded-full',
+                        isCondensed ? 'px-2 py-0.5' : 'px-3 py-1',
+                        selectedDrive
+                          ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                          : 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
+                      )}
+                    >
+                      {selectedDrive ? '✓ Drive' : '○ Drive'}
+                    </span>
+                    <span
+                      className={cn(
+                        'rounded-full',
+                        isCondensed ? 'px-2 py-0.5' : 'px-3 py-1',
+                        selectedDestination
+                          ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                          : 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
+                      )}
+                    >
+                      {selectedDestination ? '✓ Dest' : '○ Dest'}
+                    </span>
+                    <span
+                      className={cn(
+                        'rounded-full',
+                        isCondensed ? 'px-2 py-0.5' : 'px-3 py-1',
+                        scannedFiles.length > 0
+                          ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                          : 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
+                      )}
+                    >
+                      {scannedFiles.length > 0 ? '✓ Files' : '○ Files'}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
 
       {/* File Conflict Dialog */}
       <FileConflictDialog

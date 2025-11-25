@@ -12,7 +12,6 @@ import { formatBytes, cn } from '../lib/utils'
 import type { DriveInfo } from '../../../shared/types'
 import { playErrorSound } from '../utils/soundManager'
 
-// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export function DriveSelector() {
   const {
     detectedDrives,

@@ -66,21 +66,24 @@ export function DestinationSelector() {
         try {
           // Extract file paths from ScannedFile objects
           const filePaths = scannedFiles.map((file) => file.path)
-          
+
           // Debug: Check for empty file paths
           const emptyPaths = filePaths.filter((path, index) => {
             if (!path || path.trim() === '') {
-              console.error(`[Auto-transfer] Empty file path at index ${index}:`, scannedFiles[index])
+              console.error(
+                `[Auto-transfer] Empty file path at index ${index}:`,
+                scannedFiles[index]
+              )
               return true
             }
             return false
           })
-          
+
           if (emptyPaths.length > 0) {
             console.error(`[Auto-transfer] Found ${emptyPaths.length} empty file paths!`)
             console.error('[Auto-transfer] All scanned files:', scannedFiles)
           }
-          
+
           const request = {
             driveInfo: selectedDrive,
             sourceRoot: selectedDrive.mountpoints[0] || '',
@@ -150,10 +153,12 @@ export function DestinationSelector() {
     <Card className="h-full border-0 bg-white/70 shadow-xl shadow-slate-500/10 backdrop-blur-sm dark:bg-gray-900/70">
       <CardHeader className={isCondensed ? 'p-3' : undefined}>
         <div className="flex items-center gap-2">
-          <div className={cn(
-            'flex items-center justify-center rounded-lg bg-gradient-to-br from-slate-600 to-slate-700 text-white shadow-lg shadow-slate-500/30',
-            isCondensed ? 'h-6 w-6' : 'h-8 w-8'
-          )}>
+          <div
+            className={cn(
+              'flex items-center justify-center rounded-lg bg-gradient-to-br from-slate-600 to-slate-700 text-white shadow-lg shadow-slate-500/30',
+              isCondensed ? 'h-6 w-6' : 'h-8 w-8'
+            )}
+          >
             <FolderOpen className={isCondensed ? 'h-3 w-3' : 'h-4 w-4'} />
           </div>
           <div>
@@ -223,15 +228,27 @@ export function DestinationSelector() {
               </div>
             </div>
           ) : (
-            <div className={cn(
-              'relative overflow-hidden rounded-xl border-2 border-dashed border-gray-300 bg-gradient-to-br from-gray-50 to-gray-100 text-center dark:border-gray-700 dark:from-gray-800/50 dark:to-gray-900/50',
-              isCondensed ? 'p-6' : 'p-12'
-            )}>
+            <div
+              className={cn(
+                'relative overflow-hidden rounded-xl border-2 border-dashed border-gray-300 bg-gradient-to-br from-gray-50 to-gray-100 text-center dark:border-gray-700 dark:from-gray-800/50 dark:to-gray-900/50',
+                isCondensed ? 'p-6' : 'p-12'
+              )}
+            >
               <div className="relative">
                 <div className="absolute inset-0 animate-pulse rounded-full bg-slate-400 opacity-20" />
-                <FolderPlus className={cn('relative mx-auto text-slate-600 dark:text-slate-400', isCondensed ? 'h-10 w-10' : 'h-16 w-16')} />
+                <FolderPlus
+                  className={cn(
+                    'relative mx-auto text-slate-600 dark:text-slate-400',
+                    isCondensed ? 'h-10 w-10' : 'h-16 w-16'
+                  )}
+                />
               </div>
-              <p className={cn('font-semibold text-gray-900 dark:text-white', isCondensed ? 'mt-2 text-xs' : 'mt-4 text-sm')}>
+              <p
+                className={cn(
+                  'font-semibold text-gray-900 dark:text-white',
+                  isCondensed ? 'mt-2 text-xs' : 'mt-4 text-sm'
+                )}
+              >
                 No Destination Selected
               </p>
               {!isCondensed && (

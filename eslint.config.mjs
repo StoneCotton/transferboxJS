@@ -25,7 +25,48 @@ export default defineConfig(
     },
     rules: {
       ...eslintPluginReactHooks.configs.recommended.rules,
-      ...eslintPluginReactRefresh.configs.vite.rules
+      ...eslintPluginReactRefresh.configs.vite.rules,
+      // Allow unused vars when prefixed with underscore
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_'
+        }
+      ],
+      // Allow explicit any in specific cases (preload bridge, IPC)
+      '@typescript-eslint/no-explicit-any': 'warn',
+      // Disable control-regex since we intentionally check for control chars
+      'no-control-regex': 'off',
+      // These escape chars are valid in some contexts
+      'no-useless-escape': 'warn'
+    }
+  },
+  // Preload files need any types for the contextBridge
+  {
+    files: ['**/preload/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/explicit-function-return-type': 'off'
+    }
+  },
+  // Renderer files - React components have implicit return types
+  {
+    files: ['**/renderer/**/*.{ts,tsx}'],
+    rules: {
+      '@typescript-eslint/explicit-function-return-type': 'off'
+    }
+  },
+  // Test files have more relaxed rules
+  {
+    files: ['**/tests/**/*.{ts,tsx}', '**/*.test.{ts,tsx}', '**/__mocks__/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/explicit-function-return-type': 'off',
+      '@typescript-eslint/no-unused-vars': 'off',
+      '@typescript-eslint/no-require-imports': 'off',
+      '@typescript-eslint/no-unsafe-function-type': 'off'
     }
   },
   eslintConfigPrettier

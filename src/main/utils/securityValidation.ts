@@ -1,7 +1,7 @@
 /**
  * Security Validation Utilities
  * Centralized validation functions to prevent security vulnerabilities
- * 
+ *
  * These utilities should be used throughout the codebase to prevent:
  * - Command injection attacks
  * - Path traversal attacks
@@ -21,7 +21,7 @@ const WILDCARD_CHARACTERS = /[*?]/
 
 /**
  * Validates that a string doesn't contain shell metacharacters that could be used for command injection
- * 
+ *
  * @param value - The string to validate
  * @param context - Description of what's being validated (for logging)
  * @throws Error if dangerous characters are found
@@ -40,7 +40,7 @@ export function validateNoCommandInjection(value: string, context: string = 'val
 
 /**
  * Validates that a string doesn't contain wildcard characters
- * 
+ *
  * @param value - The string to validate
  * @param context - Description of what's being validated (for logging)
  * @throws Error if wildcards are found
@@ -54,7 +54,7 @@ export function validateNoWildcards(value: string, context: string = 'value'): v
 
 /**
  * Validates that a string doesn't contain path traversal attempts
- * 
+ *
  * @param value - The string to validate
  * @param context - Description of what's being validated (for logging)
  * @throws Error if path traversal is detected
@@ -69,7 +69,7 @@ export function validateNoPathTraversal(value: string, context: string = 'value'
 /**
  * Validates that a string doesn't contain control characters
  * Control characters (0x00-0x1F) can cause issues and are often used in exploits
- * 
+ *
  * @param value - The string to validate
  * @param context - Description of what's being validated (for logging)
  * @throws Error if control characters are found
@@ -84,7 +84,7 @@ export function validateNoControlCharacters(value: string, context: string = 'va
 /**
  * Comprehensive path safety check
  * Validates that a path is safe to use in shell commands
- * 
+ *
  * @param pathValue - The path to validate
  * @param context - Description of what's being validated
  * @throws Error if the path contains unsafe characters
@@ -92,7 +92,7 @@ export function validateNoControlCharacters(value: string, context: string = 'va
 export function validateSafePath(pathValue: string, context: string = 'path'): void {
   validateNoControlCharacters(pathValue, context)
   validateNoCommandInjection(pathValue, context)
-  
+
   // Check for pipe and redirect characters (< > | ")
   if (PATH_SEPARATORS_UNSAFE.test(pathValue)) {
     getLogger().warn('Unsafe path separators detected', { context, value: pathValue })
@@ -103,7 +103,7 @@ export function validateSafePath(pathValue: string, context: string = 'path'): v
 /**
  * Validates a path to be used in shell command execution
  * More strict than validateSafePath - also rejects wildcards and validates against traversal
- * 
+ *
  * @param pathValue - The path to validate
  * @param context - Description of what's being validated
  * @throws Error if the path is not safe for shell execution
@@ -116,10 +116,10 @@ export function validatePathForShellExecution(pathValue: string, context: string
 
 /**
  * Sanitizes a string for use in shell commands by escaping dangerous characters
- * 
+ *
  * WARNING: Prefer validation over sanitization when possible!
  * Sanitization can be bypassed and is not as safe as rejecting invalid input.
- * 
+ *
  * @param value - The string to sanitize
  * @returns Sanitized string safe for shell use
  */
@@ -141,7 +141,7 @@ export function sanitizeForShell(value: string): string {
  * - Windows drives: X: or X:\
  * - Windows device paths: \\.\PHYSICALDRIVE0, \\?\Volume{guid}, \\.\HarddiskVolume1
  * - Simple alphanumeric identifiers
- * 
+ *
  * @param device - The device identifier to check
  * @returns true if the device identifier is safe
  */
@@ -150,22 +150,22 @@ export function isSafeDeviceId(device: string): boolean {
   if (/^\/dev\/[a-zA-Z0-9_\-\/]+$/.test(device)) {
     return true
   }
-  
+
   // Windows drive letter
   if (/^[A-Z]:(\\)?$/i.test(device)) {
     return true
   }
-  
+
   // Windows physical drive or volume path
   if (/^\\\\[.?]\\(PHYSICALDRIVE\d+|Volume\{[a-fA-F0-9-]+\}|Harddisk(Volume)?\d+)$/i.test(device)) {
     return true
   }
-  
+
   // Simple alphanumeric identifier (fallback)
   if (/^[a-zA-Z0-9_\-]+$/.test(device)) {
     return true
   }
-  
+
   return false
 }
 
@@ -180,7 +180,7 @@ export const PATH_LIMITS = {
     linux: 4096, // PATH_MAX on Linux
     default: 4096
   },
-  
+
   // Maximum filename length (NAME_MAX)
   MAX_NAME_LENGTH: {
     win32: 255,
@@ -192,7 +192,7 @@ export const PATH_LIMITS = {
 
 /**
  * Gets the maximum path length for the current platform
- * 
+ *
  * @returns Maximum path length in characters
  */
 export function getMaxPathLength(): number {
@@ -202,7 +202,7 @@ export function getMaxPathLength(): number {
 
 /**
  * Gets the maximum filename length for the current platform
- * 
+ *
  * @returns Maximum filename length in characters
  */
 export function getMaxNameLength(): number {
@@ -212,33 +212,40 @@ export function getMaxNameLength(): number {
 
 /**
  * Validates that a path meets platform-specific length requirements
- * 
+ *
  * @param pathValue - The path to validate
  * @param context - Description of what's being validated
  * @throws Error if the path is too long
  */
 export function validatePathLength(pathValue: string, context: string = 'path'): void {
   const maxLength = getMaxPathLength()
-  
+
   if (pathValue.length > maxLength) {
-    getLogger().warn('Path exceeds maximum length', { context, length: pathValue.length, maxLength })
+    getLogger().warn('Path exceeds maximum length', {
+      context,
+      length: pathValue.length,
+      maxLength
+    })
     throw new Error(`${context} exceeds maximum length of ${maxLength} characters`)
   }
 }
 
 /**
  * Validates that a filename meets platform-specific length requirements
- * 
+ *
  * @param filename - The filename to validate
  * @param context - Description of what's being validated
  * @throws Error if the filename is too long
  */
 export function validateNameLength(filename: string, context: string = 'filename'): void {
   const maxLength = getMaxNameLength()
-  
+
   if (filename.length > maxLength) {
-    getLogger().warn('Filename exceeds maximum length', { context, length: filename.length, maxLength })
+    getLogger().warn('Filename exceeds maximum length', {
+      context,
+      length: filename.length,
+      maxLength
+    })
     throw new Error(`${context} exceeds maximum length of ${maxLength} characters`)
   }
 }
-

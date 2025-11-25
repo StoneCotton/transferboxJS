@@ -9,7 +9,6 @@ import { useConfigStore } from '../store'
 import { useUiDensity } from '../hooks/useUiDensity'
 import { cn } from '../lib/utils'
 
-// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export function ModeIndicator() {
   const { config } = useConfigStore()
   const { isCondensed } = useUiDensity()
@@ -68,11 +67,13 @@ export function ModeIndicator() {
       )}
     >
       <Icon className={cn(isCondensed ? 'h-3 w-3' : 'h-4 w-4', currentMode.color)} />
-      <span className={cn(
-        'font-bold uppercase tracking-wide',
-        isCondensed ? 'text-[10px]' : 'text-xs',
-        currentMode.color
-      )}>
+      <span
+        className={cn(
+          'font-bold uppercase tracking-wide',
+          isCondensed ? 'text-[10px]' : 'text-xs',
+          currentMode.color
+        )}
+      >
         {currentMode.label}
       </span>
     </div>

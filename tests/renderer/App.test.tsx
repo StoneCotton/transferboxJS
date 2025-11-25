@@ -29,6 +29,16 @@ jest.mock('../../src/renderer/src/hooks/useIpc', () => ({
     ),
     handleNewerConfigChoice: jest.fn(),
     clearNewerConfigWarning: jest.fn(),
+    checkForUpdates: jest.fn(() =>
+      Promise.resolve({
+        hasUpdate: false,
+        currentVersion: '2.0.1-alpha.2',
+        latestVersion: '2.0.1-alpha.2',
+        releaseUrl: 'https://github.com/StoneCotton/transferboxJS/releases',
+        releaseNotes: ''
+      })
+    ),
+    openReleasesPage: jest.fn(),
     onDriveDetected: jest.fn(() => jest.fn()),
     onDriveRemoved: jest.fn(() => jest.fn()),
     onDriveUnmounted: jest.fn(() => jest.fn()),
@@ -37,7 +47,8 @@ jest.mock('../../src/renderer/src/hooks/useIpc', () => ({
     onTransferError: jest.fn(() => jest.fn()),
     onLogEntry: jest.fn(() => jest.fn()),
     onSystemSuspend: jest.fn(() => jest.fn()),
-    onSystemResume: jest.fn(() => jest.fn())
+    onSystemResume: jest.fn(() => jest.fn()),
+    onUpdateAvailable: jest.fn(() => jest.fn())
   })
 }))
 

@@ -150,21 +150,24 @@ export function useAppInit(): null {
             // Auto-start transfer without confirmation
             // Extract file paths from ScannedFile objects
             const filePaths = result.files.map((file) => file.path)
-            
+
             // Debug: Check for empty file paths
             const emptyPaths = filePaths.filter((path, index) => {
               if (!path || path.trim() === '') {
-                console.error(`[Fully-autonomous] Empty file path at index ${index}:`, result.files[index])
+                console.error(
+                  `[Fully-autonomous] Empty file path at index ${index}:`,
+                  result.files[index]
+                )
                 return true
               }
               return false
             })
-            
+
             if (emptyPaths.length > 0) {
               console.error(`[Fully-autonomous] Found ${emptyPaths.length} empty file paths!`)
               console.error('[Fully-autonomous] All scanned files:', result.files)
             }
-            
+
             // Run pre-transfer validation
             console.log('[Fully-autonomous] Validating transfer...')
             const validation = await ipc.validateTransfer({
@@ -189,14 +192,18 @@ export function useAppInit(): null {
             // In fully-autonomous mode, handle conflicts based on config
             let finalFilePaths = filePaths
             if (validation.conflicts.length > 0) {
-              console.log(`[Fully-autonomous] ${validation.conflicts.length} file conflicts detected`)
-              
+              console.log(
+                `[Fully-autonomous] ${validation.conflicts.length} file conflicts detected`
+              )
+
               // Apply automatic conflict resolution based on config
               if (config.conflictResolution === 'skip') {
                 // Skip all conflicting files
                 const conflictPaths = new Set(validation.conflicts.map((c) => c.sourcePath))
                 finalFilePaths = filePaths.filter((p) => !conflictPaths.has(p))
-                console.log(`[Fully-autonomous] Skipping ${validation.conflicts.length} conflicting files`)
+                console.log(
+                  `[Fully-autonomous] Skipping ${validation.conflicts.length} conflicting files`
+                )
               } else if (config.conflictResolution === 'ask') {
                 // In autonomous mode with 'ask', show warning and skip conflicts
                 store.addToast({
@@ -218,21 +225,21 @@ export function useAppInit(): null {
               })
               return
             }
-            
+
             const request = {
               driveInfo: drive,
               sourceRoot: drive.mountpoints[0] || '',
               destinationRoot: config.defaultDestination,
               files: finalFilePaths
             }
-            
+
             console.log('[Fully-autonomous] Starting transfer with request:', {
               ...request,
               fileCount: request.files.length,
               firstFile: request.files[0],
               lastFile: request.files[request.files.length - 1]
             })
-            
+
             await ipc.startTransfer(request)
             // Show toast notification (logs are already created in main process)
             store.addToast({

@@ -23,7 +23,6 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/
 import { Tooltip } from './ui/Tooltip'
 import { cn, formatDuration } from '../lib/utils'
 
-// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 function getFileIcon(filePath: string) {
   const ext = filePath.toLowerCase().split('.').pop()
 
@@ -262,7 +261,6 @@ function copyToClipboard(text: string): void {
   })
 }
 
-// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export function FileList() {
   const { scannedFiles, scanInProgress } = useDriveStore()
   const { progress } = useTransferStore()

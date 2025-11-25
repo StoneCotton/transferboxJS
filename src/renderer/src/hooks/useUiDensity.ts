@@ -29,4 +29,3 @@ export function useUiDensity(): UiDensityHelpers {
     isComfortable: density === 'comfortable'
   }
 }
-

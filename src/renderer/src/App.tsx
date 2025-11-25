@@ -91,37 +91,35 @@ function App() {
   const workflowSteps = getWorkflowSteps(config.transferMode)
 
   return (
-    <div className={cn(
-      'flex h-screen flex-col bg-gradient-to-br from-slate-50 via-brand-50 to-orange-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900',
-      isCondensed && 'ui-condensed'
-    )}>
+    <div
+      className={cn(
+        'flex h-screen flex-col bg-gradient-to-br from-slate-50 via-brand-50 to-orange-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-900',
+        isCondensed && 'ui-condensed'
+      )}
+    >
       {/* Header */}
       <Header />
 
       {/* Main Content */}
-      <main className={cn(
-        'flex-1 overflow-auto',
-        isCondensed ? 'p-2 md:p-4' : 'p-4 md:p-8'
-      )}>
+      <main className={cn('flex-1 overflow-auto', isCondensed ? 'p-2 md:p-4' : 'p-4 md:p-8')}>
         <div className="mx-auto max-w-7xl">
           {/* Mode Indicator */}
-          <div className={cn(
-            'flex justify-center',
-            isCondensed ? 'mb-3' : 'mb-6'
-          )}>
+          <div className={cn('flex justify-center', isCondensed ? 'mb-3' : 'mb-6')}>
             <ModeIndicator />
           </div>
 
           {/* Dynamic Workflow Steps Indicator */}
-          <div className={cn(
-            'flex items-center justify-center',
-            isCondensed ? 'mb-4 gap-2' : 'mb-8 gap-4'
-          )}>
+          <div
+            className={cn(
+              'flex items-center justify-center',
+              isCondensed ? 'mb-4 gap-2' : 'mb-8 gap-4'
+            )}
+          >
             {workflowSteps.map((step, index) => (
-              <div key={step.id} className={cn(
-                'flex items-center',
-                isCondensed ? 'gap-1' : 'gap-2'
-              )}>
+              <div
+                key={step.id}
+                className={cn('flex items-center', isCondensed ? 'gap-1' : 'gap-2')}
+              >
                 {/* Step Circle */}
                 <div
                   className={cn(
@@ -174,10 +172,12 @@ function App() {
 
           {/* Transfer Progress (shown when transferring) */}
           {(isTransferring || progress) && (
-            <div className={cn(
-              'animate-in fade-in slide-in-from-top-4 duration-500',
-              isCondensed ? 'mb-3' : 'mb-6'
-            )}>
+            <div
+              className={cn(
+                'animate-in fade-in slide-in-from-top-4 duration-500',
+                isCondensed ? 'mb-3' : 'mb-6'
+              )}
+            >
               <TransferProgress />
             </div>
           )}

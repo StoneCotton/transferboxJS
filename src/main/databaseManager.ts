@@ -770,8 +770,8 @@ export class DatabaseManager {
     try {
       const stats = fs.statSync(this.dbPath)
       dbSize = stats.size
-    } catch (error) {
-      // Ignore error
+    } catch {
+      // Ignore error - file may not exist yet
     }
 
     return {

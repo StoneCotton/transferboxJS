@@ -5,7 +5,6 @@
 
 import * as path from 'path'
 // Use require to allow spying on fs.promises methods in Jest
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const fs = require('fs/promises')
 import * as os from 'os'
 import { PathProcessor, createPathProcessor } from '../../src/main/pathProcessor'
@@ -118,7 +117,7 @@ describe('PathProcessor', () => {
       // Attempt path traversal via crafted source path
       // This simulates a malicious source with .. in the path
       const maliciousPath = path.join(sourceDir, '..', '..', 'etc', 'passwd')
-      
+
       // Create the file (in test environment)
       const etcDir = path.join(testDir, 'etc')
       await fs.mkdir(etcDir, { recursive: true })
@@ -128,7 +127,7 @@ describe('PathProcessor', () => {
       // Processing should either throw or ensure result is within destDir
       try {
         const result = await processor.processFilePath(maliciousPath, destDir)
-        
+
         // If it doesn't throw, verify the result is still within destDir
         const resolvedDest = path.resolve(result.destinationPath)
         const resolvedDestDir = path.resolve(destDir)
@@ -268,7 +267,7 @@ describe('PathProcessor', () => {
   describe('Cross-platform filename sanitization', () => {
     it('should sanitize filenames with invalid characters', async () => {
       const sourceFile = path.join(sourceDir, 'test:file<>.mp4')
-      
+
       // Create file with valid name for testing
       const validSourceFile = path.join(sourceDir, 'test-file.mp4')
       await fs.writeFile(validSourceFile, 'content')
@@ -284,7 +283,7 @@ describe('PathProcessor', () => {
 
       try {
         const result = await processor.processFilePath(sourceFile, destDir)
-        
+
         // Should not contain invalid characters
         expect(result.fileName).not.toContain('<')
         expect(result.fileName).not.toContain('>')
@@ -295,4 +294,3 @@ describe('PathProcessor', () => {
     })
   })
 })
-

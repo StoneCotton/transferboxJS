@@ -128,7 +128,7 @@ export function HistoryFilters({
       {(filter || statusFilter !== 'all' || dateFilter !== 'all') && (
         <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
           <span>Filtered by:</span>
-          {filter && <span className="font-medium">"{filter}"</span>}
+          {filter && <span className="font-medium">&quot;{filter}&quot;</span>}
           {statusFilter !== 'all' && (
             <span className="font-medium">
               {statusOptions.find((opt) => opt.value === statusFilter)?.label}

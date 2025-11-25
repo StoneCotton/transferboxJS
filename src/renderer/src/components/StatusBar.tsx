@@ -81,11 +81,18 @@ export function StatusBar() {
       {/* Stats */}
       <div className={cn('flex items-center', isCondensed ? 'gap-2' : 'gap-6')}>
         {selectedDrive && (
-          <div className={cn(
-            'flex items-center rounded-lg bg-white/60 shadow-sm dark:bg-gray-800/60',
-            isCondensed ? 'gap-1 px-2 py-1' : 'gap-2 px-3 py-2'
-          )}>
-            <HardDrive className={cn('text-blue-600 dark:text-blue-400', isCondensed ? 'h-3 w-3' : 'h-4 w-4')} />
+          <div
+            className={cn(
+              'flex items-center rounded-lg bg-white/60 shadow-sm dark:bg-gray-800/60',
+              isCondensed ? 'gap-1 px-2 py-1' : 'gap-2 px-3 py-2'
+            )}
+          >
+            <HardDrive
+              className={cn(
+                'text-blue-600 dark:text-blue-400',
+                isCondensed ? 'h-3 w-3' : 'h-4 w-4'
+              )}
+            />
             {isCondensed ? (
               <span className="max-w-[60px] truncate text-[10px] font-bold text-gray-900 dark:text-white">
                 {selectedDrive.displayName}
@@ -103,11 +110,18 @@ export function StatusBar() {
           </div>
         )}
         {selectedDestination && (
-          <div className={cn(
-            'flex items-center rounded-lg bg-white/60 shadow-sm dark:bg-gray-800/60',
-            isCondensed ? 'gap-1 px-2 py-1' : 'gap-2 px-3 py-2'
-          )}>
-            <FolderOpen className={cn('text-indigo-600 dark:text-indigo-400', isCondensed ? 'h-3 w-3' : 'h-4 w-4')} />
+          <div
+            className={cn(
+              'flex items-center rounded-lg bg-white/60 shadow-sm dark:bg-gray-800/60',
+              isCondensed ? 'gap-1 px-2 py-1' : 'gap-2 px-3 py-2'
+            )}
+          >
+            <FolderOpen
+              className={cn(
+                'text-indigo-600 dark:text-indigo-400',
+                isCondensed ? 'h-3 w-3' : 'h-4 w-4'
+              )}
+            />
             {isCondensed ? (
               <span className="max-w-[60px] truncate text-[10px] font-bold text-gray-900 dark:text-white">
                 {selectedDestination.split('/').pop() || selectedDestination}
@@ -125,11 +139,18 @@ export function StatusBar() {
           </div>
         )}
         {scannedFiles.length > 0 && (
-          <div className={cn(
-            'flex items-center rounded-lg bg-white/60 shadow-sm dark:bg-gray-800/60',
-            isCondensed ? 'gap-1 px-2 py-1' : 'gap-2 px-3 py-2'
-          )}>
-            <Files className={cn('text-purple-600 dark:text-purple-400', isCondensed ? 'h-3 w-3' : 'h-4 w-4')} />
+          <div
+            className={cn(
+              'flex items-center rounded-lg bg-white/60 shadow-sm dark:bg-gray-800/60',
+              isCondensed ? 'gap-1 px-2 py-1' : 'gap-2 px-3 py-2'
+            )}
+          >
+            <Files
+              className={cn(
+                'text-purple-600 dark:text-purple-400',
+                isCondensed ? 'h-3 w-3' : 'h-4 w-4'
+              )}
+            />
             {isCondensed ? (
               <span className="text-[10px] font-bold text-gray-900 dark:text-white">
                 {scannedFiles.length}
@@ -147,15 +168,20 @@ export function StatusBar() {
           </div>
         )}
         {isTransferring && (
-          <div className={cn(
-            'flex items-center rounded-lg bg-blue-100 shadow-lg dark:bg-blue-900/50',
-            isCondensed ? 'gap-1 px-2 py-1' : 'gap-2 px-3 py-2'
-          )}>
-            <Activity className={cn('animate-pulse text-blue-600 dark:text-blue-400', isCondensed ? 'h-3 w-3' : 'h-4 w-4')} />
+          <div
+            className={cn(
+              'flex items-center rounded-lg bg-blue-100 shadow-lg dark:bg-blue-900/50',
+              isCondensed ? 'gap-1 px-2 py-1' : 'gap-2 px-3 py-2'
+            )}
+          >
+            <Activity
+              className={cn(
+                'animate-pulse text-blue-600 dark:text-blue-400',
+                isCondensed ? 'h-3 w-3' : 'h-4 w-4'
+              )}
+            />
             {isCondensed ? (
-              <span className="text-[10px] font-bold text-blue-900 dark:text-blue-100">
-                Active
-              </span>
+              <span className="text-[10px] font-bold text-blue-900 dark:text-blue-100">Active</span>
             ) : (
               <div className="flex flex-col">
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-blue-700 dark:text-blue-300">

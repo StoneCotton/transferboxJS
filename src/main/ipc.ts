@@ -212,7 +212,9 @@ export function setupIpcHandlers(): void {
         if (mainWindow && !mainWindow.isDestroyed()) {
           if (process.platform === 'win32') {
             // On Windows, treat successful eject as removed so UI clears the device fully
-            getLogger().debug('[IPC] Sending DRIVE_REMOVED event (win32)', { device: validatedDevice })
+            getLogger().debug('[IPC] Sending DRIVE_REMOVED event (win32)', {
+              device: validatedDevice
+            })
             mainWindow.webContents.send(IPC_CHANNELS.DRIVE_REMOVED, validatedDevice)
           } else {
             getLogger().debug('[IPC] Sending DRIVE_UNMOUNTED event', { device: validatedDevice })
@@ -240,12 +242,12 @@ export function setupIpcHandlers(): void {
   // Pre-transfer validation handler
   ipcMain.handle(IPC_CHANNELS.TRANSFER_VALIDATE, async (_, request: unknown) => {
     const logger = getLogger()
-    
+
     // Validate request structure
     if (!request || typeof request !== 'object') {
       throw new Error('Invalid validation request')
     }
-    
+
     const reqObj = request as Record<string, unknown>
     if (!reqObj.sourceRoot || typeof reqObj.sourceRoot !== 'string') {
       throw new Error('sourceRoot is required and must be a string')
@@ -269,7 +271,7 @@ export function setupIpcHandlers(): void {
 
     // Get drive info for device name
     const driveInfo = reqObj.driveInfo as Record<string, unknown> | undefined
-    const deviceName = driveInfo?.displayName as string || 'Unknown Device'
+    const deviceName = (driveInfo?.displayName as string) || 'Unknown Device'
 
     // Process file paths to get source -> dest mapping
     const processedFiles = await Promise.all(
@@ -318,7 +320,7 @@ export function setupIpcHandlers(): void {
 
   ipcMain.handle(IPC_CHANNELS.TRANSFER_START, async (event, request: unknown) => {
     const logger = getLogger()
-    
+
     // Prevent concurrent transfers
     if (transferEngine && transferEngine.isTransferring()) {
       const errorMessage =
@@ -369,8 +371,8 @@ export function setupIpcHandlers(): void {
     )
 
     // Get conflict resolutions from request (if provided)
-    const conflictResolutions = (validatedRequest as Record<string, unknown>).conflictResolutions as 
-      Record<string, 'skip' | 'rename' | 'overwrite'> | undefined
+    const conflictResolutions = (validatedRequest as Record<string, unknown>)
+      .conflictResolutions as Record<string, 'skip' | 'rename' | 'overwrite'> | undefined
 
     // Initialize FilenameUtils for conflict resolution
     const filenameUtils = new FilenameUtils()
@@ -385,7 +387,7 @@ export function setupIpcHandlers(): void {
             validatedRequest.destinationRoot,
             validatedRequest.driveInfo.displayName
           )
-          
+
           let destPath = processedPath.destinationPath
           let shouldSkip = false
 
@@ -399,10 +401,10 @@ export function setupIpcHandlers(): void {
               // Use FilenameUtils to generate a unique name
               const resolved = await filenameUtils.resolveConflict(destPath, { strategy: 'rename' })
               destPath = resolved.path
-              getLogger().debug('[IPC] Renamed file for conflict resolution', { 
-                sourcePath, 
+              getLogger().debug('[IPC] Renamed file for conflict resolution', {
+                sourcePath,
                 originalDest: processedPath.destinationPath,
-                newDest: destPath 
+                newDest: destPath
               })
             }
             // 'overwrite' doesn't change the path, just allows overwriting
@@ -412,7 +414,9 @@ export function setupIpcHandlers(): void {
               const resolved = await filenameUtils.resolveConflict(destPath, { strategy: 'skip' })
               if (resolved.action === 'skip') {
                 shouldSkip = true
-                getLogger().debug('[IPC] Skipping file due to config conflict resolution', { sourcePath })
+                getLogger().debug('[IPC] Skipping file due to config conflict resolution', {
+                  sourcePath
+                })
               }
             } else if (config.conflictResolution === 'rename') {
               const resolved = await filenameUtils.resolveConflict(destPath, { strategy: 'rename' })

@@ -30,9 +30,7 @@ export class FilenameUtils {
     sanitized = sanitized.replace(/[<>:"/\\|?*]/g, replacement)
 
     // Replace NULL with replacement, then remove other control characters universally
-    // eslint-disable-next-line no-control-regex
     sanitized = sanitized.replace(/\x00/g, replacement)
-    // eslint-disable-next-line no-control-regex
     sanitized = sanitized.replace(/[\x01-\x1f\x7f]/g, '')
 
     // Ensure path separators are safe on POSIX (already handled in Windows set above)

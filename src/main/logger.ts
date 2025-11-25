@@ -86,7 +86,7 @@ export class Logger {
       try {
         // Test if context can be stringified
         JSON.stringify(context)
-      } catch (error) {
+      } catch {
         // Handle circular references or other JSON errors
         safeContext = { error: 'Context contains circular references or non-serializable data' }
       }

@@ -13,7 +13,6 @@ import { cn } from '../lib/utils'
 import logoImage from '../assets/logo.png'
 import type { UpdateCheckResult } from '../../../shared/types'
 
-// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export function Header() {
   const { toggleSettings, toggleHistory, toggleLogs } = useUIStore()
   const { isCondensed } = useUiDensity()

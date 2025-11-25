@@ -93,7 +93,7 @@ export async function validatePath(targetPath: string): Promise<PathValidationRe
         error: 'Path must be a directory, not a file'
       }
     }
-  } catch (error) {
+  } catch {
     return {
       isValid: false,
       exists: false,
@@ -108,7 +108,7 @@ export async function validatePath(targetPath: string): Promise<PathValidationRe
   // Check if directory is writable
   try {
     await fs.access(normalizedPath, fs.constants.W_OK)
-  } catch (error) {
+  } catch {
     return {
       isValid: false,
       exists: true,
@@ -124,7 +124,7 @@ export async function validatePath(targetPath: string): Promise<PathValidationRe
   let spaceInfo: DiskSpaceInfo
   try {
     spaceInfo = await checkDiskSpace(normalizedPath)
-  } catch (error) {
+  } catch {
     return {
       isValid: false,
       exists: true,
@@ -222,7 +222,7 @@ export async function checkDiskSpace(targetPath: string): Promise<DiskSpaceInfo>
         freeSpace
       }
     }
-  } catch (error) {
+  } catch {
     // Fall through to platform-specific methods
   }
 
@@ -305,7 +305,7 @@ export async function hasEnoughSpace(targetPath: string, requiredBytes: number):
     // Add 10% buffer for safety
     const requiredWithBuffer = requiredBytes * 1.1
     return spaceInfo.freeSpace >= requiredWithBuffer
-  } catch (error) {
+  } catch {
     return false
   }
 }

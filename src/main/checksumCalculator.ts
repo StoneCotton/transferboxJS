@@ -87,12 +87,8 @@ export async function verifyChecksum(
   expectedChecksum: string,
   options?: ChecksumOptions
 ): Promise<boolean> {
-  try {
-    const actualChecksum = await calculateChecksum(filePath, options)
-    return actualChecksum === expectedChecksum
-  } catch (error) {
-    throw error
-  }
+  const actualChecksum = await calculateChecksum(filePath, options)
+  return actualChecksum === expectedChecksum
 }
 
 /**

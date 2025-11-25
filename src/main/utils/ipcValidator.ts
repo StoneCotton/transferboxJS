@@ -34,7 +34,10 @@ export function validateFilePath(filePath: string, allowRelative: boolean = fals
 
   // Double-check after normalization
   if (normalized.includes('..')) {
-    getLogger().warn('Path traversal attempt detected after normalization', { originalPath: filePath, normalized })
+    getLogger().warn('Path traversal attempt detected after normalization', {
+      originalPath: filePath,
+      normalized
+    })
     throw new Error('Invalid path: path traversal not allowed')
   }
 
@@ -91,12 +94,12 @@ export function validateFilePaths(filePaths: unknown[]): string[] {
 
 /**
  * Validates a device identifier with platform-specific rules
- * 
+ *
  * Platform-specific formats:
  * - Unix (darwin/linux): /dev/disk*, /dev/sd*, /dev/mmcblk*
  * - Windows drive letters: [A-Z]:, [A-Z]:\
  * - Windows device paths: \\.\PHYSICALDRIVE0, \\?\Volume{guid}, \\.\HarddiskVolume1
- * 
+ *
  * Security checks:
  * - Control characters (\x00-\x1f)
  * - Path traversal (..)
@@ -123,16 +126,17 @@ export function validateDeviceId(device: unknown): string {
 
   // Device ID format validation (platform-agnostic to support cross-platform testing)
   // Check recognized formats FIRST before applying general security checks
-  
+
   // Check if it's a Windows drive letter format: [A-Z]: or [A-Z]:\
   const isWindowsDrive = /^[A-Z]:(\\)?$/i.test(trimmed)
-  
+
   // Check if it's a Windows physical drive or volume path:
   // - \\.\PHYSICALDRIVE0, \\.\PHYSICALDRIVE1, etc.
   // - \\?\Volume{guid}
   // - \\.\HarddiskVolume1, etc.
-  const isWindowsDevicePath = /^\\\\[.?]\\(PHYSICALDRIVE\d+|Volume\{[a-fA-F0-9-]+\}|Harddisk(Volume)?\d+)$/i.test(trimmed)
-  
+  const isWindowsDevicePath =
+    /^\\\\[.?]\\(PHYSICALDRIVE\d+|Volume\{[a-fA-F0-9-]+\}|Harddisk(Volume)?\d+)$/i.test(trimmed)
+
   // Check if it's a Unix device path: /dev/*
   const isUnixDevice = /^\/dev\/[a-zA-Z0-9_\-\/]+$/.test(trimmed)
 
@@ -143,9 +147,9 @@ export function validateDeviceId(device: unknown): string {
     // Valid Unix device path - no additional checks needed
     return trimmed
   }
-  
+
   // If not a recognized device format, apply strict security checks
-  
+
   // Check for path traversal attempts
   if (trimmed.includes('..')) {
     throw new Error('Device ID contains invalid characters')
@@ -160,7 +164,7 @@ export function validateDeviceId(device: unknown): string {
   if (/[*?]/.test(trimmed)) {
     throw new Error('Device ID contains invalid characters')
   }
-  
+
   // Check for remaining invalid characters
   // Reject: quotes, angle brackets, pipe, backslashes, forward slashes, colons
   if (/[<>:"/\\|]/.test(trimmed)) {
@@ -209,9 +213,11 @@ export function validateTransferStartRequest(request: unknown): {
     throw new Error('driveInfo.displayName must be a string')
   }
   const validatedDevice = validateDeviceId(driveInfo.device)
-  const displayName = typeof driveInfo.displayName === 'string' && driveInfo.displayName.length <= MAX_DISPLAY_NAME_LENGTH
-    ? driveInfo.displayName.trim()
-    : 'Unknown Drive'
+  const displayName =
+    typeof driveInfo.displayName === 'string' &&
+    driveInfo.displayName.length <= MAX_DISPLAY_NAME_LENGTH
+      ? driveInfo.displayName.trim()
+      : 'Unknown Drive'
 
   // Validate files array
   if (!Array.isArray(req.files)) {
@@ -302,4 +308,3 @@ export function validateLimit(limit: unknown, max: number = 10000): number {
 
   return limit
 }
-

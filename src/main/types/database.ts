@@ -83,4 +83,3 @@ export interface CountRow {
 export interface DatabaseRow {
   [key: string]: string | number | null | undefined
 }
-

@@ -32,7 +32,9 @@ export interface UISlice extends UIState {
   closeAllPanels: () => void
 
   // NEW: Notification history management
-  addNotificationToHistory: (notification: Omit<UIState['notificationHistory'][0], 'id' | 'timestamp'>) => void
+  addNotificationToHistory: (
+    notification: Omit<UIState['notificationHistory'][0], 'id' | 'timestamp'>
+  ) => void
   clearNotificationHistory: () => void
 }
 

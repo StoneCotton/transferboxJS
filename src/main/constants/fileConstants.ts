@@ -56,4 +56,3 @@ export const PATH_LENGTH_LIMITS = {
   linux: 4096, // PATH_MAX on Linux
   default: 4096
 } as const
-

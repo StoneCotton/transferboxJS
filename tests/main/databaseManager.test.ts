@@ -561,7 +561,7 @@ describe('DatabaseManager', () => {
       // Final verification - all files should be complete
       const retrieved = dbManager.getTransferSession(sessionId)
       expect(retrieved?.files).toHaveLength(5)
-      
+
       retrieved?.files.forEach((file) => {
         expect(file.status).toBe('complete')
         expect(file.bytesTransferred).toBe(1000)
@@ -617,7 +617,7 @@ describe('DatabaseManager', () => {
       // Mix of read and write operations (rapid sequential)
       // IMMEDIATE transactions ensure writes don't corrupt while reads are happening
       const readResults: (TransferSession | null)[] = []
-      
+
       for (let i = 0; i < 5; i++) {
         dbManager.updateTransferSession(sessionId, { fileCount: i + 1 })
         readResults.push(dbManager.getTransferSession(sessionId))

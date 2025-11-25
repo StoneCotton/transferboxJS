@@ -208,11 +208,13 @@ export async function validateTransfer(
   }
 
   // Set overall validity
-  result.isValid = result.warnings.filter((w) => 
-    w.type === 'same_directory' || 
-    w.type === 'nested_source_in_dest' || 
-    w.type === 'nested_dest_in_source'
-  ).length === 0
+  result.isValid =
+    result.warnings.filter(
+      (w) =>
+        w.type === 'same_directory' ||
+        w.type === 'nested_source_in_dest' ||
+        w.type === 'nested_dest_in_source'
+    ).length === 0
 
   logger.debug('[TransferValidator] Validation complete', {
     isValid: result.isValid,
@@ -275,10 +277,7 @@ async function detectFileConflicts(
       await access(file.dest)
 
       // File exists - gather conflict information
-      const [sourceStats, destStats] = await Promise.all([
-        stat(file.source),
-        stat(file.dest)
-      ])
+      const [sourceStats, destStats] = await Promise.all([stat(file.source), stat(file.dest)])
 
       conflicts.push({
         sourcePath: file.source,
@@ -341,4 +340,3 @@ function formatBytes(bytes: number): string {
   const i = Math.floor(Math.log(bytes) / Math.log(k))
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
-

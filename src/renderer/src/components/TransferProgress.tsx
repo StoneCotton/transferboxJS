@@ -140,17 +140,36 @@ export function TransferProgress() {
       <CardContent className={cn('relative', isCondensed && 'p-3 pt-0')}>
         {hasError ? (
           <div className={isCondensed ? 'space-y-2' : 'space-y-4'}>
-            <div className={cn(
-              'rounded-xl border-2 border-red-400 bg-red-100 dark:border-red-600 dark:bg-red-900/50',
-              isCondensed ? 'p-3' : 'p-6'
-            )}>
+            <div
+              className={cn(
+                'rounded-xl border-2 border-red-400 bg-red-100 dark:border-red-600 dark:bg-red-900/50',
+                isCondensed ? 'p-3' : 'p-6'
+              )}
+            >
               <div className={cn('flex items-start', isCondensed ? 'gap-2' : 'gap-3')}>
-                <XCircle className={cn('flex-shrink-0 text-red-600 dark:text-red-400', isCondensed ? 'h-4 w-4' : 'h-6 w-6')} />
+                <XCircle
+                  className={cn(
+                    'flex-shrink-0 text-red-600 dark:text-red-400',
+                    isCondensed ? 'h-4 w-4' : 'h-6 w-6'
+                  )}
+                />
                 <div>
-                  <p className={cn('font-bold text-red-900 dark:text-red-100', isCondensed ? 'text-sm' : 'text-base')}>
+                  <p
+                    className={cn(
+                      'font-bold text-red-900 dark:text-red-100',
+                      isCondensed ? 'text-sm' : 'text-base'
+                    )}
+                  >
                     Error Occurred
                   </p>
-                  <p className={cn('text-red-700 dark:text-red-300', isCondensed ? 'text-xs' : 'mt-1 text-sm')}>{error}</p>
+                  <p
+                    className={cn(
+                      'text-red-700 dark:text-red-300',
+                      isCondensed ? 'text-xs' : 'mt-1 text-sm'
+                    )}
+                  >
+                    {error}
+                  </p>
                 </div>
               </div>
             </div>
@@ -159,15 +178,27 @@ export function TransferProgress() {
             {progress &&
               progress.completedFiles &&
               progress.completedFiles.some((f) => f.status === 'error') && (
-                <div className={cn(
-                  'rounded-xl border-2 border-red-300 bg-white dark:border-red-700 dark:bg-gray-900',
-                  isCondensed ? 'p-2' : 'p-4'
-                )}>
-                  <h4 className={cn('font-semibold text-gray-900 dark:text-white', isCondensed ? 'mb-2 text-xs' : 'mb-3 text-sm')}>
+                <div
+                  className={cn(
+                    'rounded-xl border-2 border-red-300 bg-white dark:border-red-700 dark:bg-gray-900',
+                    isCondensed ? 'p-2' : 'p-4'
+                  )}
+                >
+                  <h4
+                    className={cn(
+                      'font-semibold text-gray-900 dark:text-white',
+                      isCondensed ? 'mb-2 text-xs' : 'mb-3 text-sm'
+                    )}
+                  >
                     Failed Files (
                     {progress.completedFiles.filter((f) => f.status === 'error').length})
                   </h4>
-                  <div className={cn('overflow-y-auto', isCondensed ? 'max-h-32 space-y-1' : 'max-h-60 space-y-2')}>
+                  <div
+                    className={cn(
+                      'overflow-y-auto',
+                      isCondensed ? 'max-h-32 space-y-1' : 'max-h-60 space-y-2'
+                    )}
+                  >
                     {progress.completedFiles
                       .filter((f) => f.status === 'error')
                       .map((file) => (
@@ -179,14 +210,21 @@ export function TransferProgress() {
                           )}
                         >
                           <div className="flex items-center justify-between">
-                            <span className={cn('truncate font-medium text-gray-900 dark:text-white', isCondensed ? 'text-xs' : 'text-sm')}>
+                            <span
+                              className={cn(
+                                'truncate font-medium text-gray-900 dark:text-white',
+                                isCondensed ? 'text-xs' : 'text-sm'
+                              )}
+                            >
                               {file.fileName}
                             </span>
                             {file.errorType && (
-                              <span className={cn(
-                                'ml-2 rounded-full bg-red-200 font-bold text-red-800 dark:bg-red-900 dark:text-red-200',
-                                isCondensed ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-0.5 text-xs'
-                              )}>
+                              <span
+                                className={cn(
+                                  'ml-2 rounded-full bg-red-200 font-bold text-red-800 dark:bg-red-900 dark:text-red-200',
+                                  isCondensed ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-0.5 text-xs'
+                                )}
+                              >
                                 {file.errorType}
                               </span>
                             )}
@@ -211,47 +249,75 @@ export function TransferProgress() {
           <div className={isCondensed ? 'space-y-3' : 'space-y-6'}>
             {/* Stats Grid */}
             {progress && (
-              <div className={cn(
-                'grid',
-                isCondensed ? 'grid-cols-3 gap-2 md:grid-cols-5' : 'grid-cols-2 gap-4 md:grid-cols-5'
-              )}>
+              <div
+                className={cn(
+                  'grid',
+                  isCondensed
+                    ? 'grid-cols-3 gap-2 md:grid-cols-5'
+                    : 'grid-cols-2 gap-4 md:grid-cols-5'
+                )}
+              >
                 {/* Files */}
-                <div className={cn(
-                  'group relative overflow-hidden rounded-xl bg-gradient-to-br from-brand-100 to-brand-50 shadow-lg dark:from-brand-900/30 dark:to-brand-950/30',
-                  isCondensed ? 'p-2' : 'p-4'
-                )}>
+                <div
+                  className={cn(
+                    'group relative overflow-hidden rounded-xl bg-gradient-to-br from-brand-100 to-brand-50 shadow-lg dark:from-brand-900/30 dark:to-brand-950/30',
+                    isCondensed ? 'p-2' : 'p-4'
+                  )}
+                >
                   {!isCondensed && (
                     <div className="absolute right-2 top-2 opacity-10">
                       <FileCheck className="h-12 w-12" />
                     </div>
                   )}
                   <div className="relative">
-                    <div className={cn('flex items-center font-semibold text-brand-600 dark:text-brand-400', isCondensed ? 'gap-1 text-[10px]' : 'gap-2 text-xs')}>
+                    <div
+                      className={cn(
+                        'flex items-center font-semibold text-brand-600 dark:text-brand-400',
+                        isCondensed ? 'gap-1 text-[10px]' : 'gap-2 text-xs'
+                      )}
+                    >
                       <FileCheck className={isCondensed ? 'h-3 w-3' : 'h-4 w-4'} />
                       <span>Files</span>
                     </div>
-                    <p className={cn('font-black text-brand-900 dark:text-brand-100', isCondensed ? 'mt-1 text-sm' : 'mt-2 text-2xl')}>
+                    <p
+                      className={cn(
+                        'font-black text-brand-900 dark:text-brand-100',
+                        isCondensed ? 'mt-1 text-sm' : 'mt-2 text-2xl'
+                      )}
+                    >
                       {progress.completedFilesCount}/{progress.totalFiles}
                     </p>
                   </div>
                 </div>
 
                 {/* Size */}
-                <div className={cn(
-                  'group relative overflow-hidden rounded-xl bg-gradient-to-br from-slate-100 to-slate-50 shadow-lg dark:from-slate-900/30 dark:to-slate-950/30',
-                  isCondensed ? 'p-2' : 'p-4'
-                )}>
+                <div
+                  className={cn(
+                    'group relative overflow-hidden rounded-xl bg-gradient-to-br from-slate-100 to-slate-50 shadow-lg dark:from-slate-900/30 dark:to-slate-950/30',
+                    isCondensed ? 'p-2' : 'p-4'
+                  )}
+                >
                   {!isCondensed && (
                     <div className="absolute right-2 top-2 opacity-10">
                       <HardDriveDownload className="h-12 w-12" />
                     </div>
                   )}
                   <div className="relative">
-                    <div className={cn('flex items-center font-semibold text-slate-600 dark:text-slate-400', isCondensed ? 'gap-1 text-[10px]' : 'gap-2 text-xs')}>
+                    <div
+                      className={cn(
+                        'flex items-center font-semibold text-slate-600 dark:text-slate-400',
+                        isCondensed ? 'gap-1 text-[10px]' : 'gap-2 text-xs'
+                      )}
+                    >
                       <HardDriveDownload className={isCondensed ? 'h-3 w-3' : 'h-4 w-4'} />
                       <span>Size</span>
                     </div>
-                    <p className={cn('font-black text-slate-900 dark:text-slate-100', isCondensed ? 'mt-1 text-xs' : 'mt-2 text-lg')}>
+                    <p
+                      className={cn(
+                        'font-black text-slate-900 dark:text-slate-100',
+                        isCondensed ? 'mt-1 text-xs' : 'mt-2 text-lg'
+                      )}
+                    >
                       {formatBytes(progress.transferredBytes, config.unitSystem)}
                     </p>
                     {!isCondensed && (
@@ -263,63 +329,99 @@ export function TransferProgress() {
                 </div>
 
                 {/* Speed */}
-                <div className={cn(
-                  'group relative overflow-hidden rounded-xl bg-gradient-to-br from-orange-100 to-orange-50 shadow-lg dark:from-orange-900/30 dark:to-orange-950/30',
-                  isCondensed ? 'p-2' : 'p-4'
-                )}>
+                <div
+                  className={cn(
+                    'group relative overflow-hidden rounded-xl bg-gradient-to-br from-orange-100 to-orange-50 shadow-lg dark:from-orange-900/30 dark:to-orange-950/30',
+                    isCondensed ? 'p-2' : 'p-4'
+                  )}
+                >
                   {!isCondensed && (
                     <div className="absolute right-2 top-2 opacity-10">
                       <Zap className="h-12 w-12" />
                     </div>
                   )}
                   <div className="relative">
-                    <div className={cn('flex items-center font-semibold text-orange-600 dark:text-orange-400', isCondensed ? 'gap-1 text-[10px]' : 'gap-2 text-xs')}>
+                    <div
+                      className={cn(
+                        'flex items-center font-semibold text-orange-600 dark:text-orange-400',
+                        isCondensed ? 'gap-1 text-[10px]' : 'gap-2 text-xs'
+                      )}
+                    >
                       <Zap className={isCondensed ? 'h-3 w-3' : 'h-4 w-4'} />
                       <span>Speed</span>
                     </div>
-                    <p className={cn('font-black text-orange-900 dark:text-orange-100', isCondensed ? 'mt-1 text-sm' : 'mt-2 text-2xl')}>
+                    <p
+                      className={cn(
+                        'font-black text-orange-900 dark:text-orange-100',
+                        isCondensed ? 'mt-1 text-sm' : 'mt-2 text-2xl'
+                      )}
+                    >
                       {formatSpeed(progress.transferSpeed)}
                     </p>
                   </div>
                 </div>
 
                 {/* Elapsed Time */}
-                <div className={cn(
-                  'group relative overflow-hidden rounded-xl bg-gradient-to-br from-purple-100 to-purple-50 shadow-lg dark:from-purple-900/30 dark:to-purple-950/30',
-                  isCondensed ? 'p-2' : 'p-4'
-                )}>
+                <div
+                  className={cn(
+                    'group relative overflow-hidden rounded-xl bg-gradient-to-br from-purple-100 to-purple-50 shadow-lg dark:from-purple-900/30 dark:to-purple-950/30',
+                    isCondensed ? 'p-2' : 'p-4'
+                  )}
+                >
                   {!isCondensed && (
                     <div className="absolute right-2 top-2 opacity-10">
                       <Clock className="h-12 w-12" />
                     </div>
                   )}
                   <div className="relative">
-                    <div className={cn('flex items-center font-semibold text-purple-600 dark:text-purple-400', isCondensed ? 'gap-1 text-[10px]' : 'gap-2 text-xs')}>
+                    <div
+                      className={cn(
+                        'flex items-center font-semibold text-purple-600 dark:text-purple-400',
+                        isCondensed ? 'gap-1 text-[10px]' : 'gap-2 text-xs'
+                      )}
+                    >
                       <Clock className={isCondensed ? 'h-3 w-3' : 'h-4 w-4'} />
                       <span>{isCondensed ? 'Time' : 'Elapsed Time'}</span>
                     </div>
-                    <p className={cn('font-black text-purple-900 dark:text-purple-100', isCondensed ? 'mt-1 text-sm' : 'mt-2 text-2xl')}>
+                    <p
+                      className={cn(
+                        'font-black text-purple-900 dark:text-purple-100',
+                        isCondensed ? 'mt-1 text-sm' : 'mt-2 text-2xl'
+                      )}
+                    >
                       {formatTime(progress.elapsedTime)}
                     </p>
                   </div>
                 </div>
 
                 {/* ETA */}
-                <div className={cn(
-                  'group relative overflow-hidden rounded-xl bg-gradient-to-br from-pink-100 to-pink-50 shadow-lg dark:from-pink-900/30 dark:to-pink-950/30',
-                  isCondensed ? 'p-2' : 'p-4'
-                )}>
+                <div
+                  className={cn(
+                    'group relative overflow-hidden rounded-xl bg-gradient-to-br from-pink-100 to-pink-50 shadow-lg dark:from-pink-900/30 dark:to-pink-950/30',
+                    isCondensed ? 'p-2' : 'p-4'
+                  )}
+                >
                   {!isCondensed && (
                     <div className="absolute right-2 top-2 opacity-10">
                       <Clock className="h-12 w-12" />
                     </div>
                   )}
                   <div className="relative">
-                    <div className={cn('flex items-center font-semibold text-pink-600 dark:text-pink-400', isCondensed ? 'gap-1 text-[10px]' : 'gap-2 text-xs')}>
+                    <div
+                      className={cn(
+                        'flex items-center font-semibold text-pink-600 dark:text-pink-400',
+                        isCondensed ? 'gap-1 text-[10px]' : 'gap-2 text-xs'
+                      )}
+                    >
                       <Clock className={isCondensed ? 'h-3 w-3' : 'h-4 w-4'} />
                       <span>{isCondensed ? 'ETA' : 'Remaining'}</span>
                     </div>
-                    <p className={cn('font-black text-pink-900 dark:text-pink-100', isCondensed ? 'mt-1 text-sm' : 'mt-2 text-2xl')}>
+                    <p
+                      className={cn(
+                        'font-black text-pink-900 dark:text-pink-100',
+                        isCondensed ? 'mt-1 text-sm' : 'mt-2 text-2xl'
+                      )}
+                    >
                       {progress.eta > 0 ? formatTime(progress.eta) : '--'}
                     </p>
                   </div>
@@ -329,9 +431,16 @@ export function TransferProgress() {
 
             {/* Overall Progress Bar */}
             <div>
-              <div className={cn('flex items-center justify-between', isCondensed ? 'mb-1' : 'mb-3')}>
+              <div
+                className={cn('flex items-center justify-between', isCondensed ? 'mb-1' : 'mb-3')}
+              >
                 <div>
-                  <span className={cn('font-semibold text-gray-700 dark:text-gray-300', isCondensed ? 'text-xs' : 'text-sm')}>
+                  <span
+                    className={cn(
+                      'font-semibold text-gray-700 dark:text-gray-300',
+                      isCondensed ? 'text-xs' : 'text-sm'
+                    )}
+                  >
                     Overall Progress
                   </span>
                   {!isCondensed && progress && (
@@ -341,19 +450,33 @@ export function TransferProgress() {
                     </p>
                   )}
                 </div>
-                <span className={cn('font-black text-brand-600 dark:text-brand-400', isCondensed ? 'text-base' : 'text-2xl')}>
+                <span
+                  className={cn(
+                    'font-black text-brand-600 dark:text-brand-400',
+                    isCondensed ? 'text-base' : 'text-2xl'
+                  )}
+                >
                   {Math.round(percentage)}%
                 </span>
               </div>
               <div className="relative">
-                <Progress value={percentage} size={isCondensed ? 'md' : 'lg'} className={isCondensed ? 'h-2' : 'h-4'} />
+                <Progress
+                  value={percentage}
+                  size={isCondensed ? 'md' : 'lg'}
+                  className={isCondensed ? 'h-2' : 'h-4'}
+                />
               </div>
             </div>
 
             {/* Active Files Progress Bars */}
             {progress?.activeFiles && progress.activeFiles.length > 0 && (
               <div className={isCondensed ? 'space-y-2' : 'space-y-3'}>
-                <h3 className={cn('font-semibold text-gray-700 dark:text-gray-300', isCondensed ? 'text-xs' : 'text-sm')}>
+                <h3
+                  className={cn(
+                    'font-semibold text-gray-700 dark:text-gray-300',
+                    isCondensed ? 'text-xs' : 'text-sm'
+                  )}
+                >
                   Active Transfers ({progress.activeFiles.length})
                 </h3>
                 {progress.activeFiles.map((file, index) => (
@@ -364,25 +487,59 @@ export function TransferProgress() {
                       isCondensed ? 'p-2' : 'p-4'
                     )}
                   >
-                    <div className={cn('flex items-center justify-between', isCondensed ? 'mb-1' : 'mb-3')}>
+                    <div
+                      className={cn(
+                        'flex items-center justify-between',
+                        isCondensed ? 'mb-1' : 'mb-3'
+                      )}
+                    >
                       <div className={cn('flex items-center', isCondensed ? 'gap-1' : 'gap-2')}>
                         {file.status === 'transferring' ? (
-                          <Loader2 className={cn('animate-spin text-brand-600 dark:text-brand-400', isCondensed ? 'h-3 w-3' : 'h-4 w-4')} />
+                          <Loader2
+                            className={cn(
+                              'animate-spin text-brand-600 dark:text-brand-400',
+                              isCondensed ? 'h-3 w-3' : 'h-4 w-4'
+                            )}
+                          />
                         ) : file.status === 'verifying' ? (
-                          <FileCheck className={cn('animate-pulse text-orange-600 dark:text-orange-400', isCondensed ? 'h-3 w-3' : 'h-4 w-4')} />
+                          <FileCheck
+                            className={cn(
+                              'animate-pulse text-orange-600 dark:text-orange-400',
+                              isCondensed ? 'h-3 w-3' : 'h-4 w-4'
+                            )}
+                          />
                         ) : (
-                          <CheckCircle2 className={cn('text-green-600 dark:text-green-400', isCondensed ? 'h-3 w-3' : 'h-4 w-4')} />
+                          <CheckCircle2
+                            className={cn(
+                              'text-green-600 dark:text-green-400',
+                              isCondensed ? 'h-3 w-3' : 'h-4 w-4'
+                            )}
+                          />
                         )}
-                        <span className={cn('font-semibold uppercase tracking-wide text-brand-600 dark:text-brand-400', isCondensed ? 'text-[10px]' : 'text-xs')}>
+                        <span
+                          className={cn(
+                            'font-semibold uppercase tracking-wide text-brand-600 dark:text-brand-400',
+                            isCondensed ? 'text-[10px]' : 'text-xs'
+                          )}
+                        >
                           {file.status === 'verifying'
-                            ? isCondensed ? 'Verifying' : 'Verifying Checksum'
+                            ? isCondensed
+                              ? 'Verifying'
+                              : 'Verifying Checksum'
                             : file.status === 'transferring'
-                              ? isCondensed ? 'Transferring' : 'Transferring File'
+                              ? isCondensed
+                                ? 'Transferring'
+                                : 'Transferring File'
                               : 'Completed'}
                         </span>
                       </div>
                       <div className="text-right">
-                        <span className={cn('font-black text-brand-900 dark:text-brand-100', isCondensed ? 'text-sm' : 'text-lg')}>
+                        <span
+                          className={cn(
+                            'font-black text-brand-900 dark:text-brand-100',
+                            isCondensed ? 'text-sm' : 'text-lg'
+                          )}
+                        >
                           {Math.round(file.percentage || 0)}%
                         </span>
                         {!isCondensed && file.speed && file.speed > 0 && (
@@ -396,11 +553,19 @@ export function TransferProgress() {
                       <Progress
                         value={file.percentage || 0}
                         size={isCondensed ? 'sm' : 'md'}
-                        className={cn(isCondensed ? 'h-1.5' : 'h-3', file.status === 'verifying' && 'animate-pulse')}
+                        className={cn(
+                          isCondensed ? 'h-1.5' : 'h-3',
+                          file.status === 'verifying' && 'animate-pulse'
+                        )}
                       />
                     </div>
                     <div className="flex items-center justify-between">
-                      <p className={cn('truncate font-bold text-gray-900 dark:text-white', isCondensed ? 'text-xs' : 'text-sm')}>
+                      <p
+                        className={cn(
+                          'truncate font-bold text-gray-900 dark:text-white',
+                          isCondensed ? 'text-xs' : 'text-sm'
+                        )}
+                      >
                         {file.fileName}
                       </p>
                       {!isCondensed && (

@@ -109,25 +109,45 @@ describe('IPC Validator', () => {
       })
 
       it('should reject control characters', () => {
-        expect(() => validateDeviceId('/dev/disk\x00')).toThrow('Device ID contains invalid characters')
-        expect(() => validateDeviceId('/dev/disk\x1f')).toThrow('Device ID contains invalid characters')
+        expect(() => validateDeviceId('/dev/disk\x00')).toThrow(
+          'Device ID contains invalid characters'
+        )
+        expect(() => validateDeviceId('/dev/disk\x1f')).toThrow(
+          'Device ID contains invalid characters'
+        )
       })
 
       it('should reject path traversal attempts', () => {
-        expect(() => validateDeviceId('../etc/passwd')).toThrow('Device ID contains invalid characters')
-        expect(() => validateDeviceId('/dev/../etc/passwd')).toThrow('Device ID contains invalid characters')
+        expect(() => validateDeviceId('../etc/passwd')).toThrow(
+          'Device ID contains invalid characters'
+        )
+        expect(() => validateDeviceId('/dev/../etc/passwd')).toThrow(
+          'Device ID contains invalid characters'
+        )
       })
 
       it('should reject wildcard characters', () => {
-        expect(() => validateDeviceId('/dev/disk*')).toThrow('Device ID contains invalid characters')
-        expect(() => validateDeviceId('/dev/disk?')).toThrow('Device ID contains invalid characters')
+        expect(() => validateDeviceId('/dev/disk*')).toThrow(
+          'Device ID contains invalid characters'
+        )
+        expect(() => validateDeviceId('/dev/disk?')).toThrow(
+          'Device ID contains invalid characters'
+        )
       })
 
       it('should reject shell metacharacters', () => {
-        expect(() => validateDeviceId('/dev/disk;ls')).toThrow('Device ID contains invalid characters')
-        expect(() => validateDeviceId('/dev/disk|cat')).toThrow('Device ID contains invalid characters')
-        expect(() => validateDeviceId('/dev/disk`whoami`')).toThrow('Device ID contains invalid characters')
-        expect(() => validateDeviceId('/dev/disk$(whoami)')).toThrow('Device ID contains invalid characters')
+        expect(() => validateDeviceId('/dev/disk;ls')).toThrow(
+          'Device ID contains invalid characters'
+        )
+        expect(() => validateDeviceId('/dev/disk|cat')).toThrow(
+          'Device ID contains invalid characters'
+        )
+        expect(() => validateDeviceId('/dev/disk`whoami`')).toThrow(
+          'Device ID contains invalid characters'
+        )
+        expect(() => validateDeviceId('/dev/disk$(whoami)')).toThrow(
+          'Device ID contains invalid characters'
+        )
       })
 
       it('should reject excessively long device IDs', () => {
@@ -287,7 +307,9 @@ describe('IPC Validator', () => {
     })
 
     it('should reject non-object requests', () => {
-      expect(() => validateTransferStartRequest('invalid')).toThrow('Transfer request must be an object')
+      expect(() => validateTransferStartRequest('invalid')).toThrow(
+        'Transfer request must be an object'
+      )
     })
 
     it('should reject missing fields', () => {
@@ -325,4 +347,3 @@ describe('IPC Validator', () => {
     })
   })
 })
-

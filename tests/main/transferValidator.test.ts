@@ -219,7 +219,9 @@ describe('TransferValidator', () => {
       const options: TransferValidationOptions = {
         sourceRoot: sourceDir,
         destinationRoot: destDir,
-        files: [{ source: '/nonexistent/file.txt', dest: path.join(destDir, 'file.txt'), size: 5000 }]
+        files: [
+          { source: '/nonexistent/file.txt', dest: path.join(destDir, 'file.txt'), size: 5000 }
+        ]
       }
 
       const result = await validateTransfer(options)
@@ -270,4 +272,3 @@ describe('TransferValidator', () => {
     })
   })
 })
-

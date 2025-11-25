@@ -288,7 +288,7 @@ describe('ConfigManager', () => {
       // This regression test ensures numeric config versions are converted to strings
       // Bug: Some legacy configs might have numeric configVersion (e.g., 1 instead of "1")
       const store = configManager.getStore()
-      
+
       // Directly set a numeric configVersion to simulate legacy config
       ;(store as any).set('configVersion', 1)
 

@@ -206,7 +206,9 @@ export interface IpcHandlers {
   [IPC_CHANNELS.DRIVE_SCAN]: (device: string) => Promise<ScannedMedia>
   [IPC_CHANNELS.DRIVE_UNMOUNT]: (device: string) => Promise<boolean>
 
-  [IPC_CHANNELS.TRANSFER_VALIDATE]: (request: TransferValidateRequest) => Promise<TransferValidateResponse>
+  [IPC_CHANNELS.TRANSFER_VALIDATE]: (
+    request: TransferValidateRequest
+  ) => Promise<TransferValidateResponse>
   [IPC_CHANNELS.TRANSFER_START]: (request: TransferStartRequest) => Promise<void>
   [IPC_CHANNELS.TRANSFER_STOP]: () => Promise<void>
   [IPC_CHANNELS.TRANSFER_STATUS]: () => Promise<TransferStatusResponse>

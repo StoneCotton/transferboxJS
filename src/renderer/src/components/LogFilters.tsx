@@ -79,7 +79,7 @@ export function LogFilters({ filter, level, onFilterChange, onLevelChange }: Log
       {filter && (
         <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
           <span>Filtered by:</span>
-          <span className="font-medium">"{filter}"</span>
+          <span className="font-medium">&quot;{filter}&quot;</span>
         </div>
       )}
     </div>

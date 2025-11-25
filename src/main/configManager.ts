@@ -53,7 +53,9 @@ export class ConfigManager {
    */
   private migrateConfig(): void {
     const currentConfig = this.getConfig()
-    const currentVersion = currentConfig.configVersion ? String(currentConfig.configVersion) : '0.0.0'
+    const currentVersion = currentConfig.configVersion
+      ? String(currentConfig.configVersion)
+      : '0.0.0'
     const targetVersion = CONFIG_VERSION
 
     console.log(
@@ -348,7 +350,9 @@ export class ConfigManager {
     hasNewerConfigWarning: boolean
   } {
     const currentConfig = this.getConfig()
-    const currentVersion = currentConfig.configVersion ? String(currentConfig.configVersion) : '0.0.0'
+    const currentVersion = currentConfig.configVersion
+      ? String(currentConfig.configVersion)
+      : '0.0.0'
     const targetVersion = CONFIG_VERSION
     const newerConfigWarning = currentConfig._newerConfigWarning
 
