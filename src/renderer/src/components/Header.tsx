@@ -4,13 +4,14 @@
 
 import { useState, useEffect } from 'react'
 import { useIpc } from '../hooks/useIpc'
-import { Settings, History, FileText } from 'lucide-react'
+import { Settings, History, FileText, Download } from 'lucide-react'
 import { Button } from './ui/Button'
 import { Tooltip } from './ui/Tooltip'
 import { useUIStore } from '../store'
 import { useUiDensity } from '../hooks/useUiDensity'
 import { cn } from '../lib/utils'
 import logoImage from '../assets/logo.png'
+import type { UpdateCheckResult } from '../../../shared/types'
 
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export function Header() {
@@ -18,6 +19,7 @@ export function Header() {
   const { isCondensed } = useUiDensity()
   const [appVersion, setAppVersion] = useState<string>('2.0.0')
   const [sloganIndex, setSloganIndex] = useState<number>(0)
+  const [updateInfo, setUpdateInfo] = useState<UpdateCheckResult | null>(null)
   const ipc = useIpc()
 
   const slogans = [
@@ -99,6 +101,16 @@ export function Header() {
       })
   }, [ipc])
 
+  // Listen for update available events from main process
+  useEffect(() => {
+    const unsubscribe = ipc.onUpdateAvailable((result) => {
+      if (result.hasUpdate) {
+        setUpdateInfo(result)
+      }
+    })
+    return unsubscribe
+  }, [ipc])
+
   useEffect(() => {
     // Choose and persist a random slogan per app launch
     const storedIndex = sessionStorage.getItem('tb:sloganIndex')
@@ -169,6 +181,29 @@ export function Header() {
 
         {/* Actions */}
         <div className={cn('flex items-center', isCondensed ? 'gap-1' : 'gap-2')}>
+          {/* Update Available Badge */}
+          {updateInfo?.hasUpdate && (
+            <Tooltip
+              content={`Update available: v${updateInfo.latestVersion} (Click to download)`}
+              position="bottom"
+            >
+              <Button
+                variant="ghost"
+                size={isCondensed ? 'xs' : 'sm'}
+                onClick={() => ipc.openReleasesPage()}
+                className="relative animate-pulse text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950 dark:hover:text-emerald-300"
+              >
+                <Download className={isCondensed ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
+                {!isCondensed && <span className="ml-2 hidden md:inline">Update</span>}
+                {/* Badge indicator */}
+                <span className="absolute -right-0.5 -top-0.5 flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                </span>
+              </Button>
+            </Tooltip>
+          )}
+
           <Tooltip
             content="View past transfer sessions, files transferred, and detailed statistics"
             position="bottom"

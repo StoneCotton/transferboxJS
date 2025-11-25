@@ -15,7 +15,13 @@ import {
   Shield,
   Zap,
   Palette,
-  ScrollText
+  ScrollText,
+  Info,
+  Download,
+  BookOpen,
+  Bug,
+  History,
+  ExternalLink
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import type { TransferMode, AppConfig, UiDensity } from '../../../shared/types'
@@ -33,6 +39,7 @@ type SettingsCategory =
   | 'performance'
   | 'interface'
   | 'logging'
+  | 'about'
 
 interface CategoryConfig {
   id: SettingsCategory
@@ -83,6 +90,12 @@ const categories: CategoryConfig[] = [
     label: 'Logging',
     icon: <ScrollText className="h-5 w-5" />,
     description: 'Log level and cleanup'
+  },
+  {
+    id: 'about',
+    label: 'About',
+    icon: <Info className="h-5 w-5" />,
+    description: 'Updates, help, and information'
   }
 ]
 
@@ -148,6 +161,14 @@ export function SettingsModal() {
 
   const [isSaving, setIsSaving] = useState(false)
 
+  // About section state
+  const [appVersion, setAppVersion] = useState<string>('')
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false)
+  const [updateCheckResult, setUpdateCheckResult] = useState<{
+    hasUpdate: boolean
+    latestVersion: string
+  } | null>(null)
+
   // Disable form controls during transfers (except UI-only settings like density)
   const isFormDisabled = isTransferring || isSaving
   // UI-only settings can be changed during transfers since they don't affect transfer logic
@@ -180,6 +201,13 @@ export function SettingsModal() {
     setShowTooltips(config.showTooltips ?? true)
     setLogLevel(config.logLevel || 'info')
   }, [config])
+
+  // Load app version when modal opens
+  useEffect(() => {
+    if (showSettings) {
+      ipc.getAppVersion().then(setAppVersion).catch(console.error)
+    }
+  }, [showSettings, ipc])
 
   const handleSelectDestination = async (): Promise<void> => {
     const folder = await ipc.selectFolder()
@@ -681,9 +709,7 @@ export function SettingsModal() {
               >
                 <div className="flex items-center justify-between">
                   <span className="font-medium text-gray-900 dark:text-white">Condensed</span>
-                  {uiDensity === 'condensed' && (
-                    <CheckCircle2 className="h-4 w-4 text-brand-500" />
-                  )}
+                  {uiDensity === 'condensed' && <CheckCircle2 className="h-4 w-4 text-brand-500" />}
                 </div>
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                   Compact layout for small screens
@@ -711,9 +737,7 @@ export function SettingsModal() {
               >
                 <div className="flex items-center justify-between">
                   <span className="font-medium text-gray-900 dark:text-white">Decimal</span>
-                  {unitSystem === 'decimal' && (
-                    <CheckCircle2 className="h-4 w-4 text-brand-500" />
-                  )}
+                  {unitSystem === 'decimal' && <CheckCircle2 className="h-4 w-4 text-brand-500" />}
                 </div>
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                   GB, MB, KB (1000-based)
@@ -798,6 +822,163 @@ export function SettingsModal() {
     </div>
   )
 
+  const handleCheckForUpdates = async (): Promise<void> => {
+    setIsCheckingUpdate(true)
+    setUpdateCheckResult(null)
+    try {
+      const result = await ipc.checkForUpdates()
+      setUpdateCheckResult({
+        hasUpdate: result.hasUpdate,
+        latestVersion: result.latestVersion
+      })
+      if (result.hasUpdate) {
+        useStore.getState().addToast({
+          type: 'info',
+          message: `Update available: v${result.latestVersion}`,
+          duration: 5000
+        })
+      } else {
+        useStore.getState().addToast({
+          type: 'success',
+          message: "You're running the latest version!",
+          duration: 3000
+        })
+      }
+    } catch (error) {
+      console.error('Failed to check for updates:', error)
+      useStore.getState().addToast({
+        type: 'error',
+        message: 'Failed to check for updates',
+        duration: 4000
+      })
+    } finally {
+      setIsCheckingUpdate(false)
+    }
+  }
+
+  const renderAboutSettings = (): React.ReactNode => (
+    <div className="space-y-6">
+      {/* App Info */}
+      <div>
+        <h4 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+          Application
+        </h4>
+        <div className="rounded-xl border-2 border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800/50">
+          <div className="flex items-center gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-brand-400 to-brand-600 shadow-lg shadow-brand-500/20">
+              <Settings className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">TransferBox</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Version {appVersion || 'Loading...'}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Updates */}
+      <div>
+        <h4 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+          Updates
+        </h4>
+        <div className="space-y-3">
+          <button
+            onClick={handleCheckForUpdates}
+            disabled={isCheckingUpdate}
+            className={cn(
+              'flex w-full items-center gap-4 rounded-xl border-2 p-4 text-left transition-all',
+              'border-gray-200 bg-white hover:border-brand-300 hover:bg-brand-50/30 dark:border-gray-700 dark:bg-gray-800/50 dark:hover:border-brand-600 dark:hover:bg-brand-950/20',
+              isCheckingUpdate && 'cursor-wait opacity-70'
+            )}
+          >
+            <div
+              className={cn(
+                'flex h-10 w-10 items-center justify-center rounded-lg',
+                updateCheckResult?.hasUpdate
+                  ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/50 dark:text-emerald-400'
+                  : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+              )}
+            >
+              <Download className={cn('h-5 w-5', isCheckingUpdate && 'animate-pulse')} />
+            </div>
+            <div className="flex-1">
+              <p className="font-medium text-gray-900 dark:text-white">Check for Updates</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                {isCheckingUpdate
+                  ? 'Checking...'
+                  : updateCheckResult?.hasUpdate
+                    ? `Update available: v${updateCheckResult.latestVersion}`
+                    : updateCheckResult
+                      ? 'You have the latest version'
+                      : 'Check if a newer version is available'}
+              </p>
+            </div>
+            {updateCheckResult?.hasUpdate && (
+              <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">
+                New
+              </span>
+            )}
+          </button>
+
+          {updateCheckResult?.hasUpdate && (
+            <Button
+              onClick={() => ipc.openReleasesPage()}
+              className="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-lg shadow-emerald-500/20"
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Download Update
+              <ExternalLink className="ml-2 h-3.5 w-3.5 opacity-70" />
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Help & Resources */}
+      <div>
+        <h4 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+          Help & Resources
+        </h4>
+        <div className="space-y-2">
+          <AboutLink
+            icon={<BookOpen className="h-5 w-5" />}
+            title="Documentation"
+            description="Learn how to use TransferBox"
+            comingSoon
+          />
+          <AboutLink
+            icon={<History className="h-5 w-5" />}
+            title="View Changelog"
+            description="See what's new in each version"
+            comingSoon
+          />
+          <AboutLink
+            icon={<Bug className="h-5 w-5" />}
+            title="Report Issue"
+            description="Report bugs or request features"
+            comingSoon
+          />
+        </div>
+      </div>
+
+      {/* Credits */}
+      <div>
+        <h4 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+          Credits
+        </h4>
+        <div className="rounded-xl border-2 border-gray-200 bg-gray-50/50 p-4 dark:border-gray-700 dark:bg-gray-800/30">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            TransferBox is a media ingest utility for professional workflows.
+          </p>
+          <p className="mt-2 text-sm text-gray-500 dark:text-gray-500">
+            © {new Date().getFullYear()} Created by Tyler Saari
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+
   const renderActiveCategory = (): React.ReactNode => {
     switch (activeCategory) {
       case 'general':
@@ -814,6 +995,8 @@ export function SettingsModal() {
         return renderInterfaceSettings()
       case 'logging':
         return renderLoggingSettings()
+      case 'about':
+        return renderAboutSettings()
       default:
         return null
     }
@@ -1054,5 +1237,47 @@ function SettingNumberInput({
       </div>
       {hint && <p className="text-xs text-gray-500 dark:text-gray-400">{hint}</p>}
     </div>
+  )
+}
+
+interface AboutLinkProps {
+  icon: React.ReactNode
+  title: string
+  description: string
+  onClick?: () => void
+  comingSoon?: boolean
+}
+
+function AboutLink({
+  icon,
+  title,
+  description,
+  onClick,
+  comingSoon
+}: AboutLinkProps): React.ReactElement {
+  return (
+    <button
+      onClick={onClick}
+      disabled={comingSoon}
+      className={cn(
+        'flex w-full items-center gap-4 rounded-xl border-2 p-4 text-left transition-all',
+        comingSoon
+          ? 'cursor-not-allowed border-gray-200 bg-gray-50/50 opacity-60 dark:border-gray-700 dark:bg-gray-800/30'
+          : 'border-gray-200 bg-white hover:border-brand-300 hover:bg-brand-50/30 dark:border-gray-700 dark:bg-gray-800/50 dark:hover:border-brand-600 dark:hover:bg-brand-950/20'
+      )}
+    >
+      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+        {icon}
+      </div>
+      <div className="flex-1">
+        <p className="font-medium text-gray-900 dark:text-white">{title}</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400">{description}</p>
+      </div>
+      {comingSoon && (
+        <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+          Coming Soon
+        </span>
+      )}
+    </button>
   )
 }

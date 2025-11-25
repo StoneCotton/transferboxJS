@@ -10,7 +10,8 @@ import type {
   TransferStatusResponse,
   LogEntry,
   DriveInfo,
-  ScannedMedia
+  ScannedMedia,
+  UpdateCheckResult
 } from '../shared/types'
 
 interface IpcApi {
@@ -52,6 +53,10 @@ interface IpcApi {
   // App info
   getAppVersion: () => Promise<string>
 
+  // Update checking
+  checkForUpdates: () => Promise<UpdateCheckResult>
+  openReleasesPage: () => Promise<void>
+
   // Config version management
   getVersionInfo: () => Promise<{
     appVersion: string
@@ -85,6 +90,7 @@ interface IpcApi {
   onConfigMigrated: (
     callback: (data: { fromVersion: string; toVersion: string }) => void
   ) => () => void
+  onUpdateAvailable: (callback: (result: UpdateCheckResult) => void) => () => void
 }
 
 declare global {

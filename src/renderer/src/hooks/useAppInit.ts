@@ -578,6 +578,18 @@ export function useAppInit(): null {
       })
     })
 
+    const unsubUpdateAvailable = ipc.onUpdateAvailable((result) => {
+      console.log('[useAppInit] Update available:', result)
+      if (result.hasUpdate) {
+        const store = useStore.getState()
+        store.addToast({
+          type: 'info',
+          message: `Update available: v${result.latestVersion} — Click the download button in the header to get it!`,
+          duration: 8000
+        })
+      }
+    })
+
     // Cleanup on unmount
     return () => {
       unsubDriveDetected()
@@ -594,6 +606,7 @@ export function useAppInit(): null {
       unsubMenuNewTransfer()
       unsubMenuSelectDestination()
       unsubConfigMigrated()
+      unsubUpdateAvailable()
       cleanupSoundManager()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

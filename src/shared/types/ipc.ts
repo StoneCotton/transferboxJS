@@ -64,7 +64,12 @@ export const IPC_CHANNELS = {
   MENU_CANCEL_TRANSFER: 'menu:cancel-transfer',
   MENU_NEW_TRANSFER: 'menu:new-transfer', // Event from main to renderer
   MENU_SELECT_DESTINATION: 'menu:select-destination', // Event from main to renderer
-  MENU_CHECK_UPDATES: 'menu:check-updates'
+  MENU_CHECK_UPDATES: 'menu:check-updates',
+
+  // Update checking
+  UPDATE_CHECK: 'update:check', // Invoke to check for updates
+  UPDATE_AVAILABLE: 'update:available', // Event from main to renderer
+  UPDATE_OPEN_RELEASES: 'update:open-releases' // Open GitHub releases page
 } as const
 
 // Request/Response types for each IPC channel
@@ -163,6 +168,16 @@ export interface LogEntry {
   context?: Record<string, unknown>
 }
 
+/** Update check result */
+export interface UpdateCheckResult {
+  hasUpdate: boolean
+  currentVersion: string
+  latestVersion: string
+  releaseUrl: string
+  releaseNotes: string | null
+  publishedAt: string | null
+}
+
 // Type definitions for IPC handlers
 export interface IpcHandlers {
   [IPC_CHANNELS.CONFIG_GET]: () => Promise<AppConfig>
@@ -209,6 +224,9 @@ export interface IpcHandlers {
   [IPC_CHANNELS.MENU_OPEN_DESTINATION]: () => Promise<void>
   [IPC_CHANNELS.MENU_CANCEL_TRANSFER]: () => Promise<void>
   [IPC_CHANNELS.MENU_CHECK_UPDATES]: () => Promise<void>
+
+  [IPC_CHANNELS.UPDATE_CHECK]: () => Promise<UpdateCheckResult>
+  [IPC_CHANNELS.UPDATE_OPEN_RELEASES]: () => Promise<void>
 }
 
 // Event listeners (main -> renderer)
@@ -227,4 +245,5 @@ export interface IpcEvents {
   [IPC_CHANNELS.MENU_NEW_TRANSFER]: () => void
   [IPC_CHANNELS.MENU_SELECT_DESTINATION]: () => void
   [IPC_CHANNELS.CONFIG_MIGRATED]: (data: { fromVersion: string; toVersion: string }) => void
+  [IPC_CHANNELS.UPDATE_AVAILABLE]: (result: UpdateCheckResult) => void
 }

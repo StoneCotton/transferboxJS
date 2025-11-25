@@ -42,6 +42,10 @@ const api = {
   // App info
   getAppVersion: () => ipcRenderer.invoke(IPC_CHANNELS.APP_VERSION),
 
+  // Update checking
+  checkForUpdates: () => ipcRenderer.invoke(IPC_CHANNELS.UPDATE_CHECK),
+  openReleasesPage: () => ipcRenderer.invoke(IPC_CHANNELS.UPDATE_OPEN_RELEASES),
+
   // Config version management
   getVersionInfo: () => ipcRenderer.invoke(IPC_CHANNELS.CONFIG_VERSION_INFO),
   getNewerConfigWarning: () => ipcRenderer.invoke(IPC_CHANNELS.CONFIG_NEWER_WARNING),
@@ -120,6 +124,11 @@ const api = {
       callback(data)
     ipcRenderer.on(IPC_CHANNELS.CONFIG_MIGRATED, listener)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.CONFIG_MIGRATED, listener)
+  },
+  onUpdateAvailable: (callback: (result: any) => void) => {
+    const listener = (_event: any, result: any) => callback(result)
+    ipcRenderer.on(IPC_CHANNELS.UPDATE_AVAILABLE, listener)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.UPDATE_AVAILABLE, listener)
   }
 }
 

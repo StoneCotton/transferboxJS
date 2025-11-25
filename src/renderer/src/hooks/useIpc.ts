@@ -14,7 +14,8 @@ import type {
   TransferSession,
   LogEntry,
   DriveInfo,
-  ScannedMedia
+  ScannedMedia,
+  UpdateCheckResult
 } from '../../../shared/types'
 
 // Type-safe IPC API
@@ -50,6 +51,10 @@ export interface IpcApi {
   // App info
   getAppVersion: () => Promise<string>
 
+  // Update checking
+  checkForUpdates: () => Promise<UpdateCheckResult>
+  openReleasesPage: () => Promise<void>
+
   // Config version management
   getVersionInfo: () => Promise<{
     appVersion: string
@@ -83,6 +88,7 @@ export interface IpcApi {
   onConfigMigrated: (
     callback: (data: { fromVersion: string; toVersion: string }) => void
   ) => () => void
+  onUpdateAvailable: (callback: (result: UpdateCheckResult) => void) => () => void
 }
 
 /**
@@ -164,6 +170,15 @@ export function useIpc(): IpcApi {
     return await window.api.getAppVersion()
   }, [])
 
+  // Update checking
+  const checkForUpdates = useCallback(async () => {
+    return await window.api.checkForUpdates()
+  }, [])
+
+  const openReleasesPage = useCallback(async () => {
+    return await window.api.openReleasesPage()
+  }, [])
+
   // Config version management
   const getVersionInfo = useCallback(async () => {
     return await window.api.getVersionInfo()
@@ -241,6 +256,10 @@ export function useIpc(): IpcApi {
     []
   )
 
+  const onUpdateAvailable = useCallback((callback: (result: UpdateCheckResult) => void) => {
+    return window.api.onUpdateAvailable(callback)
+  }, [])
+
   return {
     getConfig,
     updateConfig,
@@ -259,6 +278,8 @@ export function useIpc(): IpcApi {
     getRecentLogs,
     clearLogs,
     getAppVersion,
+    checkForUpdates,
+    openReleasesPage,
     getVersionInfo,
     getNewerConfigWarning,
     handleNewerConfigChoice,
@@ -276,6 +297,7 @@ export function useIpc(): IpcApi {
     onMenuOpenHistory,
     onMenuNewTransfer,
     onMenuSelectDestination,
-    onConfigMigrated
+    onConfigMigrated,
+    onUpdateAvailable
   }
 }

@@ -8,6 +8,7 @@ import { is } from '@electron-toolkit/utils'
 import { IPC_CHANNELS } from '../shared/types'
 import type { MenuItemConstructorOptions } from 'electron'
 import { cancelCurrentTransfer } from './ipc'
+import { checkForUpdates, getReleasesUrl } from './updateChecker'
 
 /**
  * Creates and sets the application menu
@@ -224,25 +225,54 @@ export function createApplicationMenu(mainWindow: BrowserWindow): void {
           label: 'Check for Updates',
           click: async () => {
             try {
-              const currentVersion = app.getVersion()
-              const result = await dialog.showMessageBox(mainWindow, {
-                type: 'info',
-                title: 'Check for Updates',
-                message: 'Check for Updates',
-                detail: `Current version: ${currentVersion}\n\nVisit the releases page to check for updates?`,
-                buttons: ['Visit Releases', 'Cancel'],
-                defaultId: 0,
-                cancelId: 1
-              })
+              const { getLogger } = await import('./logger')
+              getLogger().info('Checking for updates via menu')
 
-              if (result.response === 0) {
-                await shell.openExternal('https://github.com/StoneCotton/transferboxJS/releases')
+              const updateResult = await checkForUpdates(true) // Force refresh
+
+              if (updateResult.hasUpdate) {
+                const result = await dialog.showMessageBox(mainWindow, {
+                  type: 'info',
+                  title: 'Update Available',
+                  message: 'A new version is available!',
+                  detail: `Current version: ${updateResult.currentVersion}\nLatest version: ${updateResult.latestVersion}\n\nWould you like to visit the releases page to download the update?`,
+                  buttons: ['Download Update', 'Later'],
+                  defaultId: 0,
+                  cancelId: 1
+                })
+
+                if (result.response === 0) {
+                  await shell.openExternal(updateResult.releaseUrl)
+                }
+              } else {
+                await dialog.showMessageBox(mainWindow, {
+                  type: 'info',
+                  title: 'No Updates Available',
+                  message: "You're up to date!",
+                  detail: `Current version: ${updateResult.currentVersion}\n\nYou are running the latest version of TransferBox.`,
+                  buttons: ['OK']
+                })
               }
             } catch (error) {
               const { getLogger } = await import('./logger')
               getLogger().error('Failed to check for updates', {
                 error: error instanceof Error ? error.message : String(error)
               })
+
+              await dialog
+                .showMessageBox(mainWindow, {
+                  type: 'error',
+                  title: 'Update Check Failed',
+                  message: 'Unable to check for updates',
+                  detail:
+                    'Please check your internet connection and try again, or visit the releases page manually.',
+                  buttons: ['Visit Releases', 'Cancel']
+                })
+                .then(async (result) => {
+                  if (result.response === 0) {
+                    await shell.openExternal(getReleasesUrl())
+                  }
+                })
             }
           }
         },

@@ -35,6 +35,7 @@ import { getDatabaseManager } from './databaseManager'
 import { getLogger, onLogEntry } from './logger'
 import { createPathProcessor, type PathProcessor } from './pathProcessor'
 import { updateMenuForTransferState } from './menu'
+import { checkForUpdates, getReleasesUrl } from './updateChecker'
 
 // Global instances
 let driveMonitor: DriveMonitor | null = null
@@ -972,6 +973,16 @@ export function setupIpcHandlers(): void {
       await shell.openExternal('https://github.com/tylersaari/transferbox/releases')
     }
   })
+
+  // Update checking handlers
+  ipcMain.handle(IPC_CHANNELS.UPDATE_CHECK, async () => {
+    return checkForUpdates()
+  })
+
+  ipcMain.handle(IPC_CHANNELS.UPDATE_OPEN_RELEASES, async () => {
+    const { shell } = await import('electron')
+    await shell.openExternal(getReleasesUrl())
+  })
 }
 
 /**
@@ -999,6 +1010,23 @@ export function startDriveMonitoring(window: Electron.BrowserWindow): void {
   } catch {
     // No-op if streaming setup fails
   }
+
+  // Check for updates on startup and notify renderer if available
+  checkForUpdates()
+    .then((result) => {
+      if (result.hasUpdate && mainWindow && !mainWindow.isDestroyed()) {
+        getLogger().info('Update available', {
+          currentVersion: result.currentVersion,
+          latestVersion: result.latestVersion
+        })
+        mainWindow.webContents.send(IPC_CHANNELS.UPDATE_AVAILABLE, result)
+      }
+    })
+    .catch((error) => {
+      getLogger().warn('Startup update check failed', {
+        error: error instanceof Error ? error.message : String(error)
+      })
+    })
 
   driveMonitor
     .start({
