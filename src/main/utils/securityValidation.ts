@@ -15,7 +15,7 @@ import { getLogger } from '../logger'
  * These are dangerous when used in paths or identifiers that may be passed to shell commands
  */
 const SHELL_METACHARACTERS = /[;|`$()&<>{}]/
-const COMMAND_SUBSTITUTION = /\$\(|\`/
+const COMMAND_SUBSTITUTION = /\$\(|`/
 const PATH_SEPARATORS_UNSAFE = /[<>"|]/
 const WILDCARD_CHARACTERS = /[*?]/
 
@@ -147,7 +147,7 @@ export function sanitizeForShell(value: string): string {
  */
 export function isSafeDeviceId(device: string): boolean {
   // Unix device path
-  if (/^\/dev\/[a-zA-Z0-9_\-\/]+$/.test(device)) {
+  if (/^\/dev\/[a-zA-Z0-9_\-/]+$/.test(device)) {
     return true
   }
 
@@ -162,7 +162,7 @@ export function isSafeDeviceId(device: string): boolean {
   }
 
   // Simple alphanumeric identifier (fallback)
-  if (/^[a-zA-Z0-9_\-]+$/.test(device)) {
+  if (/^[a-zA-Z0-9_-]+$/.test(device)) {
     return true
   }
 

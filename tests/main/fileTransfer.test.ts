@@ -12,7 +12,6 @@ import {
   TransferProgress,
   TransferResult
 } from '../../src/main/fileTransfer'
-import { calculateChecksum } from '../../src/main/checksumCalculator'
 
 describe('FileTransferEngine', () => {
   let testDir: string
@@ -39,7 +38,7 @@ describe('FileTransferEngine', () => {
     // Clean up test directory
     try {
       await fs.rm(testDir, { recursive: true, force: true })
-    } catch (error) {
+    } catch {
       // Ignore cleanup errors
     }
   })
@@ -67,15 +66,13 @@ describe('FileTransferEngine', () => {
 
       await fs.writeFile(sourceFile, 'Test content')
 
-      let tbpartFileFound = false
-
       const options: TransferOptions = {
         onProgress: async () => {
           // Check if .TBPART file exists during transfer
           const tbpartPath = destFile + '.TBPART'
           try {
             await fs.access(tbpartPath)
-            tbpartFileFound = true
+            // .TBPART file found during transfer
           } catch {
             // File doesn't exist yet or already renamed
           }
@@ -504,7 +501,7 @@ describe('FileTransferEngine', () => {
 
       try {
         await engine.transferFile(sourceFile, destFile)
-      } catch (error) {
+      } catch {
         // Expected to fail
       }
 

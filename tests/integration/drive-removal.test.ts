@@ -4,7 +4,6 @@
  */
 
 import { FileTransferEngine } from '../../src/main/fileTransfer'
-import { TransferErrorType } from '../../src/shared/types'
 import * as path from 'path'
 import * as fsPromises from 'fs/promises'
 

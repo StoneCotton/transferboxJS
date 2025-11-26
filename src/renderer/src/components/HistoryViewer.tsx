@@ -3,7 +3,7 @@
  * Displays transfer history with filtering and details
  */
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useTransferStore, useConfigStore } from '../store'
 import { useIpc } from '../hooks/useIpc'
 import { HistoryFilters } from './HistoryFilters'
@@ -42,10 +42,22 @@ export function HistoryViewer({ onClose }: HistoryViewerProps) {
   const [showClearConfirm, setShowClearConfirm] = useState(false)
   const [isClearing, setIsClearing] = useState(false)
 
+  const loadHistory = useCallback(async () => {
+    try {
+      setIsLoading(true)
+      const historyData = await getHistory()
+      setHistory(historyData)
+    } catch (error) {
+      console.error('Failed to load history:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [getHistory, setHistory])
+
   // Load initial history
   useEffect(() => {
     loadHistory()
-  }, [])
+  }, [loadHistory])
 
   // Handle escape key to close
   useEffect(() => {
@@ -58,18 +70,6 @@ export function HistoryViewer({ onClose }: HistoryViewerProps) {
     document.addEventListener('keydown', handleEscape)
     return () => document.removeEventListener('keydown', handleEscape)
   }, [onClose])
-
-  const loadHistory = async () => {
-    try {
-      setIsLoading(true)
-      const historyData = await getHistory()
-      setHistory(historyData)
-    } catch (error) {
-      console.error('Failed to load history:', error)
-    } finally {
-      setIsLoading(false)
-    }
-  }
 
   const refreshHistory = async () => {
     try {

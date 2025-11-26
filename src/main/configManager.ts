@@ -32,12 +32,13 @@ function getDefaultConfig(): AppConfig {
  * Provides type-safe access to application configuration
  */
 export class ConfigManager {
-  private store: any // Using any to work around electron-store typing issues
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- electron-store has complex generic types that don't work well with mocking
+  private store: any
   private lastMigration: { fromVersion: string; toVersion: string } | null = null
 
   constructor(configPath?: string) {
     // Handle both CJS and ESM module formats
-    const ElectronStore = (Store as any).default || Store
+    const ElectronStore = (Store as unknown as { default?: typeof Store }).default || Store
     this.store = new ElectronStore({
       name: 'transferbox-config',
       cwd: configPath,
@@ -231,7 +232,7 @@ export class ConfigManager {
    */
   getConfig(): AppConfig {
     // electron-store provides a store property that contains all config
-    return { ...this.store.store }
+    return { ...this.store.store } as AppConfig
   }
 
   /**
@@ -260,10 +261,10 @@ export class ConfigManager {
 
     // Log settings change summary (limit large arrays)
     try {
-      const changedKeys = Object.keys(updates)
+      const changedKeys = Object.keys(updates) as Array<keyof typeof updates>
       const summarized: Record<string, unknown> = {}
       for (const key of changedKeys) {
-        const value = (updates as any)[key]
+        const value = updates[key]
         if (Array.isArray(value)) {
           summarized[key] = value.length > 10 ? [...value.slice(0, 10), '...'] : value
         } else {
@@ -436,7 +437,7 @@ export class ConfigManager {
    * Gets the underlying store instance
    */
   getStore(): Store<AppConfig> {
-    return this.store
+    return this.store as Store<AppConfig>
   }
 }
 

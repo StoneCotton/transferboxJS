@@ -249,7 +249,7 @@ class MockStatement {
     return []
   }
 
-  private handleLeftJoin(params: any[]): MockRow[] {
+  private handleLeftJoin(_params: any[]): MockRow[] {
     // Handle our specific LEFT JOIN query for sessions and files
     // FROM transfer_sessions s LEFT JOIN transfer_files f ON s.id = f.session_id
     const sqlLower = this.sql.toLowerCase()
@@ -349,7 +349,7 @@ class MockDatabase {
     foreign_keys: 1 // Default foreign keys enabled
   }
 
-  constructor(filename: string, options?: any) {
+  constructor(_filename: string, _options?: unknown) {
     // Mock constructor
   }
 

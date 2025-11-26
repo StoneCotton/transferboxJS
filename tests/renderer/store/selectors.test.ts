@@ -3,11 +3,6 @@
  * Tests for Zustand store selectors
  */
 
-import { create } from 'zustand'
-import {
-  createTransferSlice,
-  type TransferSlice
-} from '../../../src/renderer/src/store/slices/transferSlice'
 import { TransferErrorType } from '../../../src/shared/types'
 import {
   useIsTransferActive,

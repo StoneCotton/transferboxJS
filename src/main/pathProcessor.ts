@@ -145,7 +145,7 @@ export class PathProcessor {
           .replace('{timestamp}', timestamp)
 
         // Trim leftover separators/whitespace at start/end (e.g., leading underscore)
-        builtName = builtName.replace(/(^[\-_.\s]+)|([\-_.\s]+$)/g, '')
+        builtName = builtName.replace(/(^[-_.\s]+)|([-_.\s]+$)/g, '')
 
         fileName = builtName + fileInfo.extension
       }

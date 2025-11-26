@@ -138,7 +138,7 @@ export function validateDeviceId(device: unknown): string {
     /^\\\\[.?]\\(PHYSICALDRIVE\d+|Volume\{[a-fA-F0-9-]+\}|Harddisk(Volume)?\d+)$/i.test(trimmed)
 
   // Check if it's a Unix device path: /dev/*
-  const isUnixDevice = /^\/dev\/[a-zA-Z0-9_\-\/]+$/.test(trimmed)
+  const isUnixDevice = /^\/dev\/[a-zA-Z0-9_\-/]+$/.test(trimmed)
 
   if (isWindowsDrive || isWindowsDevicePath) {
     // Valid Windows drive/device - no additional checks needed
@@ -262,7 +262,7 @@ export function validateLogLevel(level: unknown): 'debug' | 'info' | 'warn' | 'e
   }
 
   const validLevels: Array<'debug' | 'info' | 'warn' | 'error'> = ['debug', 'info', 'warn', 'error']
-  if (!validLevels.includes(level as any)) {
+  if (!validLevels.includes(level as 'debug' | 'info' | 'warn' | 'error')) {
     throw new Error(`Invalid log level: ${level}. Must be one of: ${validLevels.join(', ')}`)
   }
 

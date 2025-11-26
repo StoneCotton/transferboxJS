@@ -6,8 +6,7 @@
 import * as path from 'path'
 import * as os from 'os'
 import * as fs from 'fs/promises'
-import { Logger, LogLevel } from '../../src/main/logger'
-import { LogEntry } from '../../src/shared/types'
+import { Logger } from '../../src/main/logger'
 
 describe('Logger', () => {
   let logger: Logger

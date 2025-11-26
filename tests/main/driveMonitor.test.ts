@@ -13,7 +13,7 @@ import {
   getDriveStats,
   isRemovableDrive
 } from '../../src/main/driveMonitor'
-import { DriveInfo, ScannedMedia } from '../../src/shared/types'
+import { DriveInfo } from '../../src/shared/types'
 
 describe('DriveMonitor', () => {
   let monitor: DriveMonitor
@@ -73,11 +73,9 @@ describe('DriveMonitor', () => {
 
   describe('Drive Monitoring', () => {
     it('should start monitoring for drive changes', async () => {
-      let started = false
-
       await monitor.start({
         onDriveAdded: () => {
-          started = true
+          // Drive added callback
         }
       })
 

@@ -68,7 +68,7 @@ export async function withRetry<T>(
           operation: context?.operationName,
           attempts: attempt,
           finalError: (error as Error)?.message,
-          errorType: (error as any)?.errorType
+          errorType: (error as Error & { errorType?: string })?.errorType
         })
         // Preserve the original error to maintain error type information
         throw error

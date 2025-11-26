@@ -1,7 +1,6 @@
 /**
  * App Component Tests
  */
-import React from 'react'
 import { render, screen, waitFor } from '@testing-library/react'
 import App from '../../src/renderer/src/App'
 

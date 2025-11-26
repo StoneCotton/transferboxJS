@@ -32,7 +32,7 @@ describe('ChecksumCalculator', () => {
     // Clean up test directory
     try {
       await fs.rm(testDir, { recursive: true, force: true })
-    } catch (error) {
+    } catch {
       // Ignore cleanup errors
     }
   })
@@ -316,7 +316,7 @@ describe('ChecksumCalculator', () => {
 
         // Both should have the same checksum
         expect(checksumLink).toBe(checksumReal)
-      } catch (error) {
+      } catch {
         // Skip test if symlinks not supported
         console.log('Symlinks not supported on this platform')
       }

@@ -7,6 +7,11 @@ import type { StateCreator } from 'zustand'
 import type { DriveState } from '../types'
 import type { DriveInfo, ScannedFile } from '../../../../shared/types'
 
+// Minimal interface for cross-slice state access
+interface CrossSliceState {
+  isTransferring?: boolean
+}
+
 export interface DriveSlice extends DriveState {
   // Actions
   setDetectedDrives: (drives: DriveInfo[]) => void
@@ -55,7 +60,7 @@ export const createDriveSlice: StateCreator<DriveSlice> = (set, get) => ({
 
       // Check if there's an active transfer - don't clear scannedFiles during transfer
       // This allows retry logic to work and keeps the queue visible to users
-      const isTransferring = (state as any).isTransferring || false
+      const isTransferring = (state as DriveSlice & CrossSliceState).isTransferring || false
 
       return {
         detectedDrives: state.detectedDrives.filter((d) => d.device !== device),
@@ -105,7 +110,7 @@ export const createDriveSlice: StateCreator<DriveSlice> = (set, get) => ({
 
       // Check if there's an active transfer - don't clear scannedFiles during transfer
       // This allows retry logic to work and keeps the queue visible to users
-      const isTransferring = (state as any).isTransferring || false
+      const isTransferring = (state as DriveSlice & CrossSliceState).isTransferring || false
 
       const update = {
         unmountedDrives: [...state.unmountedDrives, device],

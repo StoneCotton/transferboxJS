@@ -1,7 +1,6 @@
 import * as path from 'path'
 import * as os from 'os'
 import { Logger } from '../../src/main/logger'
-import { ConfigManager } from '../../src/main/configManager'
 
 describe('Logging integration', () => {
   let logger: Logger

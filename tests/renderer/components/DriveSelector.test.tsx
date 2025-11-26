@@ -2,7 +2,6 @@
  * DriveSelector Component Tests
  * Tests for drive selection behavior, especially during active transfers
  */
-import React from 'react'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import '@testing-library/jest-dom'
 import { DriveSelector } from '../../../src/renderer/src/components/DriveSelector'

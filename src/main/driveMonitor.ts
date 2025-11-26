@@ -16,6 +16,23 @@ import { validatePathForShellExecution } from './utils/securityValidation'
 
 const execFileAsync = promisify(execFile)
 
+/**
+ * Type for drivelist drive objects - compatible with both drivelist.Drive and DriveInfo
+ */
+interface DrivelistDrive {
+  device: string
+  description?: string | null
+  mountpoints?: Array<{ path: string }> | string[]
+  size?: number | null
+  isRemovable?: boolean | null
+  isSystem?: boolean | null
+  busType?: string | null
+  isUSB?: boolean | null
+  isCard?: boolean | null
+  isUAS?: boolean | null
+  isSCSI?: boolean | null
+}
+
 export interface DriveMonitorOptions {
   pollingInterval?: number // Milliseconds between checks (default: 2000)
   onDriveAdded?: (drive: DriveInfo) => void
@@ -206,7 +223,7 @@ export class DriveMonitor {
           const driveLetter = driveLetterMatch[1].toUpperCase() + ':'
 
           // Use PowerShell Shell.Application Eject (same as Explorer UI)
-          const psCommand = `($obj = New-Object -ComObject Shell.Application).Namespace(17).ParseName(\"${driveLetter}\"); if ($obj) { $obj.InvokeVerb(\"Eject\") }`
+          const psCommand = `($obj = New-Object -ComObject Shell.Application).Namespace(17).ParseName("${driveLetter}"); if ($obj) { $obj.InvokeVerb("Eject") }`
           await execFileAsync('powershell.exe', [
             '-NoProfile',
             '-NonInteractive',
@@ -402,7 +419,7 @@ export class DriveMonitor {
    * Check if a drive is truly removable (not just marked as removable by the OS)
    * This filters out internal SATA drives that are incorrectly marked as removable
    */
-  private isTrulyRemovableDrive(drive: any): boolean {
+  private isTrulyRemovableDrive(drive: DrivelistDrive): boolean {
     // First check basic removable and non-system criteria
     if (!drive.isRemovable || drive.isSystem) {
       return false
@@ -421,23 +438,31 @@ export class DriveMonitor {
 
     // Only include drives that are explicitly USB, card-based, or have mountable interfaces
     return (
-      drive.isUSB ||
-      drive.isCard ||
-      drive.isUAS ||
-      (drive.busType && !['SATA', 'ATA', 'SCSI'].includes(drive.busType))
+      !!drive.isUSB ||
+      !!drive.isCard ||
+      !!drive.isUAS ||
+      !!(drive.busType && !['SATA', 'ATA', 'SCSI'].includes(drive.busType))
     )
   }
 
   /**
    * Convert drivelist drive info to our DriveInfo format
    */
-  private convertDriveInfo(drive: any): DriveInfo {
+  private convertDriveInfo(drive: DrivelistDrive): DriveInfo {
+    // Handle mountpoints that could be either { path: string }[] or string[]
+    const mountpointPaths = (drive.mountpoints || [])
+      .map((mp) => {
+        if (typeof mp === 'string') return mp
+        return mp.path || ''
+      })
+      .filter(Boolean)
+
     return {
       device: drive.device || '',
       displayName: drive.description || drive.device || 'Unknown Drive',
       description: drive.description || '',
-      mountpoints: (drive.mountpoints || []).map((mp: any) => mp.path || mp).filter(Boolean),
-      size: drive.size || 0,
+      mountpoints: mountpointPaths,
+      size: drive.size ?? 0,
       isRemovable: drive.isRemovable || false,
       isSystem: drive.isSystem || false,
       busType: drive.busType || 'Unknown'

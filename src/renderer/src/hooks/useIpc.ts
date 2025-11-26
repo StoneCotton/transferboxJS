@@ -12,6 +12,7 @@ import type {
   TransferValidateResponse,
   AppConfig,
   TransferSession,
+  TransferProgress,
   LogEntry,
   DriveInfo,
   ScannedMedia,
@@ -75,8 +76,8 @@ export interface IpcApi {
   onDriveDetected: (callback: (drive: DriveInfo) => void) => () => void
   onDriveRemoved: (callback: (device: string) => void) => () => void
   onDriveUnmounted: (callback: (device: string) => void) => () => void
-  onTransferProgress: (callback: (progress: any) => void) => () => void
-  onTransferComplete: (callback: (data: any) => void) => () => void
+  onTransferProgress: (callback: (progress: TransferProgress) => void) => () => void
+  onTransferComplete: (callback: (data: TransferProgress) => void) => () => void
   onTransferError: (callback: (error: string) => void) => () => void
   onLogEntry: (callback: (entry: LogEntry) => void) => () => void
   onSystemSuspend: (callback: () => void) => () => void
@@ -209,11 +210,11 @@ export function useIpc(): IpcApi {
     return window.api.onDriveUnmounted(callback)
   }, [])
 
-  const onTransferProgress = useCallback((callback: (progress: any) => void) => {
+  const onTransferProgress = useCallback((callback: (progress: TransferProgress) => void) => {
     return window.api.onTransferProgress(callback)
   }, [])
 
-  const onTransferComplete = useCallback((callback: (data: any) => void) => {
+  const onTransferComplete = useCallback((callback: (data: TransferProgress) => void) => {
     return window.api.onTransferComplete(callback)
   }, [])
 

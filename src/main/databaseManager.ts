@@ -20,6 +20,68 @@ export interface DatabaseStats {
 }
 
 /**
+ * Database row types for type-safe queries
+ */
+interface SessionRow {
+  id: string
+  drive_id: string
+  drive_name: string
+  source_root: string
+  destination_root: string
+  start_time: number
+  end_time: number | null
+  status: string
+  file_count: number
+  total_bytes: number
+  error_message: string | null
+}
+
+interface FileRow {
+  id: number
+  session_id: string
+  source_path: string
+  destination_path: string
+  file_name: string
+  file_size: number | string
+  bytes_transferred: number
+  percentage: number
+  status: string
+  checksum: string | null
+  error: string | null
+  start_time: number | null
+  end_time: number | null
+  duration: number | null
+}
+
+interface LogRow {
+  timestamp: number
+  level: string
+  message: string
+  context: string | null
+}
+
+interface CountRow {
+  count: number
+}
+
+interface JoinedSessionFileRow extends SessionRow {
+  file_id: number | null
+  // Note: source_path from SessionRow is overridden here for the joined file
+  source_path: string | null
+  destination_path: string | null
+  file_name: string | null
+  file_size: number | string | null
+  bytes_transferred: number | null
+  percentage: number | null
+  file_status: string | null
+  checksum: string | null
+  file_error: string | null
+  file_start_time: number | null
+  file_end_time: number | null
+  duration: number | null
+}
+
+/**
  * Database Manager Class
  * Manages SQLite database for transfer history and logs
  */
@@ -182,8 +244,9 @@ export class DatabaseManager {
    */
   getTables(): string[] {
     // For mock compatibility, directly access table names if available
-    if (typeof (this.db as any).getTableNames === 'function') {
-      return (this.db as any).getTableNames()
+    const dbWithMock = this.db as Database.Database & { getTableNames?: () => string[] }
+    if (typeof dbWithMock.getTableNames === 'function') {
+      return dbWithMock.getTableNames()
     }
 
     // Real database query
@@ -286,7 +349,7 @@ export class DatabaseManager {
       SELECT * FROM transfer_sessions WHERE id = ?
     `)
 
-    const row = stmt.get(sessionId) as any
+    const row = stmt.get(sessionId) as SessionRow | undefined
 
     if (!row) {
       return null
@@ -297,18 +360,18 @@ export class DatabaseManager {
       SELECT * FROM transfer_files WHERE session_id = ?
     `)
 
-    const files = (filesStmt.all(sessionId) as any[]).map((file) => ({
+    const files = (filesStmt.all(sessionId) as FileRow[]).map((file) => ({
       sourcePath: file.source_path,
       destinationPath: file.destination_path,
       fileName: file.file_name,
       fileSize: Number(file.file_size), // Ensure it's a number
       bytesTransferred: file.bytes_transferred,
       percentage: file.percentage,
-      status: file.status,
-      checksum: file.checksum,
-      error: file.error,
-      startTime: file.start_time,
-      endTime: file.end_time
+      status: file.status as FileTransferInfo['status'],
+      checksum: file.checksum ?? undefined,
+      error: file.error ?? undefined,
+      startTime: file.start_time ?? undefined,
+      endTime: file.end_time ?? undefined
     }))
 
     return {
@@ -319,11 +382,11 @@ export class DatabaseManager {
       destinationRoot: row.destination_root,
       startTime: row.start_time,
       endTime: row.end_time,
-      status: row.status,
+      status: row.status as TransferSession['status'],
       fileCount: row.file_count,
       totalBytes: row.total_bytes,
       files,
-      errorMessage: row.error_message
+      errorMessage: row.error_message ?? undefined
     }
   }
 
@@ -346,13 +409,13 @@ export class DatabaseManager {
       ORDER BY s.start_time DESC, f.id ASC
     `)
 
-    const rows = stmt.all() as any[]
+    const rows = stmt.all() as JoinedSessionFileRow[]
 
     // Group rows by session ID, preserving insertion order
     const sessionMap = new Map<string, TransferSession>()
     const sessionOrder: string[] = [] // Track order of first appearance
 
-    rows.forEach((row) => {
+    rows.forEach((row: JoinedSessionFileRow) => {
       if (!sessionMap.has(row.id)) {
         // Track order when first seeing this session
         sessionOrder.push(row.id)
@@ -366,11 +429,11 @@ export class DatabaseManager {
           destinationRoot: row.destination_root,
           startTime: row.start_time,
           endTime: row.end_time,
-          status: row.status,
+          status: row.status as TransferSession['status'],
           fileCount: row.file_count,
           totalBytes: row.total_bytes,
           files: [],
-          errorMessage: row.error_message
+          errorMessage: row.error_message ?? undefined
         })
       }
 
@@ -378,18 +441,18 @@ export class DatabaseManager {
       if (row.file_id) {
         const session = sessionMap.get(row.id)!
         session.files.push({
-          sourcePath: row.source_path,
-          destinationPath: row.destination_path,
-          fileName: row.file_name,
+          sourcePath: row.source_path!,
+          destinationPath: row.destination_path!,
+          fileName: row.file_name!,
           fileSize: validateFileSize(Number(row.file_size), 'file_size'),
-          bytesTransferred: validateFileSize(row.bytes_transferred, 'bytes_transferred'),
-          percentage: row.percentage,
-          status: row.file_status,
-          checksum: row.checksum,
-          error: row.file_error,
-          startTime: row.file_start_time,
-          endTime: row.file_end_time,
-          duration: row.duration
+          bytesTransferred: validateFileSize(row.bytes_transferred ?? 0, 'bytes_transferred'),
+          percentage: row.percentage ?? 0,
+          status: row.file_status as FileTransferInfo['status'],
+          checksum: row.checksum ?? undefined,
+          error: row.file_error ?? undefined,
+          startTime: row.file_start_time ?? undefined,
+          endTime: row.file_end_time ?? undefined,
+          duration: row.duration ?? undefined
         })
       }
     })
@@ -407,7 +470,7 @@ export class DatabaseManager {
     updates: Partial<Omit<TransferSession, 'id' | 'files'>>
   ): void {
     const fields: string[] = []
-    const values: any[] = []
+    const values: (string | number | null)[] = []
 
     if (updates.status !== undefined) {
       fields.push('status = ?')
@@ -462,7 +525,7 @@ export class DatabaseManager {
       ORDER BY start_time DESC
     `)
 
-    const rows = stmt.all(startTime, endTime) as any[]
+    const rows = stmt.all(startTime, endTime) as SessionRow[]
 
     return rows.map((row) => this.getTransferSession(row.id)!)
   }
@@ -550,7 +613,7 @@ export class DatabaseManager {
     updates: Partial<FileTransferInfo>
   ): void {
     const fields: string[] = []
-    const values: any[] = []
+    const values: (string | number | null)[] = []
 
     if (updates.status !== undefined) {
       fields.push('status = ?')
@@ -610,7 +673,7 @@ export class DatabaseManager {
       SELECT * FROM transfer_files WHERE session_id = ? AND status = ?
     `)
 
-    const rows = stmt.all(sessionId, status) as any[]
+    const rows = stmt.all(sessionId, status) as FileRow[]
 
     return rows.map((file) => ({
       sourcePath: file.source_path,
@@ -619,12 +682,12 @@ export class DatabaseManager {
       fileSize: Number(file.file_size), // Ensure it's a number
       bytesTransferred: file.bytes_transferred,
       percentage: file.percentage,
-      status: file.status,
-      checksum: file.checksum,
-      error: file.error,
-      startTime: file.start_time,
-      endTime: file.end_time,
-      duration: file.duration
+      status: file.status as FileTransferInfo['status'],
+      checksum: file.checksum ?? undefined,
+      error: file.error ?? undefined,
+      startTime: file.start_time ?? undefined,
+      endTime: file.end_time ?? undefined,
+      duration: file.duration ?? undefined
     }))
   }
 
@@ -668,11 +731,11 @@ export class DatabaseManager {
       SELECT * FROM logs ORDER BY timestamp DESC LIMIT ?
     `)
 
-    const rows = stmt.all(limit) as any[]
+    const rows = stmt.all(limit) as LogRow[]
 
     return rows.map((row) => ({
       timestamp: row.timestamp,
-      level: row.level,
+      level: row.level as LogEntry['level'],
       message: row.message,
       context: row.context ? JSON.parse(row.context) : undefined
     }))
@@ -686,11 +749,11 @@ export class DatabaseManager {
       SELECT * FROM logs WHERE level = ? ORDER BY timestamp DESC
     `)
 
-    const rows = stmt.all(level) as any[]
+    const rows = stmt.all(level) as LogRow[]
 
     return rows.map((row) => ({
       timestamp: row.timestamp,
-      level: row.level,
+      level: row.level as LogEntry['level'],
       message: row.message,
       context: row.context ? JSON.parse(row.context) : undefined
     }))
@@ -706,11 +769,11 @@ export class DatabaseManager {
       ORDER BY timestamp DESC
     `)
 
-    const rows = stmt.all(startTime, endTime) as any[]
+    const rows = stmt.all(startTime, endTime) as LogRow[]
 
     return rows.map((row) => ({
       timestamp: row.timestamp,
-      level: row.level,
+      level: row.level as LogEntry['level'],
       message: row.message,
       context: row.context ? JSON.parse(row.context) : undefined
     }))
@@ -761,9 +824,11 @@ export class DatabaseManager {
    * Get database statistics
    */
   getDatabaseStats(): DatabaseStats {
-    const sessions = this.db.prepare('SELECT COUNT(*) as count FROM transfer_sessions').get() as any
-    const files = this.db.prepare('SELECT COUNT(*) as count FROM transfer_files').get() as any
-    const logs = this.db.prepare('SELECT COUNT(*) as count FROM logs').get() as any
+    const sessions = this.db
+      .prepare('SELECT COUNT(*) as count FROM transfer_sessions')
+      .get() as CountRow
+    const files = this.db.prepare('SELECT COUNT(*) as count FROM transfer_files').get() as CountRow
+    const logs = this.db.prepare('SELECT COUNT(*) as count FROM logs').get() as CountRow
 
     // Get database file size
     let dbSize = 0

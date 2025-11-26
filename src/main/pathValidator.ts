@@ -212,8 +212,11 @@ export async function checkDiskSpace(targetPath: string): Promise<DiskSpaceInfo>
   // For older versions, we'll need to use platform-specific commands
   try {
     // Try to use fs.statfs (available in Node.js 18.15.0+)
-    if ('statfs' in fs && typeof (fs as any).statfs === 'function') {
-      const stats = await (fs as any).statfs(normalizedPath)
+    const fsWithStatfs = fs as typeof fs & {
+      statfs?: (path: string) => Promise<{ blocks: number; bsize: number; bfree: number }>
+    }
+    if (fsWithStatfs.statfs) {
+      const stats = await fsWithStatfs.statfs(normalizedPath)
       const totalSpace = stats.blocks * stats.bsize
       const freeSpace = stats.bfree * stats.bsize
 

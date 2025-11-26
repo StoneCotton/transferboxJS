@@ -32,7 +32,7 @@ describe('PathProcessor', () => {
     // Cleanup test directories
     try {
       await fs.rm(testDir, { recursive: true, force: true })
-    } catch (error) {
+    } catch {
       // Ignore cleanup errors
     }
   })
@@ -154,7 +154,7 @@ describe('PathProcessor', () => {
       const symlinkPath = path.join(sourceDir, 'link-to-outside')
       try {
         await fs.symlink(outsideFile, symlinkPath)
-      } catch (error) {
+      } catch {
         // Symlinks might not be supported on all systems
         return
       }

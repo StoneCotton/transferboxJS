@@ -24,7 +24,7 @@ describe('DatabaseManager', () => {
     dbManager.close()
     try {
       await fs.unlink(testDbPath)
-    } catch (error) {
+    } catch {
       // Ignore cleanup errors
     }
   })
