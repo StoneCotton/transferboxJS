@@ -4,7 +4,7 @@
 
 TransferBox is a powerful desktop application designed for seamless, reliable file transfers from removable storage devices. Built with modern web technologies and optimized for professional workflows, it ensures data integrity through checksum verification while providing flexible automation options.
 
-[![Version](https://img.shields.io/badge/version-2.0.1--beta.9-blue.svg)](https://github.com/StoneCotton/transferboxJS)
+[![Version](https://img.shields.io/badge/version-2.0.1--beta.15-blue.svg)](https://github.com/StoneCotton/transferboxJS)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)](https://github.com/StoneCotton/transferboxJS)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
@@ -15,6 +15,7 @@ TransferBox is a powerful desktop application designed for seamless, reliable fi
 - Real-time monitoring of removable drives (SD cards, USB drives)
 - Intelligent filtering to distinguish between truly removable and internal drives
 - Automatic scanning for media files with customizable extensions
+- Cross-platform drive detection (Windows drive letters, Unix mount points)
 
 ### 🚀 **Multiple Transfer Modes**
 
@@ -27,8 +28,9 @@ TransferBox is a powerful desktop application designed for seamless, reliable fi
 
 - XXHash64 checksum verification with streaming validation
 - Atomic operations using `.TBPART` temporary files
-- Automatic retry with exponential backoff for device reconnection
+- Automatic retry with exponential backoff for device reconnection (5 attempts, ~24s window)
 - No partial transfers - files are either complete or not present
+- Orphaned `.TBPART` cleanup on startup (files older than 1 hour)
 
 ### 📂 **Smart File Organization**
 
@@ -36,10 +38,12 @@ TransferBox is a powerful desktop application designed for seamless, reliable fi
 - **Device-based**: Group by source device name
 - **Flat**: All files in destination root
 - **Preserve Source**: Maintain original folder structure
+- Custom filename templates with variable substitution
 
 ### ⚡ **Performance & Reliability**
 
-- Parallel processing (up to 3 concurrent file transfers)
+- Parallel processing (up to 10 concurrent file transfers, 3 default)
+- Streaming file operations with 4MB buffer
 - Real-time progress tracking with speed and ETA
 - Robust error handling with device reconnection support
 - SQLite database for comprehensive transfer history
@@ -47,13 +51,11 @@ TransferBox is a powerful desktop application designed for seamless, reliable fi
 ### 🎯 **Professional Features**
 
 - Customizable file naming templates with timestamps
-- Sound notifications for transfer completion
-- Comprehensive logging with retention policies
+- Sound notifications for transfer completion/errors
+- Comprehensive logging with configurable retention policies
+- System suspend/resume detection
+- Transfer-in-progress quit protection
 - Cross-platform support (Windows, macOS, Linux)
-
-## 📸 Screenshots
-
-_Screenshots coming soon - TransferBox features a clean, modern interface with real-time progress tracking, drive selection, and comprehensive transfer management._
 
 ## 🚀 Installation
 
@@ -70,7 +72,7 @@ Download pre-built binaries from the [Releases](https://github.com/StoneCotton/t
 **Prerequisites:**
 
 - Node.js 18+
-- npm or yarn
+- npm
 
 **Setup:**
 
@@ -89,9 +91,10 @@ npm run dev
 npm run build
 
 # Build for specific platforms
-npm run build:win    # Windows
+npm run build:win     # Windows
 npm run build:mac     # macOS
 npm run build:linux   # Linux
+npm run build:all     # All platforms
 ```
 
 ## 🎯 Quick Start Guide
@@ -103,7 +106,7 @@ npm run build:linux   # Linux
 5. **Start the transfer** - monitor real-time progress with detailed per-file status
 6. **Verify completion** with automatic checksum validation
 
-## ⚙️ Configuration Highlights
+## ⚙️ Configuration
 
 ### Transfer Modes
 
@@ -124,25 +127,47 @@ npm run build:linux   # Linux
 - Customizable media file extensions (`.mp4`, `.raw`, `.cr2`, etc.)
 - File naming templates with timestamps
 - Checksum verification toggle
-- Sound notifications for completion
+- Sound notifications for completion/errors
+- Configurable concurrent transfer limit (1-10)
 - Log retention policies (auto-cleanup)
+- UI density options
 
-## 🔧 Technical Highlights
+## 🔧 Tech Stack
 
-**Built for Performance:**
+- **Electron 38** - Cross-platform desktop framework
+- **React 19** - UI library
+- **TypeScript** - Type-safe development
+- **Zustand** - State management
+- **electron-store** - Persistent configuration
+- **better-sqlite3** - Transfer history database
+- **xxhash-addon** - Fast checksum calculation
+- **Tailwind CSS** - Styling
+- **electron-vite** - Build tooling
 
-- Electron + React + TypeScript architecture
-- XXHash64 for fast checksum calculation
-- Streaming file operations (4MB buffer)
-- SQLite database for transfer history
-- IPC architecture with contextIsolation for security
+## 🏗️ Architecture
 
-**Reliability Features:**
+### Process Separation
 
-- Retry strategy optimized for device reconnection (5 attempts, ~24s window)
-- Atomic file operations prevent corruption
-- Comprehensive error handling and logging
-- Cross-platform file system compatibility
+- **Main Process** (`src/main/`) - Node.js with full system access for file I/O, drive detection, checksums, database
+- **Renderer Process** (`src/renderer/`) - React UI with `contextIsolation: true`, no direct Node.js access
+- **Preload Script** (`src/preload/`) - Bridges main and renderer via `contextBridge`
+
+### Key Modules
+
+| Module | Description |
+|--------|-------------|
+| `fileTransfer.ts` | Atomic transfers with `.TBPART` pattern, checksums, retry logic |
+| `driveMonitor.ts` | Cross-platform removable drive detection via `drivelist` |
+| `configManager.ts` | Versioned configuration with automatic migration |
+| `databaseManager.ts` | SQLite transfer history and logging |
+| `pathProcessor.ts` | File organization strategies and conflict resolution |
+
+### Security
+
+- `contextIsolation: true` - Renderer isolated from main process
+- `nodeIntegration: false` - Renderer cannot access Node APIs
+- All IPC messages validated before processing
+- Path validation to prevent traversal attacks
 
 ## 💻 System Requirements
 
@@ -160,16 +185,14 @@ npm run build:linux   # Linux
 
 ## 🧪 Development & Testing
 
-TransferBox includes a comprehensive test suite:
-
-- **Unit Tests**: All core modules with Jest
-- **Integration Tests**: Critical workflows and edge cases
-- **Test Coverage**: File transfer, drive monitoring, configuration management
-- **Quality Assurance**: Automated testing for cross-platform compatibility
+TransferBox includes a comprehensive test suite using Jest and React Testing Library:
 
 ```bash
-# Run tests
+# Run all tests
 npm test
+
+# Run tests in watch mode
+npm run test:watch
 
 # Run tests with coverage
 npm run test:coverage
@@ -179,16 +202,33 @@ npm run test:main      # Main process tests
 npm run test:renderer  # UI component tests
 ```
 
+### Other Commands
+
+```bash
+npm run lint           # ESLint
+npm run format         # Prettier formatting
+npm run typecheck      # TypeScript type checking
+npm run clean          # Clean build artifacts
+npm run clean:build    # Clean and rebuild
+```
+
+### Test Organization
+
+- `tests/main/` - Main process unit tests
+- `tests/renderer/` - UI component tests
+- `tests/integration/` - Cross-module integration tests
+- `tests/shared/` - Shared utility tests
+
 ## 📊 Project Information
 
 - **Author**: Tyler Saari
-- **Version**: 2.0.1-beta.5
+- **Version**: 2.0.1-beta.15
 - **Homepage**: [tylersaari.net](https://tylersaari.net)
-- **Built with**: Modern web technologies for desktop
+- **Repository**: [GitHub](https://github.com/StoneCotton/transferboxJS)
 
 ## 📄 License & Contributing
 
-This project is open source and contributions are welcome! Please feel free to submit issues, feature requests, or pull requests.
+This project is licensed under the GNU General Public License v3.0. Contributions are welcome! Please feel free to submit issues, feature requests, or pull requests.
 
 ---
 
