@@ -17,7 +17,7 @@ import { useState, useMemo } from 'react'
 import { Modal } from './ui/Modal'
 import { Button } from './ui/Button'
 import { Tooltip } from './ui/Tooltip'
-import { formatBytes } from '../lib/utils'
+import { formatBytes, formatDate } from '../lib/utils'
 import { useConfigStore } from '../store'
 import type { FileConflictInfo, ConflictResolutionChoice } from '../../../shared/types'
 
@@ -94,11 +94,6 @@ export function FileConflictDialog({
   // Handle confirm
   const handleConfirm = (): void => {
     onConfirm(perFileResolutions)
-  }
-
-  // Format date for display
-  const formatDate = (timestamp: number): string => {
-    return new Date(timestamp).toLocaleString()
   }
 
   // Determine if source is newer

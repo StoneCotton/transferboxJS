@@ -7,6 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 TransferBox is a cross-platform Electron desktop application for reliable file transfers from removable storage devices (SD cards, USB drives). It ensures data integrity through XXHash64 checksum verification and provides multiple automation modes for professional media workflows.
 
 **Tech Stack:**
+
 - Electron 38 (main + renderer process architecture)
 - React 19 + TypeScript
 - Zustand for state management
@@ -18,6 +19,7 @@ TransferBox is a cross-platform Electron desktop application for reliable file t
 ## Common Development Commands
 
 ### Development & Building
+
 ```bash
 npm run dev              # Start development server with hot reload
 npm run build           # Full build (runs typecheck + test + electron-vite build)
@@ -25,6 +27,7 @@ npm run clean:build     # Clean output directories and rebuild
 ```
 
 ### Type Checking
+
 ```bash
 npm run typecheck        # Run both node and web type checking
 npm run typecheck:node   # Type check main process code (tsconfig.node.json)
@@ -32,6 +35,7 @@ npm run typecheck:web    # Type check renderer process code (tsconfig.web.json)
 ```
 
 ### Testing
+
 ```bash
 npm test                 # Run all tests (main + renderer)
 npm run test:watch       # Run tests in watch mode
@@ -41,12 +45,14 @@ npm run test:renderer    # Run only renderer process tests
 ```
 
 ### Linting & Formatting
+
 ```bash
 npm run lint            # Run ESLint
 npm run format          # Format code with Prettier
 ```
 
 ### Platform-Specific Builds
+
 ```bash
 npm run build:mac       # Build for macOS (universal)
 npm run build:win       # Build for Windows
@@ -60,23 +66,27 @@ npm run build:mac-arm64 # Build for macOS ARM64 only
 ### Electron Process Separation
 
 **Main Process** (`src/main/`):
+
 - Runs Node.js with full system access
 - Handles file I/O, drive detection, checksums, database operations
 - Communicates with renderer via IPC (defined in `src/shared/types/ipc.ts`)
 - Entry point: `src/main/index.ts`
 
 **Renderer Process** (`src/renderer/`):
+
 - Runs React UI in Chromium with `contextIsolation: true`
 - NO direct Node.js access - all system operations via IPC
 - Uses Zustand store pattern with slices (`src/renderer/src/store/`)
 - Entry point: `src/renderer/src/main.tsx`
 
 **Preload Script** (`src/preload/`):
+
 - Bridges main and renderer with `contextBridge`
 - Exposes typed API via `window.api` (defined in `src/preload/index.d.ts`)
 - Only place where main/renderer worlds touch
 
 **Shared Types** (`src/shared/types/`):
+
 - Type definitions used by both processes
 - IPC channel names and payload types in `ipc.ts`
 - Configuration schema in `config.ts`
@@ -85,6 +95,7 @@ npm run build:mac-arm64 # Build for macOS ARM64 only
 ### Key Modules
 
 **File Transfer Engine** (`src/main/fileTransfer.ts`):
+
 - Atomic operations using `.TBPART` temporary files
 - Streaming file I/O with 4MB buffer
 - XXHash64 checksum verification
@@ -93,6 +104,7 @@ npm run build:mac-arm64 # Build for macOS ARM64 only
 - Progress tracking with speed/ETA calculation
 
 **Drive Monitor** (`src/main/driveMonitor.ts`):
+
 - Uses `drivelist` library for cross-platform drive detection
 - Polls every 2 seconds for drive changes
 - Filters removable drives from system/network drives
@@ -100,22 +112,26 @@ npm run build:mac-arm64 # Build for macOS ARM64 only
 - Scans for media files based on configured extensions
 
 **Configuration Manager** (`src/main/configManager.ts`):
+
 - Uses `electron-store` for persistent JSON configuration
 - Automatic migration between config versions
 - Handles "newer config" warning when app is downgraded
 - Validates and applies defaults using Zod schemas
 
 **Database Manager** (`src/main/databaseManager.ts`):
+
 - SQLite database for transfer history and logging
 - Stores transfer sessions with full file-level details
 - Log retention with automatic cleanup (default 7 days)
 
 **Path Processor** (`src/main/pathProcessor.ts`):
+
 - Handles file organization strategies: date-based, device-based, flat, preserve-source
 - Custom filename templates with variable substitution
 - Conflict detection and resolution (skip/rename/overwrite)
 
 **IPC Setup** (`src/main/ipc.ts`):
+
 - Centralizes all `ipcMain.handle()` registrations
 - Request/response validation using validators from `src/main/utils/ipcValidator.ts`
 - Security validation for paths from `src/main/utils/securityValidation.ts`
@@ -123,6 +139,7 @@ npm run build:mac-arm64 # Build for macOS ARM64 only
 ### State Management (Renderer)
 
 Zustand store is split into domain slices (`src/renderer/src/store/slices/`):
+
 - `driveSlice.ts` - Detected drives, selected drive, scanned files
 - `transferSlice.ts` - Transfer progress, current session, history
 - `configSlice.ts` - App configuration
@@ -143,18 +160,21 @@ Combined in `src/renderer/src/store/index.ts` with convenience hooks.
 ### Testing Strategy
 
 **Test Organization:**
+
 - Main process tests: `tests/main/` (node environment)
 - Renderer tests: `tests/renderer/` (jsdom environment)
 - Integration tests: `tests/integration/` (cross-module scenarios)
 - Shared utilities: `tests/shared/`
 
 **Test Philosophy (from .cursor/rules/typescript.mdc):**
+
 - Write tests BEFORE implementing changes
 - Test IPC communication with proper mocking
 - Use temporary directories for file operation tests
 - Ensure all tests pass before making follow-up changes
 
 **Coverage:**
+
 - Main process modules in `src/main/**/*.ts` (excluding `index.ts`)
 - Preload scripts in `src/preload/**/*.ts`
 - Coverage reports in `coverage/` directory
@@ -164,6 +184,7 @@ Combined in `src/renderer/src/store/index.ts` with convenience hooks.
 ### Atomic File Operations
 
 Always use the `.TBPART` temporary file pattern for transfers:
+
 ```typescript
 const tempPath = destPath + '.TBPART'
 // 1. Write to tempPath
@@ -177,6 +198,7 @@ See `src/main/fileTransfer.ts` for the canonical implementation. This ensures no
 ### Retry Strategy for Device Reconnection
 
 The retry strategy in `src/main/utils/retryStrategy.ts` is specifically tuned for USB device reconnection:
+
 - 5 attempts total
 - Delays: 500ms, 1000ms, 2000ms, 4000ms, 8000ms (~15.5s total)
 - Exponential backoff with jitter
@@ -187,6 +209,7 @@ When adding retry logic, use `withRetry()` wrapper from `retryStrategy.ts`.
 ### IPC Communication Pattern
 
 1. Define channel in `src/shared/types/ipc.ts`:
+
    ```typescript
    export const IPC_CHANNELS = {
      MY_OPERATION: 'namespace:operation'
@@ -196,6 +219,7 @@ When adding retry logic, use `withRetry()` wrapper from `retryStrategy.ts`.
 2. Add types to `IpcHandlers` or `IpcEvents` interface
 
 3. Register handler in `src/main/ipc.ts`:
+
    ```typescript
    ipcMain.handle(IPC_CHANNELS.MY_OPERATION, async (_, arg) => {
      // Validate arg with validators from utils/ipcValidator.ts
@@ -205,6 +229,7 @@ When adding retry logic, use `withRetry()` wrapper from `retryStrategy.ts`.
    ```
 
 4. Expose in preload (`src/preload/index.ts`):
+
    ```typescript
    myOperation: (arg) => ipcRenderer.invoke(IPC_CHANNELS.MY_OPERATION, arg)
    ```
@@ -226,6 +251,7 @@ When adding retry logic, use `withRetry()` wrapper from `retryStrategy.ts`.
 ### File Size Arithmetic
 
 Use safe arithmetic from `src/main/utils/fileSizeUtils.ts`:
+
 - `safeAdd()` - Prevents overflow when summing file sizes
 - `safeSum()` - Safely sum array of sizes
 - `validateFileSize()` - Ensures size is within safe integer range
@@ -234,11 +260,13 @@ Use safe arithmetic from `src/main/utils/fileSizeUtils.ts`:
 ## Configuration System
 
 Configuration is versioned and migrates automatically:
+
 - Current version in `src/main/constants/version.ts`
 - Schema validation in `src/shared/types/config.ts`
 - Migration logic in `src/main/configManager.ts`
 
 When adding new config fields:
+
 1. Update `AppConfig` type in `src/shared/types/config.ts`
 2. Add to `DEFAULT_CONFIG` in `configManager.ts`
 3. Increment `CONFIG_VERSION` if breaking change
@@ -247,6 +275,7 @@ When adding new config fields:
 ## Error Handling
 
 Use the `TransferError` class from `src/main/errors/TransferError.ts`:
+
 - Categorizes errors by type (filesystem, validation, checksum, etc.)
 - Includes context for debugging
 - Wraps unknown errors with `wrapError()`
@@ -281,6 +310,7 @@ Use the `TransferError` class from `src/main/errors/TransferError.ts`:
 6. **Finalization**: Ensure code is secure, performant, and meets requirements
 
 When debugging:
+
 - Conduct differential diagnosis before fixes
 - Ask "Is this THE issue or just AN issue?"
 - Make one major change at a time and test

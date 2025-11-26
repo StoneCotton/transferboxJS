@@ -35,6 +35,10 @@ interface IpcApi {
   startTransfer: (request: TransferStartRequest) => Promise<void>
   stopTransfer: () => Promise<void>
   getTransferStatus: () => Promise<TransferStatusResponse>
+  retryTransfer: (request: {
+    files: Array<{ sourcePath: string; destinationPath: string }>
+    driveInfo: { device: string; displayName: string }
+  }) => Promise<void>
 
   // History
   getHistory: () => Promise<TransferSession[]>

@@ -39,6 +39,10 @@ export interface IpcApi {
   validateTransfer: (request: TransferValidateRequest) => Promise<TransferValidateResponse>
   startTransfer: (request: TransferStartRequest) => Promise<void>
   stopTransfer: () => Promise<void>
+  retryTransfer: (request: {
+    files: Array<{ sourcePath: string; destinationPath: string }>
+    driveInfo: DriveInfo
+  }) => Promise<void>
 
   // History
   getHistory: () => Promise<TransferSession[]>
@@ -143,6 +147,16 @@ export function useIpc(): IpcApi {
   const stopTransfer = useCallback(async () => {
     return await window.api.stopTransfer()
   }, [])
+
+  const retryTransfer = useCallback(
+    async (request: {
+      files: Array<{ sourcePath: string; destinationPath: string }>
+      driveInfo: DriveInfo
+    }) => {
+      return await window.api.retryTransfer(request)
+    },
+    []
+  )
 
   // History
   const getHistory = useCallback(async () => {
@@ -273,6 +287,7 @@ export function useIpc(): IpcApi {
     validateTransfer,
     startTransfer,
     stopTransfer,
+    retryTransfer,
     getHistory,
     getHistoryById,
     clearHistory,

@@ -37,6 +37,7 @@ export const IPC_CHANNELS = {
   TRANSFER_START: 'transfer:start',
   TRANSFER_STOP: 'transfer:stop',
   TRANSFER_STATUS: 'transfer:status',
+  TRANSFER_RETRY: 'transfer:retry', // Retry failed files
   TRANSFER_PROGRESS: 'transfer:progress', // Event from main to renderer
   TRANSFER_COMPLETE: 'transfer:complete', // Event from main to renderer
   TRANSFER_ERROR: 'transfer:error', // Event from main to renderer
@@ -161,6 +162,19 @@ export interface TransferStatusResponse {
   isTransferring: boolean
 }
 
+/**
+ * Request to retry failed files from a previous transfer
+ */
+export interface TransferRetryRequest {
+  /** Files to retry with their original source and destination paths */
+  files: Array<{
+    sourcePath: string
+    destinationPath: string
+  }>
+  /** Drive info for the source drive */
+  driveInfo: DriveInfo
+}
+
 export interface LogEntry {
   timestamp: number
   level: 'info' | 'warn' | 'error' | 'debug'
@@ -213,6 +227,7 @@ export interface IpcHandlers {
   [IPC_CHANNELS.TRANSFER_START]: (request: TransferStartRequest) => Promise<void>
   [IPC_CHANNELS.TRANSFER_STOP]: () => Promise<void>
   [IPC_CHANNELS.TRANSFER_STATUS]: () => Promise<TransferStatusResponse>
+  [IPC_CHANNELS.TRANSFER_RETRY]: (request: TransferRetryRequest) => Promise<void>
 
   [IPC_CHANNELS.HISTORY_GET_ALL]: () => Promise<TransferSession[]>
   [IPC_CHANNELS.HISTORY_GET_BY_ID]: (id: string) => Promise<TransferSession | null>

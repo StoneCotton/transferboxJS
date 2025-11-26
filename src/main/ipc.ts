@@ -863,6 +863,282 @@ export function setupIpcHandlers(): void {
     }
   })
 
+  // Retry failed files handler
+  ipcMain.handle(IPC_CHANNELS.TRANSFER_RETRY, async (event, request: unknown) => {
+    const logger = getLogger()
+
+    // Prevent concurrent transfers
+    if (transferEngine && transferEngine.isTransferring()) {
+      const errorMessage =
+        'A transfer is already in progress. Please wait for it to complete or cancel it first.'
+      logger.warn('Retry blocked - transfer already in progress')
+      throw new Error(errorMessage)
+    }
+
+    // Validate request structure
+    if (!request || typeof request !== 'object') {
+      throw new Error('Invalid retry request')
+    }
+    const reqObj = request as Record<string, unknown>
+    if (!Array.isArray(reqObj.files) || reqObj.files.length === 0) {
+      throw new Error('No files to retry')
+    }
+    if (!reqObj.driveInfo || typeof reqObj.driveInfo !== 'object') {
+      throw new Error('Invalid drive info for retry')
+    }
+
+    const files = reqObj.files as Array<{ sourcePath: string; destinationPath: string }>
+    const driveInfo = reqObj.driveInfo as {
+      device: string
+      displayName: string
+      mountpoints?: string[]
+    }
+
+    logger.info('Starting retry of failed files', {
+      fileCount: files.length,
+      driveDevice: driveInfo.device
+    })
+
+    if (!transferEngine) {
+      transferEngine = new FileTransferEngine()
+    } else {
+      transferEngine.reset()
+    }
+
+    const db = getDatabaseManager()
+    const config = getConfig()
+
+    // Map files to transfer format
+    const transferFiles = files.map((f) => ({
+      source: f.sourcePath,
+      dest: f.destinationPath
+    }))
+
+    // Get file sizes
+    const fileSizes = await Promise.all(
+      transferFiles.map(async (f) => {
+        try {
+          const stats = await stat(f.source)
+          return stats.size
+        } catch {
+          return 0
+        }
+      })
+    )
+
+    const totalBytes = safeSum(fileSizes)
+    const totalFiles = transferFiles.length
+
+    // Determine source and destination roots from file paths
+    const sourceRoot =
+      transferFiles[0]?.source.substring(0, transferFiles[0].source.lastIndexOf('/')) || ''
+    const destRoot =
+      transferFiles[0]?.dest.substring(0, transferFiles[0].dest.lastIndexOf('/')) || ''
+
+    // Create session for retry (createTransferSession expects an object)
+    const sessionId = db.createTransferSession({
+      driveId: driveInfo.device,
+      driveName: driveInfo.displayName,
+      sourceRoot,
+      destinationRoot: destRoot,
+      status: 'transferring',
+      startTime: Date.now(),
+      endTime: null,
+      fileCount: totalFiles,
+      totalBytes,
+      files: []
+    })
+
+    logger.info('Retry session created', {
+      sessionId,
+      fileCount: totalFiles,
+      totalBytes
+    })
+
+    // Add files to session
+    transferFiles.forEach((file, index) => {
+      const fileName = file.source.split('/').pop() || 'file'
+      const fileSize = fileSizes[index]
+
+      db.addFileToSession(sessionId, {
+        sourcePath: file.source,
+        destinationPath: file.dest,
+        fileName,
+        fileSize,
+        bytesTransferred: 0,
+        percentage: 0,
+        status: 'pending',
+        startTime: Date.now(),
+        retryCount: 1 // Mark as retry
+      })
+    })
+
+    // Update menu to enable Cancel Transfer option
+    updateMenuForTransferState(true)
+
+    // Initialize progress tracking
+    let transferredBytes = 0
+    let completedCount = 0
+    let failedCount = 0
+    const startTime = Date.now()
+    const completedFilesList: Array<{
+      sourcePath: string
+      destinationPath: string
+      fileName: string
+      fileSize: number
+      bytesTransferred: number
+      percentage: number
+      status: 'complete' | 'error' | 'skipped'
+      error?: string
+      errorType?: string
+      retryCount?: number
+    }> = []
+
+    // Start retry transfer
+    transferEngine
+      .transferFiles(transferFiles, {
+        bufferSize: config.bufferSize,
+        verifyChecksum: config.verifyChecksums,
+        overwrite: true, // Retry implies we want to overwrite
+        continueOnError: true,
+        onProgress: (progress) => {
+          const elapsedTime = (Date.now() - startTime) / 1000
+          const currentBytesTransferred = transferredBytes + progress.bytesTransferred
+
+          event.sender.send(IPC_CHANNELS.TRANSFER_PROGRESS, {
+            status: 'transferring',
+            totalFiles,
+            completedFilesCount: completedCount,
+            failedFiles: failedCount,
+            skippedFiles: 0,
+            totalBytes,
+            transferredBytes: currentBytesTransferred,
+            overallPercentage: totalBytes > 0 ? (currentBytesTransferred / totalBytes) * 100 : 0,
+            currentFile: {
+              sourcePath: transferFiles[completedCount]?.source || '',
+              destinationPath: transferFiles[completedCount]?.dest || '',
+              fileName: transferFiles[completedCount]?.source.split('/').pop() || '',
+              fileSize: progress.totalBytes,
+              bytesTransferred: progress.bytesTransferred,
+              percentage: progress.percentage,
+              speed: progress.speed,
+              status: 'transferring'
+            },
+            activeFiles: [],
+            completedFiles: completedFilesList,
+            transferSpeed: progress.speed || 0,
+            averageSpeed: elapsedTime > 0 ? currentBytesTransferred / elapsedTime : 0,
+            eta:
+              progress.speed && progress.speed > 0
+                ? (totalBytes - currentBytesTransferred) / progress.speed
+                : 0,
+            elapsedTime,
+            startTime,
+            endTime: null,
+            errorCount: failedCount
+          })
+        },
+        onFileComplete: (_fileIndex, result) => {
+          completedCount++
+          transferredBytes += result.bytesTransferred
+
+          const fileStatus = result.error ? 'error' : 'complete'
+          completedFilesList.push({
+            sourcePath: result.sourcePath,
+            destinationPath: result.destPath,
+            fileName: result.sourcePath.split('/').pop() || '',
+            fileSize: result.bytesTransferred,
+            bytesTransferred: result.bytesTransferred,
+            percentage: 100,
+            status: fileStatus,
+            error: result.error,
+            errorType: result.errorType,
+            retryCount: 1 // This is a retry
+          })
+
+          // Update file status in database
+          db.updateFileStatus(sessionId, result.sourcePath, {
+            status: fileStatus,
+            bytesTransferred: result.bytesTransferred,
+            percentage: 100,
+            endTime: Date.now(),
+            error: result.error,
+            errorType: result.errorType
+          })
+
+          if (result.error) {
+            failedCount++
+            logger.error('Retry file transfer failed', {
+              sessionId,
+              sourcePath: result.sourcePath,
+              error: result.error,
+              errorType: result.errorType
+            })
+          } else {
+            logger.info('Retry file transfer completed', {
+              sessionId,
+              sourcePath: result.sourcePath,
+              bytesTransferred: result.bytesTransferred
+            })
+          }
+        }
+      })
+      .then(() => {
+        const endTime = Date.now()
+        const duration = (endTime - startTime) / 1000
+
+        // Update session status
+        const finalStatus = failedCount > 0 ? 'complete' : 'complete'
+        db.updateTransferSession(sessionId, {
+          status: finalStatus,
+          endTime
+        })
+
+        logger.info('Retry transfer completed', {
+          sessionId,
+          completedFiles: completedCount,
+          failedFiles: failedCount,
+          duration
+        })
+
+        // Send completion event
+        event.sender.send(IPC_CHANNELS.TRANSFER_COMPLETE, {
+          id: sessionId,
+          status: finalStatus,
+          driveId: driveInfo.device,
+          driveName: driveInfo.displayName,
+          sourceRoot:
+            transferFiles[0]?.source.substring(0, transferFiles[0].source.lastIndexOf('/')) || '',
+          destinationRoot:
+            transferFiles[0]?.dest.substring(0, transferFiles[0].dest.lastIndexOf('/')) || '',
+          fileCount: totalFiles,
+          totalBytes,
+          startTime,
+          endTime,
+          errorMessage: failedCount > 0 ? `${failedCount} file(s) failed during retry` : undefined
+        })
+
+        // Update menu
+        updateMenuForTransferState(false)
+      })
+      .catch((error) => {
+        const endTime = Date.now()
+        db.updateTransferSession(sessionId, {
+          status: 'error',
+          endTime,
+          errorMessage: error.message
+        })
+
+        logger.error('Retry transfer failed', {
+          sessionId,
+          error: error.message
+        })
+
+        event.sender.send(IPC_CHANNELS.TRANSFER_ERROR, error.message)
+        updateMenuForTransferState(false)
+      })
+  })
+
   // Transfer history handlers
   ipcMain.handle(IPC_CHANNELS.HISTORY_GET_ALL, async () => {
     const db = getDatabaseManager()

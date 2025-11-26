@@ -2,6 +2,7 @@
  * Transfer Progress Component
  */
 
+import { useState } from 'react'
 import {
   CheckCircle2,
   XCircle,
@@ -10,9 +11,10 @@ import {
   Zap,
   FileCheck,
   HardDriveDownload,
-  AlertCircle
+  AlertCircle,
+  RefreshCw
 } from 'lucide-react'
-import { useTransferStore, useConfigStore, useStore } from '../store'
+import { useTransferStore, useConfigStore, useStore, useDriveStore } from '../store'
 import { useUiDensity } from '../hooks/useUiDensity'
 import { Card, CardHeader, CardTitle, CardContent } from './ui/Card'
 import { Progress } from './ui/Progress'
@@ -27,12 +29,87 @@ import {
 } from '../lib/utils'
 import { useIpc } from '../hooks/useIpc'
 import { playErrorSound } from '../utils/soundManager'
+import { TransferErrorType } from '../../../shared/types'
 
 export function TransferProgress() {
-  const { isTransferring, progress, error, cancelTransfer } = useTransferStore()
+  const { isTransferring, progress, error, cancelTransfer, startTransfer } = useTransferStore()
+  const { selectedDrive } = useDriveStore()
   const { config } = useConfigStore()
   const { isCondensed } = useUiDensity()
   const ipc = useIpc()
+  const [isRetrying, setIsRetrying] = useState(false)
+
+  // Get retryable failed files (network errors and drive disconnection)
+  const getRetryableFiles = () => {
+    if (!progress?.completedFiles) return []
+    return progress.completedFiles.filter(
+      (f) =>
+        f.status === 'error' &&
+        (f.errorType === TransferErrorType.NETWORK_ERROR ||
+          f.errorType === TransferErrorType.DRIVE_DISCONNECTED)
+    )
+  }
+
+  const retryableFiles = getRetryableFiles()
+  const hasRetryableFiles = retryableFiles.length > 0
+
+  // Handle retry of failed files
+  const handleRetryFailedFiles = async () => {
+    if (!selectedDrive || retryableFiles.length === 0) {
+      useStore.getState().addToast({
+        type: 'error',
+        message: 'Cannot retry: drive not available or no retryable files',
+        duration: 4000
+      })
+      return
+    }
+
+    setIsRetrying(true)
+    try {
+      // Prepare retry request with source and destination paths
+      const filesToRetry = retryableFiles.map((f) => ({
+        sourcePath: f.sourcePath,
+        destinationPath: f.destinationPath
+      }))
+
+      // Call IPC to retry transfer
+      await ipc.retryTransfer({
+        files: filesToRetry,
+        driveInfo: selectedDrive
+      })
+
+      // Start transfer state in UI
+      startTransfer({
+        id: `retry-${Date.now()}`,
+        driveId: selectedDrive.device,
+        driveName: selectedDrive.displayName,
+        sourceRoot: selectedDrive.mountpoints[0] || selectedDrive.device,
+        destinationRoot: config?.defaultDestination || '',
+        status: 'transferring',
+        startTime: Date.now(),
+        endTime: null,
+        fileCount: filesToRetry.length,
+        totalBytes: retryableFiles.reduce((sum, f) => sum + f.fileSize, 0),
+        files: []
+      })
+
+      useStore.getState().addToast({
+        type: 'info',
+        message: `Retrying ${filesToRetry.length} failed file${filesToRetry.length > 1 ? 's' : ''}...`,
+        duration: 3000
+      })
+    } catch (error) {
+      console.error('Failed to retry files:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to retry files'
+      useStore.getState().addToast({
+        type: 'error',
+        message: errorMessage,
+        duration: 5000
+      })
+    } finally {
+      setIsRetrying(false)
+    }
+  }
 
   // Handle transfer cancellation
   const handleCancelTransfer = async () => {
@@ -244,6 +321,34 @@ export function TransferProgress() {
                   </div>
                 </div>
               )}
+
+            {/* Retry Button for retryable errors */}
+            {hasRetryableFiles && selectedDrive && !isTransferring && (
+              <div className={cn('flex justify-center', isCondensed ? 'pt-2' : 'pt-4')}>
+                <Button
+                  variant="primary"
+                  size={isCondensed ? 'sm' : 'md'}
+                  onClick={handleRetryFailedFiles}
+                  disabled={isRetrying}
+                  className="bg-gradient-to-r from-amber-500 to-orange-600 text-white hover:from-amber-600 hover:to-orange-700"
+                >
+                  {isRetrying ? (
+                    <>
+                      <Loader2
+                        className={cn('mr-2 animate-spin', isCondensed ? 'h-3 w-3' : 'h-4 w-4')}
+                      />
+                      Retrying...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className={cn('mr-2', isCondensed ? 'h-3 w-3' : 'h-4 w-4')} />
+                      Retry {retryableFiles.length} Failed File
+                      {retryableFiles.length > 1 ? 's' : ''}
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
           </div>
         ) : (
           <div className={isCondensed ? 'space-y-3' : 'space-y-6'}>

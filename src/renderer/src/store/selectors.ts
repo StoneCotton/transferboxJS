@@ -5,7 +5,6 @@
 
 import { useStore } from './index'
 import { TransferErrorType } from '../../../shared/types'
-import type { ErrorInfo } from './slices/errorSlice'
 
 // Transfer selectors
 export const useIsTransferActive = (): boolean =>
@@ -25,6 +24,10 @@ export const useHasRetryableErrors = (): boolean =>
     )
   })
 
+/**
+ * Get all failed files from the current transfer
+ * Used for retry functionality and failed files list display
+ */
 export const useFailedFiles = (): Array<{
   path: string
   error: string
@@ -46,6 +49,10 @@ export const useFailedFiles = (): Array<{
     return failed
   })
 
+/**
+ * Get files that failed with retryable errors (network, disconnect)
+ * Used for "Retry Failed Files" functionality
+ */
 export const useRetryableFiles = (): Array<{
   path: string
   error: string
@@ -77,39 +84,12 @@ export const useTransferStatistics = (): {
     }
   })
 
-export const useHasSpaceWarning = (): boolean =>
-  useStore((state) => !!(state.validationState && !state.validationState.hasEnoughSpace))
-
-export const useHasNetworkWarning = (): boolean =>
-  useStore((state) => state.systemState.isNetworkDestination)
-
-export const useCriticalErrors = (): ErrorInfo[] =>
-  useStore((state) => state.errors?.filter((e) => e.severity === 'critical' && !e.dismissed) || [])
-
-// UI selectors
-export const useActiveModals = (): string[] =>
-  useStore((state) => {
-    if (!state.modals) return []
-    return Object.entries(state.modals)
-      .filter(([, isOpen]) => isOpen)
-      .map(([name]) => name)
-  })
-
-export const useVisibleToasts = (): Array<{
-  id: string
-  type: 'info' | 'success' | 'warning' | 'error'
-  message: string
-  duration?: number
-}> => useStore((state) => state.toasts || [])
-
-export const useIsAnyModalOpen = (): boolean =>
-  useStore((state) => {
-    if (!state.modals) return false
-    return Object.values(state.modals).some(Boolean)
-  })
-
 // Helper function
 function isRetryableErrorType(errorType?: TransferErrorType): boolean {
   if (!errorType) return false
-  return errorType === TransferErrorType.NETWORK_ERROR
+  // Include drive disconnection and network errors as retryable
+  return (
+    errorType === TransferErrorType.NETWORK_ERROR ||
+    errorType === TransferErrorType.DRIVE_DISCONNECTED
+  )
 }
