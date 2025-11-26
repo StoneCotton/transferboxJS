@@ -283,7 +283,8 @@ export function useAppInit(): null {
           store.setScanInProgress(true)
           const result = await ipc.scanDrive(drive.device)
           store.setScannedFiles(result.files)
-          store.selectDrive(drive)
+          // Use the updated drive info from scan result (has correct mountpoints)
+          store.selectDrive(result.driveInfo || drive)
 
           // Show toast notification for scan complete
           if (result.files.length > 0) {
@@ -324,7 +325,8 @@ export function useAppInit(): null {
           store.setScanInProgress(true)
           const result = await ipc.scanDrive(drive.device)
           store.setScannedFiles(result.files)
-          store.selectDrive(drive)
+          // Use the updated drive info from scan result (has correct mountpoints)
+          store.selectDrive(result.driveInfo || drive)
 
           // Show toast notification for scan complete
           if (result.files.length > 0) {

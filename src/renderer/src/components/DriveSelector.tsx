@@ -46,7 +46,7 @@ export function DriveSelector() {
       return
     }
 
-    // Select the drive
+    // Select the drive (initial selection before scan)
     selectDrive(drive)
 
     // Start scanning immediately
@@ -55,6 +55,10 @@ export function DriveSelector() {
       setScanError(null)
       const result = await ipc.scanDrive(drive.device)
       setScannedFiles(result.files)
+      // Update selectedDrive with fresh drive info from scan (has correct mountpoints)
+      if (result.driveInfo) {
+        selectDrive(result.driveInfo)
+      }
       console.log(`Found ${result.files.length} media files on ${drive.displayName}`)
 
       // Show toast notification (logs are already created in main process)
