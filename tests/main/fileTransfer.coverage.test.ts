@@ -643,8 +643,8 @@ describe('FileTransferEngine - Additional Edge Cases', () => {
         // Transfer completed - verify results
         expect(Array.isArray(results)).toBe(true)
       } catch (error) {
-        // Transfer was cancelled
-        expect((error as Error).message).toMatch(/cancelled|stopped/i)
+        // Transfer was cancelled - message can be "cancelled", "stopped", or "stopping"
+        expect((error as Error).message).toMatch(/cancell|stopp/i)
       }
     })
   })
@@ -695,4 +695,3 @@ describe('FileTransferEngine - Additional Edge Cases', () => {
     })
   })
 })
-

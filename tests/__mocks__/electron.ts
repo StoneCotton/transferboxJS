@@ -58,7 +58,8 @@ export const dialog = {
 
 export const shell = {
   showItemInFolder: jest.fn(),
-  openPath: jest.fn(() => Promise.resolve(''))
+  openPath: jest.fn(() => Promise.resolve('')),
+  openExternal: jest.fn(() => Promise.resolve())
 }
 
 export const contextBridge = {
