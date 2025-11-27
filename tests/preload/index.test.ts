@@ -693,11 +693,13 @@ describe('Preload API - Using Actual Exposed API', () => {
         const callback = jest.fn()
         let capturedListener: () => void = () => {}
 
-        ;(ipcRenderer.on as jest.Mock).mockImplementation((channel: string, listener: () => void) => {
-          if (channel === IPC_CHANNELS.SYSTEM_SUSPEND) {
-            capturedListener = listener
+        ;(ipcRenderer.on as jest.Mock).mockImplementation(
+          (channel: string, listener: () => void) => {
+            if (channel === IPC_CHANNELS.SYSTEM_SUSPEND) {
+              capturedListener = listener
+            }
           }
-        })
+        )
 
         exposedApi.onSystemSuspend(callback)
         capturedListener()
@@ -724,7 +726,10 @@ describe('Preload API - Using Actual Exposed API', () => {
 
         exposedApi.onSystemResume(callback)
 
-        expect(ipcRenderer.on).toHaveBeenCalledWith(IPC_CHANNELS.SYSTEM_RESUME, expect.any(Function))
+        expect(ipcRenderer.on).toHaveBeenCalledWith(
+          IPC_CHANNELS.SYSTEM_RESUME,
+          expect.any(Function)
+        )
       })
 
       it('should return cleanup function that removes listener', () => {
@@ -854,10 +859,16 @@ describe('Preload API - Using Actual Exposed API', () => {
 
       it('should call callback with migration data when event fires', () => {
         const callback = jest.fn()
-        let capturedListener: (_event: any, data: { fromVersion: string; toVersion: string }) => void = () => {}
+        let capturedListener: (
+          _event: any,
+          data: { fromVersion: string; toVersion: string }
+        ) => void = () => {}
 
         ;(ipcRenderer.on as jest.Mock).mockImplementation(
-          (channel: string, listener: (_event: any, data: { fromVersion: string; toVersion: string }) => void) => {
+          (
+            channel: string,
+            listener: (_event: any, data: { fromVersion: string; toVersion: string }) => void
+          ) => {
             if (channel === IPC_CHANNELS.CONFIG_MIGRATED) {
               capturedListener = listener
             }
