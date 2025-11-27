@@ -16,7 +16,8 @@ module.exports = {
       testMatch: [
         '<rootDir>/tests/main/**/*.test.ts',
         '<rootDir>/tests/integration/**/*.test.ts',
-        '<rootDir>/tests/shared/**/*.test.ts'
+        '<rootDir>/tests/shared/**/*.test.ts',
+        '<rootDir>/tests/preload/**/*.test.ts'
       ],
       preset: 'ts-jest',
       transform: {

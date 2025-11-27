@@ -60,3 +60,7 @@ export const shell = {
   showItemInFolder: jest.fn(),
   openPath: jest.fn(() => Promise.resolve(''))
 }
+
+export const contextBridge = {
+  exposeInMainWorld: jest.fn()
+}
