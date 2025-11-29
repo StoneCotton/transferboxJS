@@ -1,0 +1,364 @@
+---
+description: React component patterns for the TransferBox Electron app
+globs: ["src/renderer/**/*.tsx", "src/renderer/**/*.ts"]
+alwaysApply: false
+---
+
+# React Component Patterns
+
+## Component File Structure
+
+Organize component files in this order:
+1. Imports (React, then libraries, then local)
+2. Types/Interfaces
+3. Constants
+4. Helper functions
+5. Main component
+6. Subcomponents (if small, otherwise separate files)
+7. DisplayName (for forwardRef components)
+8. Export
+
+```tsx
+// 1. Imports
+import { useState, useCallback, type FC } from 'react'
+import { cn } from '~/lib/utils'
+import { useStore } from '~/store'
+import type { FileInfo } from '~/types'
+
+// 2. Types
+interface FileListProps {
+  files: FileInfo[]
+  onSelect: (file: FileInfo) => void
+  className?: string
+}
+
+// 3. Constants
+const MAX_VISIBLE_FILES = 100
+
+// 4. Helpers (if needed)
+const sortByDate = (files: FileInfo[]) => 
+  [...files].sort((a, b) => b.modifiedAt - a.modifiedAt)
+
+// 5. Main component
+export const FileList: FC<FileListProps> = ({ files, onSelect, className }) => {
+  // Component logic
+}
+```
+
+## State Management with Zustand
+
+### Using Store Selectors
+
+Always use selectors from `~/store/selectors` to prevent unnecessary re-renders:
+
+```tsx
+// Good: Using memoized selectors
+import { useTransferProgress, useIsTransferring } from '~/store/selectors'
+
+const TransferStatus = () => {
+  const progress = useTransferProgress()
+  const isTransferring = useIsTransferring()
+  // Only re-renders when these specific values change
+}
+
+// Bad: Selecting entire store slices
+const TransferStatus = () => {
+  const { progress, currentFile, speed, eta } = useStore(state => state.transfer)
+  // Re-renders on ANY transfer state change
+}
+```
+
+### Store Actions
+
+Call store actions directly, don't pass as props:
+
+```tsx
+// Good: Direct action calls
+import { useStore } from '~/store'
+
+const StartButton = () => {
+  const startTransfer = useStore(state => state.startTransfer)
+  return <button onClick={startTransfer}>Start</button>
+}
+
+// Bad: Passing actions through props
+const StartButton = ({ onStart }: { onStart: () => void }) => {
+  return <button onClick={onStart}>Start</button>
+}
+```
+
+## IPC Communication via Hooks
+
+Use the `useIpc` hook for IPC operations:
+
+```tsx
+import { useIpc } from '~/hooks/useIpc'
+
+const DriveSelector = () => {
+  const { invoke, isLoading, error } = useIpc()
+  
+  const handleScan = async (driveId: string) => {
+    const files = await invoke('scanDrive', driveId)
+    // Handle result
+  }
+}
+```
+
+## Event Handlers
+
+### Naming Convention
+
+Prefix handlers with `handle`:
+
+```tsx
+// Good
+const handleClick = () => {}
+const handleFileSelect = (file: FileInfo) => {}
+const handleTransferComplete = useCallback(() => {}, [])
+
+// Bad
+const onClick = () => {}
+const fileSelected = () => {}
+const onComplete = () => {}
+```
+
+### useCallback for Stable References
+
+Use `useCallback` for handlers passed to child components or used in effects:
+
+```tsx
+// Good: Stable reference for child components
+const handleSelect = useCallback((file: FileInfo) => {
+  setSelectedFile(file)
+}, [])
+
+// Only when necessary - don't wrap everything
+const handleClick = () => {
+  // Inline is fine for simple handlers not passed to children
+}
+```
+
+## Component Props
+
+### Props Interface Naming
+
+Use `ComponentNameProps` pattern:
+
+```tsx
+interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: 'primary' | 'secondary' | 'ghost'
+  size?: 'sm' | 'md' | 'lg'
+}
+```
+
+### Required vs Optional Props
+
+Make props optional with sensible defaults unless truly required:
+
+```tsx
+interface CardProps {
+  children: ReactNode      // Required - no default makes sense
+  title?: string           // Optional - cards don't always have titles
+  className?: string       // Optional - always include for customization
+  variant?: 'default' | 'outlined'  // Optional with default
+}
+
+export const Card: FC<CardProps> = ({ 
+  children, 
+  title,
+  className,
+  variant = 'default'  // Default value
+}) => { ... }
+```
+
+### Spread Remaining Props
+
+Spread native element props for flexibility:
+
+```tsx
+interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: 'primary' | 'secondary'
+}
+
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ className, variant = 'primary', children, ...props }, ref) => (
+    <button ref={ref} className={cn(baseStyles, className)} {...props}>
+      {children}
+    </button>
+  )
+)
+```
+
+## forwardRef Pattern
+
+Use `forwardRef` for components that wrap native elements:
+
+```tsx
+import { forwardRef, type ButtonHTMLAttributes } from 'react'
+
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ className, variant, ...props }, ref) => (
+    <button ref={ref} className={cn(styles)} {...props} />
+  )
+)
+
+Button.displayName = 'Button'  // Required for DevTools
+```
+
+## Conditional Rendering
+
+### Early Returns
+
+Use early returns for cleaner conditional rendering:
+
+```tsx
+// Good: Clear early returns
+const FileInfo: FC<{ file?: FileInfo }> = ({ file }) => {
+  if (!file) return null
+  if (file.status === 'error') return <ErrorDisplay error={file.error} />
+  
+  return <div>{file.name}</div>
+}
+
+// Bad: Nested ternaries
+const FileInfo: FC<{ file?: FileInfo }> = ({ file }) => (
+  file ? (
+    file.status === 'error' ? <ErrorDisplay /> : <div>{file.name}</div>
+  ) : null
+)
+```
+
+### Boolean Conditions
+
+Use `&&` for simple conditionals, ternary for either/or:
+
+```tsx
+// Good
+{isLoading && <Spinner />}
+{error ? <Error message={error} /> : <Content />}
+
+// Bad: Unnecessary ternary
+{isLoading ? <Spinner /> : null}
+```
+
+## Lists and Keys
+
+Always use stable, unique keys:
+
+```tsx
+// Good: Unique identifier
+{files.map(file => (
+  <FileItem key={file.id} file={file} />
+))}
+
+// Bad: Index as key (causes issues with reordering)
+{files.map((file, index) => (
+  <FileItem key={index} file={file} />
+))}
+```
+
+## Custom Hooks
+
+### Naming
+
+Prefix with `use`:
+
+```tsx
+// Good
+export const useTransferProgress = () => { ... }
+export const useDriveMonitor = () => { ... }
+
+// Bad
+export const getTransferProgress = () => { ... }
+export const driveMonitorHook = () => { ... }
+```
+
+### Return Values
+
+Return objects for multiple values, simple values for single:
+
+```tsx
+// Multiple values - return object
+const useFileUpload = () => {
+  return { upload, isUploading, progress, error }
+}
+
+// Single value - return directly
+const useIsOnline = () => {
+  const [isOnline, setIsOnline] = useState(true)
+  // ...
+  return isOnline
+}
+```
+
+## Error Boundaries
+
+Wrap feature sections with error boundaries:
+
+```tsx
+import { ErrorBoundary } from '~/components/ErrorBoundary'
+
+const App = () => (
+  <ErrorBoundary fallback={<TransferErrorFallback />}>
+    <TransferPanel />
+  </ErrorBoundary>
+)
+```
+
+## Performance Patterns
+
+### Avoid Inline Objects/Arrays
+
+```tsx
+// Bad: Creates new object every render
+<Component style={{ marginTop: 10 }} />
+<Component items={['a', 'b', 'c']} />
+
+// Good: Stable references
+const style = { marginTop: 10 }
+const items = ['a', 'b', 'c']
+
+<Component style={style} />
+<Component items={items} />
+```
+
+### Memoize Expensive Computations
+
+```tsx
+const sortedFiles = useMemo(
+  () => files.sort((a, b) => b.size - a.size),
+  [files]
+)
+```
+
+## Accessibility
+
+Include proper ARIA attributes:
+
+```tsx
+<button
+  aria-label="Close dialog"
+  aria-pressed={isActive}
+  aria-disabled={isLoading}
+>
+  <XIcon />
+</button>
+
+<div role="alert" aria-live="polite">
+  {error && <span>{error.message}</span>}
+</div>
+```
+
+## Import Aliases
+
+Use the `~/` alias for renderer imports:
+
+```tsx
+// Good: Using alias
+import { Button } from '~/components/ui/Button'
+import { useStore } from '~/store'
+import { cn } from '~/lib/utils'
+
+// Bad: Relative paths
+import { Button } from '../../../components/ui/Button'
+```
