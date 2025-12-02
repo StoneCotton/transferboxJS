@@ -8,7 +8,7 @@ import { IPC_CHANNELS } from '../../shared/types'
 import { getConfig } from '../configManager'
 import { getLogger } from '../logger'
 import { updateMenuForTransferState } from '../menu'
-import { getTransferEngine } from './state'
+import { getTransferService } from '../services/transferService'
 
 /**
  * Setup all system-related IPC handlers
@@ -33,11 +33,10 @@ export function setupSystemHandlers(): void {
   })
 
   ipcMain.handle(IPC_CHANNELS.MENU_CANCEL_TRANSFER, async () => {
-    const transferEngine = getTransferEngine()
-    if (transferEngine) {
-      await transferEngine.stop()
+    const transferService = getTransferService()
+    if (transferService.isTransferring()) {
+      await transferService.stop()
       getLogger().info('Transfer cancelled by user via menu')
-      updateMenuForTransferState(false)
     }
   })
 
@@ -60,4 +59,3 @@ export function setupSystemHandlers(): void {
     }
   })
 }
-
