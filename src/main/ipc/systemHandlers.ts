@@ -34,10 +34,9 @@ export function setupSystemHandlers(): void {
 
   ipcMain.handle(IPC_CHANNELS.MENU_CANCEL_TRANSFER, async () => {
     const transferService = getTransferService()
-    if (transferService.isTransferring()) {
-      await transferService.stop()
-      getLogger().info('Transfer cancelled by user via menu')
-    }
+    await transferService.stop()
+    getLogger().info('Transfer cancelled by user via menu')
+    updateMenuForTransferState(false)
   })
 
   ipcMain.handle(IPC_CHANNELS.MENU_CHECK_UPDATES, async () => {
