@@ -5,7 +5,7 @@
  */
 
 import * as path from 'path'
-import { stat, access, readdir } from 'fs/promises'
+import { stat, access } from 'fs/promises'
 import { hasEnoughSpace, checkDiskSpace } from './pathValidator'
 import { getLogger } from './logger'
 
@@ -294,40 +294,6 @@ async function detectFileConflicts(
   }
 
   return conflicts
-}
-
-/**
- * Check if a destination directory already has files with matching names
- * (Used for quick pre-scan before processing individual files)
- */
-export async function quickConflictScan(
-  destinationRoot: string,
-  fileNames: string[]
-): Promise<string[]> {
-  const logger = getLogger()
-  const conflictingNames: string[] = []
-
-  try {
-    // Get all files in destination
-    const destEntries = await readdir(destinationRoot, { withFileTypes: true })
-    const existingFiles = new Set(
-      destEntries.filter((e) => e.isFile()).map((e) => e.name.toLowerCase())
-    )
-
-    // Check for matches (case-insensitive)
-    for (const fileName of fileNames) {
-      if (existingFiles.has(fileName.toLowerCase())) {
-        conflictingNames.push(fileName)
-      }
-    }
-  } catch (error) {
-    logger.debug('[TransferValidator] Quick conflict scan failed', {
-      destinationRoot,
-      error: error instanceof Error ? error.message : String(error)
-    })
-  }
-
-  return conflictingNames
 }
 
 /**

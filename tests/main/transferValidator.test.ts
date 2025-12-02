@@ -7,11 +7,7 @@
 import * as path from 'path'
 import * as fs from 'fs/promises'
 import * as os from 'os'
-import {
-  validateTransfer,
-  quickConflictScan,
-  type TransferValidationOptions
-} from '../../src/main/transferValidator'
+import { validateTransfer, type TransferValidationOptions } from '../../src/main/transferValidator'
 
 // Mock the logger
 jest.mock('../../src/main/logger', () => ({
@@ -227,48 +223,6 @@ describe('TransferValidator', () => {
       const result = await validateTransfer(options)
 
       expect(result.spaceRequired).toBe(5000)
-    })
-  })
-
-  describe('quickConflictScan', () => {
-    it('should detect conflicting file names', async () => {
-      // Create files in destination
-      const file1 = path.join(destDir, 'exists1.txt')
-      const file2 = path.join(destDir, 'exists2.txt')
-      await fs.writeFile(file1, 'content')
-      await fs.writeFile(file2, 'content')
-
-      const conflicts = await quickConflictScan(destDir, [
-        'exists1.txt',
-        'exists2.txt',
-        'notexists.txt'
-      ])
-
-      expect(conflicts).toContain('exists1.txt')
-      expect(conflicts).toContain('exists2.txt')
-      expect(conflicts).not.toContain('notexists.txt')
-
-      // Cleanup
-      await fs.unlink(file1)
-      await fs.unlink(file2)
-    })
-
-    it('should be case-insensitive', async () => {
-      const file = path.join(destDir, 'CaseTest.txt')
-      await fs.writeFile(file, 'content')
-
-      const conflicts = await quickConflictScan(destDir, ['casetest.txt', 'CASETEST.TXT'])
-
-      // Should find matches regardless of case
-      expect(conflicts.length).toBeGreaterThan(0)
-
-      // Cleanup
-      await fs.unlink(file)
-    })
-
-    it('should handle non-existent directory gracefully', async () => {
-      const conflicts = await quickConflictScan('/nonexistent/path', ['file.txt'])
-      expect(conflicts).toEqual([])
     })
   })
 })

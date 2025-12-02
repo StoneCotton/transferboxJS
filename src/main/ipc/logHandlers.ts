@@ -22,7 +22,7 @@ export function setupLogHandlers(): void {
   })
 
   // Log range export handler
-  ipcMain.handle('log:get-range', async (_e, args: unknown) => {
+  ipcMain.handle(IPC_CHANNELS.LOG_GET_RANGE, async (_e, args: unknown) => {
     const logger = getLogger()
     if (!args || typeof args !== 'object') {
       throw new Error('Invalid arguments')

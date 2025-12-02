@@ -1,37 +1,28 @@
 /**
  * UI Store Slice
- * Manages UI state, modals, toasts, and panels
+ * Manages UI state, toasts, and notification history
  */
 
 import type { StateCreator } from 'zustand'
 import type { UIState } from '../types'
 
 export interface UISlice extends UIState {
-  // Existing actions
+  // Destination selection
   setSelectedDestination: (destination: string | null) => void
   setIsSelectingDestination: (isSelecting: boolean) => void
+
+  // Modal toggles
   toggleSettings: () => void
   toggleLogs: () => void
   toggleHistory: () => void
   closeAllModals: () => void
 
-  // NEW: Modal management
-  openModal: (modal: keyof UIState['modals']) => void
-  closeModal: (modal: keyof UIState['modals']) => void
-
-  // NEW: Toast management
+  // Toast management
   addToast: (toast: Omit<UIState['toasts'][0], 'id'>) => void
   removeToast: (id: string) => void
   clearToasts: () => void
 
-  // NEW: Loading state management
-  setLoading: (key: keyof UIState['loadingStates'], loading: boolean) => void
-
-  // NEW: Panel management
-  togglePanel: (panel: keyof UIState['panels']) => void
-  closeAllPanels: () => void
-
-  // NEW: Notification history management
+  // Notification history management
   addNotificationToHistory: (
     notification: Omit<UIState['notificationHistory'][0], 'id' | 'timestamp'>
   ) => void
@@ -46,42 +37,18 @@ export const createUISlice: StateCreator<UISlice> = (set, get) => ({
   showLogs: false,
   showHistory: false,
 
-  // NEW: Modals
-  modals: {
-    confirmTransfer: false,
-    retryFailedFiles: false,
-    insufficientSpace: false,
-    networkWarning: false,
-    fileConflicts: false,
-    sanitizationWarning: false
-  },
-
-  // NEW: Toasts
+  // Toasts
   toasts: [],
 
-  // NEW: Loading states
-  loadingStates: {
-    validating: false,
-    scanning: false,
-    transferring: false,
-    retrying: false
-  },
-
-  // NEW: Panels
-  panels: {
-    errorDetails: false,
-    fileList: false,
-    retryQueue: false
-  },
-
-  // NEW: Notification history
+  // Notification history
   notificationHistory: [],
 
-  // Existing actions
+  // Destination selection actions
   setSelectedDestination: (destination) => set({ selectedDestination: destination }),
 
   setIsSelectingDestination: (isSelecting) => set({ isSelectingDestination: isSelecting }),
 
+  // Modal toggle actions
   toggleSettings: () => set((state) => ({ showSettings: !state.showSettings })),
 
   toggleLogs: () => set((state) => ({ showLogs: !state.showLogs })),
@@ -92,29 +59,10 @@ export const createUISlice: StateCreator<UISlice> = (set, get) => ({
     set({
       showSettings: false,
       showLogs: false,
-      showHistory: false,
-      modals: {
-        confirmTransfer: false,
-        retryFailedFiles: false,
-        insufficientSpace: false,
-        networkWarning: false,
-        fileConflicts: false,
-        sanitizationWarning: false
-      }
+      showHistory: false
     }),
 
-  // NEW: Modal management
-  openModal: (modal) =>
-    set((state) => ({
-      modals: { ...state.modals, [modal]: true }
-    })),
-
-  closeModal: (modal) =>
-    set((state) => ({
-      modals: { ...state.modals, [modal]: false }
-    })),
-
-  // NEW: Toast management
+  // Toast management actions
   addToast: (toast) => {
     const id = `${Date.now()}-${Math.random()}`
     const newToast = { ...toast, id }
@@ -145,28 +93,7 @@ export const createUISlice: StateCreator<UISlice> = (set, get) => ({
 
   clearToasts: () => set({ toasts: [] }),
 
-  // NEW: Loading state management
-  setLoading: (key, loading) =>
-    set((state) => ({
-      loadingStates: { ...state.loadingStates, [key]: loading }
-    })),
-
-  // NEW: Panel management
-  togglePanel: (panel) =>
-    set((state) => ({
-      panels: { ...state.panels, [panel]: !state.panels[panel] }
-    })),
-
-  closeAllPanels: () =>
-    set({
-      panels: {
-        errorDetails: false,
-        fileList: false,
-        retryQueue: false
-      }
-    }),
-
-  // NEW: Notification history management
+  // Notification history management actions
   addNotificationToHistory: (notification) => {
     const id = `${Date.now()}-${Math.random()}`
     const timestamp = Date.now()

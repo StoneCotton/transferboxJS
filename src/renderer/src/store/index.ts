@@ -77,6 +77,7 @@ export const useTransferStore = () => {
   const currentSession = useStore((state) => state.currentSession)
   const progress = useStore((state) => state.progress)
   const isTransferring = useStore((state) => state.isTransferring)
+  const isPaused = useStore((state) => state.isPaused)
   const error = useStore((state) => state.error)
   const history = useStore((state) => state.history)
   const startTransfer = useStore((state) => state.startTransfer)
@@ -84,6 +85,8 @@ export const useTransferStore = () => {
   const completeTransfer = useStore((state) => state.completeTransfer)
   const failTransfer = useStore((state) => state.failTransfer)
   const cancelTransfer = useStore((state) => state.cancelTransfer)
+  const pauseTransfer = useStore((state) => state.pauseTransfer)
+  const resumeTransfer = useStore((state) => state.resumeTransfer)
   const clearError = useStore((state) => state.clearError)
   const setHistory = useStore((state) => state.setHistory)
   const addToHistory = useStore((state) => state.addToHistory)
@@ -92,6 +95,7 @@ export const useTransferStore = () => {
     currentSession,
     progress,
     isTransferring,
+    isPaused,
     error,
     history,
     startTransfer,
@@ -99,6 +103,8 @@ export const useTransferStore = () => {
     completeTransfer,
     failTransfer,
     cancelTransfer,
+    pauseTransfer,
+    resumeTransfer,
     clearError,
     setHistory,
     addToHistory

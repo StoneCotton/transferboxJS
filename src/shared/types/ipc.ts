@@ -36,11 +36,15 @@ export const IPC_CHANNELS = {
   TRANSFER_VALIDATE: 'transfer:validate', // Pre-transfer validation
   TRANSFER_START: 'transfer:start',
   TRANSFER_STOP: 'transfer:stop',
+  TRANSFER_PAUSE: 'transfer:pause',
+  TRANSFER_RESUME: 'transfer:resume',
   TRANSFER_STATUS: 'transfer:status',
   TRANSFER_RETRY: 'transfer:retry', // Retry failed files
   TRANSFER_PROGRESS: 'transfer:progress', // Event from main to renderer
   TRANSFER_COMPLETE: 'transfer:complete', // Event from main to renderer
   TRANSFER_ERROR: 'transfer:error', // Event from main to renderer
+  TRANSFER_PAUSED: 'transfer:paused', // Event from main to renderer
+  TRANSFER_RESUMED: 'transfer:resumed', // Event from main to renderer
 
   // Transfer history
   HISTORY_GET_ALL: 'history:get-all',
@@ -49,6 +53,7 @@ export const IPC_CHANNELS = {
 
   // Logging
   LOG_GET_RECENT: 'log:get-recent',
+  LOG_GET_RANGE: 'log:get-range',
   LOG_CLEAR: 'log:clear',
   LOG_ENTRY: 'log:entry', // Event from main to renderer
 
@@ -160,6 +165,7 @@ export interface TransferValidateResponse {
 
 export interface TransferStatusResponse {
   isTransferring: boolean
+  isPaused: boolean
 }
 
 /**
@@ -226,6 +232,8 @@ export interface IpcHandlers {
   ) => Promise<TransferValidateResponse>
   [IPC_CHANNELS.TRANSFER_START]: (request: TransferStartRequest) => Promise<void>
   [IPC_CHANNELS.TRANSFER_STOP]: () => Promise<void>
+  [IPC_CHANNELS.TRANSFER_PAUSE]: () => Promise<void>
+  [IPC_CHANNELS.TRANSFER_RESUME]: () => Promise<void>
   [IPC_CHANNELS.TRANSFER_STATUS]: () => Promise<TransferStatusResponse>
   [IPC_CHANNELS.TRANSFER_RETRY]: (request: TransferRetryRequest) => Promise<void>
 
@@ -234,6 +242,11 @@ export interface IpcHandlers {
   [IPC_CHANNELS.HISTORY_CLEAR]: () => Promise<void>
 
   [IPC_CHANNELS.LOG_GET_RECENT]: (limit?: number) => Promise<LogEntry[]>
+  [IPC_CHANNELS.LOG_GET_RANGE]: (args: {
+    startTime: number
+    endTime: number
+    level?: 'debug' | 'info' | 'warn' | 'error'
+  }) => Promise<LogEntry[]>
   [IPC_CHANNELS.LOG_CLEAR]: () => Promise<void>
 
   [IPC_CHANNELS.SYSTEM_SHUTDOWN]: () => Promise<void>
@@ -255,6 +268,8 @@ export interface IpcEvents {
   [IPC_CHANNELS.TRANSFER_PROGRESS]: (progress: TransferProgress) => void
   [IPC_CHANNELS.TRANSFER_COMPLETE]: (session: TransferSession) => void
   [IPC_CHANNELS.TRANSFER_ERROR]: (error: string) => void
+  [IPC_CHANNELS.TRANSFER_PAUSED]: () => void
+  [IPC_CHANNELS.TRANSFER_RESUMED]: () => void
   [IPC_CHANNELS.LOG_ENTRY]: (entry: LogEntry) => void
   [IPC_CHANNELS.SYSTEM_SUSPEND]: () => void
   [IPC_CHANNELS.SYSTEM_RESUME]: () => void

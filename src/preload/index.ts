@@ -1,17 +1,31 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
-import { IPC_CHANNELS } from '../shared/types'
+import {
+  IPC_CHANNELS,
+  AppConfig,
+  PathValidationRequest,
+  TransferValidateRequest,
+  TransferStartRequest,
+  TransferRetryRequest,
+  DriveInfo,
+  TransferProgress,
+  TransferSession,
+  LogEntry,
+  UpdateCheckResult
+} from '../shared/types'
 
 // Custom APIs for renderer
 const api = {
   // Configuration
   getConfig: () => ipcRenderer.invoke(IPC_CHANNELS.CONFIG_GET),
-  updateConfig: (config: any) => ipcRenderer.invoke(IPC_CHANNELS.CONFIG_UPDATE, config),
+  updateConfig: (config: Partial<AppConfig>) =>
+    ipcRenderer.invoke(IPC_CHANNELS.CONFIG_UPDATE, config),
   resetConfig: () => ipcRenderer.invoke(IPC_CHANNELS.CONFIG_RESET),
   migrateConfig: () => ipcRenderer.invoke(IPC_CHANNELS.CONFIG_MIGRATE),
 
   // Path validation
-  validatePath: (request: any) => ipcRenderer.invoke(IPC_CHANNELS.PATH_VALIDATE, request),
+  validatePath: (request: PathValidationRequest) =>
+    ipcRenderer.invoke(IPC_CHANNELS.PATH_VALIDATE, request),
   selectFolder: () => ipcRenderer.invoke(IPC_CHANNELS.PATH_SELECT_FOLDER),
 
   // Drive operations
@@ -20,11 +34,16 @@ const api = {
   unmountDrive: (device: string) => ipcRenderer.invoke(IPC_CHANNELS.DRIVE_UNMOUNT, device),
 
   // Transfer operations
-  validateTransfer: (request: any) => ipcRenderer.invoke(IPC_CHANNELS.TRANSFER_VALIDATE, request),
-  startTransfer: (request: any) => ipcRenderer.invoke(IPC_CHANNELS.TRANSFER_START, request),
+  validateTransfer: (request: TransferValidateRequest) =>
+    ipcRenderer.invoke(IPC_CHANNELS.TRANSFER_VALIDATE, request),
+  startTransfer: (request: TransferStartRequest) =>
+    ipcRenderer.invoke(IPC_CHANNELS.TRANSFER_START, request),
   stopTransfer: () => ipcRenderer.invoke(IPC_CHANNELS.TRANSFER_STOP),
+  pauseTransfer: () => ipcRenderer.invoke(IPC_CHANNELS.TRANSFER_PAUSE),
+  resumeTransfer: () => ipcRenderer.invoke(IPC_CHANNELS.TRANSFER_RESUME),
   getTransferStatus: () => ipcRenderer.invoke(IPC_CHANNELS.TRANSFER_STATUS),
-  retryTransfer: (request: any) => ipcRenderer.invoke(IPC_CHANNELS.TRANSFER_RETRY, request),
+  retryTransfer: (request: TransferRetryRequest) =>
+    ipcRenderer.invoke(IPC_CHANNELS.TRANSFER_RETRY, request),
 
   // History
   getHistory: () => ipcRenderer.invoke(IPC_CHANNELS.HISTORY_GET_ALL),
@@ -38,7 +57,7 @@ const api = {
     startTime: number,
     endTime: number,
     level?: 'debug' | 'info' | 'warn' | 'error'
-  ) => ipcRenderer.invoke('log:get-range', { startTime, endTime, level }),
+  ) => ipcRenderer.invoke(IPC_CHANNELS.LOG_GET_RANGE, { startTime, endTime, level }),
 
   // App info
   getAppVersion: () => ipcRenderer.invoke(IPC_CHANNELS.APP_VERSION),
@@ -56,38 +75,48 @@ const api = {
   clearNewerConfigWarning: () => ipcRenderer.invoke(IPC_CHANNELS.CONFIG_CLEAR_NEWER_WARNING),
 
   // Event listeners
-  onDriveDetected: (callback: (drive: any) => void) => {
-    const listener = (_event: any, drive: any) => callback(drive)
+  onDriveDetected: (callback: (drive: DriveInfo) => void) => {
+    const listener = (_event: IpcRendererEvent, drive: DriveInfo) => callback(drive)
     ipcRenderer.on(IPC_CHANNELS.DRIVE_DETECTED, listener)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.DRIVE_DETECTED, listener)
   },
   onDriveRemoved: (callback: (device: string) => void) => {
-    const listener = (_event: any, device: string) => callback(device)
+    const listener = (_event: IpcRendererEvent, device: string) => callback(device)
     ipcRenderer.on(IPC_CHANNELS.DRIVE_REMOVED, listener)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.DRIVE_REMOVED, listener)
   },
   onDriveUnmounted: (callback: (device: string) => void) => {
-    const listener = (_event: any, device: string) => callback(device)
+    const listener = (_event: IpcRendererEvent, device: string) => callback(device)
     ipcRenderer.on(IPC_CHANNELS.DRIVE_UNMOUNTED, listener)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.DRIVE_UNMOUNTED, listener)
   },
-  onTransferProgress: (callback: (progress: any) => void) => {
-    const listener = (_event: any, progress: any) => callback(progress)
+  onTransferProgress: (callback: (progress: TransferProgress) => void) => {
+    const listener = (_event: IpcRendererEvent, progress: TransferProgress) => callback(progress)
     ipcRenderer.on(IPC_CHANNELS.TRANSFER_PROGRESS, listener)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.TRANSFER_PROGRESS, listener)
   },
-  onTransferComplete: (callback: (data: any) => void) => {
-    const listener = (_event: any, data: any) => callback(data)
+  onTransferComplete: (callback: (data: TransferSession) => void) => {
+    const listener = (_event: IpcRendererEvent, data: TransferSession) => callback(data)
     ipcRenderer.on(IPC_CHANNELS.TRANSFER_COMPLETE, listener)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.TRANSFER_COMPLETE, listener)
   },
   onTransferError: (callback: (error: string) => void) => {
-    const listener = (_event: any, error: string) => callback(error)
+    const listener = (_event: IpcRendererEvent, error: string) => callback(error)
     ipcRenderer.on(IPC_CHANNELS.TRANSFER_ERROR, listener)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.TRANSFER_ERROR, listener)
   },
-  onLogEntry: (callback: (entry: any) => void) => {
-    const listener = (_event: any, entry: any) => callback(entry)
+  onTransferPaused: (callback: () => void) => {
+    const listener = () => callback()
+    ipcRenderer.on(IPC_CHANNELS.TRANSFER_PAUSED, listener)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.TRANSFER_PAUSED, listener)
+  },
+  onTransferResumed: (callback: () => void) => {
+    const listener = () => callback()
+    ipcRenderer.on(IPC_CHANNELS.TRANSFER_RESUMED, listener)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.TRANSFER_RESUMED, listener)
+  },
+  onLogEntry: (callback: (entry: LogEntry) => void) => {
+    const listener = (_event: IpcRendererEvent, entry: LogEntry) => callback(entry)
     ipcRenderer.on(IPC_CHANNELS.LOG_ENTRY, listener)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.LOG_ENTRY, listener)
   },
@@ -122,13 +151,13 @@ const api = {
     return () => ipcRenderer.removeListener(IPC_CHANNELS.MENU_SELECT_DESTINATION, listener)
   },
   onConfigMigrated: (callback: (data: { fromVersion: string; toVersion: string }) => void) => {
-    const listener = (_event: any, data: { fromVersion: string; toVersion: string }) =>
+    const listener = (_event: IpcRendererEvent, data: { fromVersion: string; toVersion: string }) =>
       callback(data)
     ipcRenderer.on(IPC_CHANNELS.CONFIG_MIGRATED, listener)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.CONFIG_MIGRATED, listener)
   },
-  onUpdateAvailable: (callback: (result: any) => void) => {
-    const listener = (_event: any, result: any) => callback(result)
+  onUpdateAvailable: (callback: (result: UpdateCheckResult) => void) => {
+    const listener = (_event: IpcRendererEvent, result: UpdateCheckResult) => callback(result)
     ipcRenderer.on(IPC_CHANNELS.UPDATE_AVAILABLE, listener)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.UPDATE_AVAILABLE, listener)
   }

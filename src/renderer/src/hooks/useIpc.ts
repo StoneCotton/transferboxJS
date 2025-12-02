@@ -39,6 +39,8 @@ export interface IpcApi {
   validateTransfer: (request: TransferValidateRequest) => Promise<TransferValidateResponse>
   startTransfer: (request: TransferStartRequest) => Promise<void>
   stopTransfer: () => Promise<void>
+  pauseTransfer: () => Promise<void>
+  resumeTransfer: () => Promise<void>
   retryTransfer: (request: {
     files: Array<{ sourcePath: string; destinationPath: string }>
     driveInfo: DriveInfo
@@ -83,6 +85,8 @@ export interface IpcApi {
   onTransferProgress: (callback: (progress: TransferProgress) => void) => () => void
   onTransferComplete: (callback: (data: TransferProgress) => void) => () => void
   onTransferError: (callback: (error: string) => void) => () => void
+  onTransferPaused: (callback: () => void) => () => void
+  onTransferResumed: (callback: () => void) => () => void
   onLogEntry: (callback: (entry: LogEntry) => void) => () => void
   onSystemSuspend: (callback: () => void) => () => void
   onSystemResume: (callback: () => void) => () => void
@@ -146,6 +150,14 @@ export function useIpc(): IpcApi {
 
   const stopTransfer = useCallback(async () => {
     return await window.api.stopTransfer()
+  }, [])
+
+  const pauseTransfer = useCallback(async () => {
+    return await window.api.pauseTransfer()
+  }, [])
+
+  const resumeTransfer = useCallback(async () => {
+    return await window.api.resumeTransfer()
   }, [])
 
   const retryTransfer = useCallback(
@@ -236,6 +248,14 @@ export function useIpc(): IpcApi {
     return window.api.onTransferError(callback)
   }, [])
 
+  const onTransferPaused = useCallback((callback: () => void) => {
+    return window.api.onTransferPaused(callback)
+  }, [])
+
+  const onTransferResumed = useCallback((callback: () => void) => {
+    return window.api.onTransferResumed(callback)
+  }, [])
+
   const onLogEntry = useCallback((callback: (entry: LogEntry) => void) => {
     return window.api.onLogEntry(callback)
   }, [])
@@ -287,6 +307,8 @@ export function useIpc(): IpcApi {
     validateTransfer,
     startTransfer,
     stopTransfer,
+    pauseTransfer,
+    resumeTransfer,
     retryTransfer,
     getHistory,
     getHistoryById,
@@ -306,6 +328,8 @@ export function useIpc(): IpcApi {
     onTransferProgress,
     onTransferComplete,
     onTransferError,
+    onTransferPaused,
+    onTransferResumed,
     onLogEntry,
     onSystemSuspend,
     onSystemResume,

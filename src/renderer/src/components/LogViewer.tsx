@@ -441,47 +441,35 @@ export function LogViewer({ onClose }: LogViewerProps): React.ReactElement {
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-gray-200 dark:border-gray-700">
-          <Tooltip
-            content="View detailed application logs from the main process"
-            position="bottom"
-            disabled={activeTab === 'logs'}
+        <div className="grid grid-cols-2 border-b border-gray-200 dark:border-gray-700">
+          <button
+            onClick={() => setActiveTab('logs')}
+            className={cn(
+              'px-6 py-3 text-sm font-medium transition-colors border-b-2 -mb-px',
+              activeTab === 'logs'
+                ? 'border-blue-500 text-blue-600 bg-blue-50/50 dark:border-blue-400 dark:text-blue-400 dark:bg-blue-900/20'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+            )}
           >
-            <button
-              onClick={() => setActiveTab('logs')}
-              className={cn(
-                'flex-1 px-6 py-3 text-sm font-medium transition-colors border-b-2',
-                activeTab === 'logs'
-                  ? 'border-blue-500 text-blue-600 dark:border-blue-400 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
-              )}
-            >
-              <div className="flex items-center justify-center gap-2">
-                <FileText className="h-4 w-4" />
-                Logs
-              </div>
-            </button>
-          </Tooltip>
-          <Tooltip
-            content="View history of toast notifications shown in the app"
-            position="bottom"
-            disabled={activeTab === 'notifications'}
+            <div className="flex items-center justify-center gap-2">
+              <FileText className="h-4 w-4" />
+              Logs
+            </div>
+          </button>
+          <button
+            onClick={() => setActiveTab('notifications')}
+            className={cn(
+              'px-6 py-3 text-sm font-medium transition-colors border-b-2 -mb-px',
+              activeTab === 'notifications'
+                ? 'border-blue-500 text-blue-600 bg-blue-50/50 dark:border-blue-400 dark:text-blue-400 dark:bg-blue-900/20'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+            )}
           >
-            <button
-              onClick={() => setActiveTab('notifications')}
-              className={cn(
-                'flex-1 px-6 py-3 text-sm font-medium transition-colors border-b-2',
-                activeTab === 'notifications'
-                  ? 'border-blue-500 text-blue-600 dark:border-blue-400 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
-              )}
-            >
-              <div className="flex items-center justify-center gap-2">
-                <Bell className="h-4 w-4" />
-                Notifications
-              </div>
-            </button>
-          </Tooltip>
+            <div className="flex items-center justify-center gap-2">
+              <Bell className="h-4 w-4" />
+              Notifications
+            </div>
+          </button>
         </div>
 
         {/* Filters */}

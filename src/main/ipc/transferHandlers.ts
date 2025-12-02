@@ -5,7 +5,6 @@
 
 import { ipcMain } from 'electron'
 import { IPC_CHANNELS, DriveInfo } from '../../shared/types'
-import { getConfig } from '../configManager'
 import { getDatabaseManager } from '../databaseManager'
 import { getLogger } from '../logger'
 import { validateTransferStartRequest } from '../utils/ipcValidator'
@@ -199,7 +198,7 @@ export function setupTransferHandlers(): void {
       .conflictResolutions as Record<string, 'skip' | 'rename' | 'overwrite'> | undefined
 
     // Prepare files for transfer
-    const { transferFiles, fileSizes, totalBytes, skippedCount } =
+    const { transferFiles, fileSizes, totalBytes, skippedCount: _skippedCount } =
       await transferService.prepareTransferFiles({
         sourceRoot: validatedRequest.sourceRoot,
         destinationRoot: validatedRequest.destinationRoot,
@@ -248,7 +247,8 @@ export function setupTransferHandlers(): void {
         const { completedCount, failedCount } = transferService.updateSessionCompletion(
           sessionId,
           results,
-          startTime
+          startTime,
+          validatedRequest.destinationRoot
         )
 
         // Auto-unmount on success
@@ -289,11 +289,30 @@ export function setupTransferHandlers(): void {
     logger.info('Transfer stopped by user')
   })
 
+  // Pause transfer handler
+  ipcMain.handle(IPC_CHANNELS.TRANSFER_PAUSE, async (event) => {
+    const transferService = getTransferService()
+    transferService.pause()
+    logger.info('Transfer paused by user')
+    // Notify renderer of pause
+    event.sender.send(IPC_CHANNELS.TRANSFER_PAUSED)
+  })
+
+  // Resume transfer handler
+  ipcMain.handle(IPC_CHANNELS.TRANSFER_RESUME, async (event) => {
+    const transferService = getTransferService()
+    transferService.resume()
+    logger.info('Transfer resumed by user')
+    // Notify renderer of resume
+    event.sender.send(IPC_CHANNELS.TRANSFER_RESUMED)
+  })
+
   // Transfer status handler
   ipcMain.handle(IPC_CHANNELS.TRANSFER_STATUS, async () => {
     const transferService = getTransferService()
     return {
-      isTransferring: transferService.isTransferring()
+      isTransferring: transferService.isTransferring(),
+      isPaused: transferService.isPaused()
     }
   })
 
@@ -420,11 +439,8 @@ export function setupTransferHandlers(): void {
       },
       // Complete callback
       (results) => {
-        const { completedCount, failedCount } = transferService.updateSessionCompletion(
-          sessionId,
-          results,
-          startTime
-        )
+        const { completedCount: _completedCount, failedCount } =
+          transferService.updateSessionCompletion(sessionId, results, startTime, destRoot)
 
         // Send completion event
         event.sender.send(IPC_CHANNELS.TRANSFER_COMPLETE, {

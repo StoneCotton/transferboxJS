@@ -34,6 +34,8 @@ interface IpcApi {
   validateTransfer: (request: TransferValidateRequest) => Promise<TransferValidateResponse>
   startTransfer: (request: TransferStartRequest) => Promise<void>
   stopTransfer: () => Promise<void>
+  pauseTransfer: () => Promise<void>
+  resumeTransfer: () => Promise<void>
   getTransferStatus: () => Promise<TransferStatusResponse>
   retryTransfer: (request: {
     files: Array<{ sourcePath: string; destinationPath: string }>
@@ -84,6 +86,8 @@ interface IpcApi {
   onTransferProgress: (callback: (progress: any) => void) => () => void
   onTransferComplete: (callback: (data: any) => void) => () => void
   onTransferError: (callback: (error: string) => void) => () => void
+  onTransferPaused: (callback: () => void) => () => void
+  onTransferResumed: (callback: () => void) => () => void
   onLogEntry: (callback: (entry: LogEntry) => void) => () => void
   onSystemSuspend: (callback: () => void) => () => void
   onSystemResume: (callback: () => void) => () => void
