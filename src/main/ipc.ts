@@ -622,10 +622,6 @@ export function setupIpcHandlers(): void {
             errorCount: failedFilesList.length
           })
         },
-        onChecksumProgress: () => {
-          // Simple checksum progress - just update phase
-          currentFilePhase = 'verifying'
-        },
         onBatchProgress: (completed) => {
           currentFileIndex = completed
         },

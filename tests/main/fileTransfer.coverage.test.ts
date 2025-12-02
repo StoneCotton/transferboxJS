@@ -242,33 +242,6 @@ describe('FileTransferEngine - Additional Coverage', () => {
       expect(completions.find((c) => c.fileIndex === 0)?.result.success).toBe(true)
       expect(completions.find((c) => c.fileIndex === 1)?.result.success).toBe(false)
     })
-
-    it('should call onChecksumProgress during batch transfer with checksums', async () => {
-      const files = [
-        { source: path.join(sourceDir, 'file1.bin'), dest: path.join(destDir, 'file1.bin') }
-      ]
-
-      // Create a file large enough for checksum progress
-      const buffer = Buffer.alloc(256 * 1024, 'y') // 256KB
-      await fs.writeFile(files[0].source, buffer)
-
-      let checksumProgressCalled = false
-
-      const options: TransferOptions = {
-        verifyChecksum: true,
-        onChecksumProgress: (phase, bytesProcessed, totalBytes) => {
-          checksumProgressCalled = true
-          expect(['source', 'destination']).toContain(phase)
-          expect(bytesProcessed).toBeGreaterThanOrEqual(0)
-          expect(totalBytes).toBeGreaterThan(0)
-        }
-      }
-
-      await engine.transferFiles(files, options)
-
-      // Note: onChecksumProgress may not be called if transfer completes quickly
-      // The important thing is that it doesn't error
-    })
   })
 
   describe('Batch Transfer Error Handling', () => {
@@ -556,33 +529,6 @@ describe('FileTransferEngine - Additional Edge Cases', () => {
       const lastProgress = batchProgress[batchProgress.length - 1]
       expect(lastProgress.completed).toBe(2)
       expect(lastProgress.total).toBe(2)
-    })
-  })
-
-  describe('Batch Transfer with Checksum Progress', () => {
-    it('should pass through checksum progress in batch mode', async () => {
-      const files = [
-        { source: path.join(sourceDir, 'file1.txt'), dest: path.join(destDir, 'file1.txt') }
-      ]
-
-      // Create a file
-      const buffer = Buffer.alloc(1024 * 1024, 'x') // 1MB
-      await fs.writeFile(files[0].source, buffer)
-
-      let checksumProgressCalled = false
-
-      const options: TransferOptions = {
-        verifyChecksum: true,
-        onChecksumProgress: () => {
-          checksumProgressCalled = true
-        },
-        onProgress: () => {} // Also add onProgress to trigger the branch
-      }
-
-      await engine.transferFiles(files, options)
-
-      // The callback structure is set up correctly, but may not be called for fast transfers
-      // What matters is no errors
     })
   })
 

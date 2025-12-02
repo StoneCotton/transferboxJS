@@ -44,11 +44,6 @@ export interface TransferOptions {
   maxConcurrency?: number // Maximum concurrent file transfers (default: 3, range: 1-10)
   onProgress?: (progress: TransferProgress) => void
   onBatchProgress?: (completed: number, total: number) => void
-  onChecksumProgress?: (
-    phase: 'source' | 'destination',
-    bytesProcessed: number,
-    totalBytes: number
-  ) => void
   onFileComplete?: (fileIndex: number, result: TransferResult) => void // Called when each file completes
   _testCorruptDestination?: boolean // For testing only
 }
@@ -533,19 +528,7 @@ export class FileTransferEngine {
         onProgress: (progress) => {
           fileProgress.set(fileIndex, progress)
           reportAggregatedProgress()
-        },
-        onChecksumProgress: options?.onChecksumProgress
-          ? (_phase, bytesProcessed, totalBytes) => {
-              const progress: TransferProgress = {
-                bytesTransferred: bytesProcessed,
-                totalBytes,
-                percentage: totalBytes > 0 ? (bytesProcessed / totalBytes) * 100 : 0,
-                speed: 0
-              }
-              fileProgress.set(fileIndex, progress)
-              reportAggregatedProgress()
-            }
-          : undefined
+        }
       })
         .then((result) => {
           // Calculate final duration for this file
