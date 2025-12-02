@@ -4,6 +4,6 @@ globs:
 alwaysApply: true
 ---
 
-This is an Electron app that is built using React as a framework and Typescript.
+This is an Electron app that is built using React as a framework, TailwindCSS v3 for styling and Typescript.
 
 It is built using TypeScript, ESLint for formatting and linting.
