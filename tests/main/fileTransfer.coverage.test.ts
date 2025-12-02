@@ -399,53 +399,8 @@ describe('FileTransferEngine - Additional Coverage', () => {
   })
 })
 
-describe('FileTransferEngine - Progress Throttling Coverage', () => {
-  let engine: FileTransferEngine
-
-  beforeEach(() => {
-    engine = new FileTransferEngine()
-  })
-
-  afterEach(async () => {
-    await engine.stop()
-  })
-
-  it('should calculate progress throttle for small files', () => {
-    const engineAny = engine as any
-
-    // Small file < 100MB
-    const throttle = engineAny.calculateProgressThrottle(50 * 1024 * 1024)
-    expect(throttle.interval).toBeDefined()
-    expect(throttle.minBytes).toBeDefined()
-  })
-
-  it('should calculate progress throttle for medium files', () => {
-    const engineAny = engine as any
-
-    // Medium file 100MB - 1GB
-    const throttle = engineAny.calculateProgressThrottle(500 * 1024 * 1024)
-    expect(throttle.interval).toBeDefined()
-    expect(throttle.minBytes).toBeDefined()
-  })
-
-  it('should calculate progress throttle for large files', () => {
-    const engineAny = engine as any
-
-    // Large file 1GB - 10GB
-    const throttle = engineAny.calculateProgressThrottle(5 * 1024 * 1024 * 1024)
-    expect(throttle.interval).toBeDefined()
-    expect(throttle.minBytes).toBeDefined()
-  })
-
-  it('should calculate progress throttle for extra large files', () => {
-    const engineAny = engine as any
-
-    // Extra large file > 10GB
-    const throttle = engineAny.calculateProgressThrottle(15 * 1024 * 1024 * 1024)
-    expect(throttle.interval).toBeDefined()
-    expect(throttle.minBytes).toBeDefined()
-  })
-})
+// Note: Progress throttling is now handled by ProgressTracker in src/main/utils/progressTracker.ts
+// Tests for throttle calculation are in tests/main/utils/progressTracker.test.ts
 
 describe('FileTransferEngine - Additional Edge Cases', () => {
   let testDir: string

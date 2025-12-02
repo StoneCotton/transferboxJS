@@ -165,30 +165,6 @@ describe('FileTransfer Edge Cases', () => {
     })
   })
 
-  describe('Large File Throttling', () => {
-    it('should calculate appropriate throttling for different file sizes', () => {
-      const engineAny = engine as any
-
-      const smallFile = 50 * 1024 * 1024 // 50MB
-      const mediumFile = 500 * 1024 * 1024 // 500MB
-      const largeFile = 5 * 1024 * 1024 * 1024 // 5GB
-      const hugeFile = 15 * 1024 * 1024 * 1024 // 15GB
-
-      const smallThrottle = engineAny.calculateProgressThrottle(smallFile)
-      expect(smallThrottle.interval).toBe(200)
-      expect(smallThrottle.minBytes).toBe(2 * 1024 * 1024)
-
-      const mediumThrottle = engineAny.calculateProgressThrottle(mediumFile)
-      expect(mediumThrottle.interval).toBe(500)
-      expect(mediumThrottle.minBytes).toBe(10 * 1024 * 1024)
-
-      const largeThrottle = engineAny.calculateProgressThrottle(largeFile)
-      expect(largeThrottle.interval).toBe(1000)
-      expect(largeThrottle.minBytes).toBe(50 * 1024 * 1024)
-
-      const hugeThrottle = engineAny.calculateProgressThrottle(hugeFile)
-      expect(hugeThrottle.interval).toBe(2000)
-      expect(hugeThrottle.minBytes).toBe(100 * 1024 * 1024)
-    })
-  })
+  // Note: Progress throttling tests moved to tests/main/utils/progressTracker.test.ts
+  // The throttle calculation is now handled by the ProgressTracker class
 })

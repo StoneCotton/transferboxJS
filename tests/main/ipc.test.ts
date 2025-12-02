@@ -692,7 +692,7 @@ describe('IPC Handlers', () => {
       await handler!(mockEvent, validatedRequest)
 
       expect(mockLogger.debug).toHaveBeenCalledWith(
-        '[IPC] Skipping file due to conflict resolution',
+        '[TransferService] Skipping file due to conflict resolution',
         expect.any(Object)
       )
     })

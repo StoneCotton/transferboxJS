@@ -14,17 +14,8 @@ import { withRetry } from './utils/retryStrategy'
 import { safeAdd, validateFileSize } from './utils/fileSizeUtils'
 import { validateFilePath } from './utils/ipcValidator'
 import { FileValidator } from './validators/fileValidator'
-import {
-  DEFAULT_BUFFER_SIZE,
-  SMALL_FILE_THRESHOLD,
-  MEDIUM_FILE_THRESHOLD,
-  LARGE_FILE_THRESHOLD,
-  PROGRESS_SMALL_FILE,
-  PROGRESS_MEDIUM_FILE,
-  PROGRESS_LARGE_FILE,
-  PROGRESS_XLARGE_FILE,
-  ORPHANED_FILE_MAX_AGE_MS
-} from './constants/fileConstants'
+import { DEFAULT_BUFFER_SIZE, ORPHANED_FILE_MAX_AGE_MS } from './constants/fileConstants'
+import { createProgressTracker } from './utils/progressTracker'
 
 export interface TransferProgress {
   bytesTransferred: number
@@ -91,22 +82,6 @@ export class FileTransferEngine {
   private currentTransfer: AbortableTransfer | null = null
   private activeTempFiles: Set<string> = new Set()
   private activeTransferCount = 0 // Track number of active transfers
-
-  /**
-   * Calculate optimal progress reporting throttle based on file size
-   * Larger files get less frequent updates to prevent UI lag
-   */
-  private calculateProgressThrottle(fileSize: number): { interval: number; minBytes: number } {
-    if (fileSize < SMALL_FILE_THRESHOLD) {
-      return PROGRESS_SMALL_FILE
-    } else if (fileSize < MEDIUM_FILE_THRESHOLD) {
-      return PROGRESS_MEDIUM_FILE
-    } else if (fileSize < LARGE_FILE_THRESHOLD) {
-      return PROGRESS_LARGE_FILE
-    } else {
-      return PROGRESS_XLARGE_FILE
-    }
-  }
 
   /**
    * Transfer a single file with atomic operations and retry logic
@@ -747,13 +722,8 @@ export class FileTransferEngine {
     onFinish?: (bytesTransferred: number) => Promise<void> | void
   ): Promise<void> {
     return new Promise((resolve, reject) => {
-      let bytesTransferred = 0
-      let lastProgressTime = Date.now()
-      let lastBytesTransferred = 0
-
-      // Dynamic throttling based on file size
-      const { interval: PROGRESS_INTERVAL, minBytes: MIN_BYTES_FOR_PROGRESS } =
-        this.calculateProgressThrottle(totalBytes)
+      // Use ProgressTracker for throttled progress reporting
+      const progressTracker = createProgressTracker(totalBytes)
 
       const readStream = createReadStream(sourcePath, {
         highWaterMark: bufferSize
@@ -781,10 +751,9 @@ export class FileTransferEngine {
         }
 
         const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
-        bytesTransferred += buf.length
 
         // Detect if we're reading more than file size (corruption indicator)
-        if (bytesTransferred > totalBytes) {
+        if (progressTracker.getBytesTransferred() + buf.length > totalBytes) {
           readStream.destroy()
           writeStream.destroy()
           // Clean up temp file from tracking on corruption
@@ -798,26 +767,12 @@ export class FileTransferEngine {
           onChunk(buf)
         }
 
-        // Report progress only if enough time has passed AND enough bytes transferred
-        if (options?.onProgress) {
-          const now = Date.now()
-          const timeDelta = now - lastProgressTime
-          const bytesDelta = bytesTransferred - lastBytesTransferred
-
-          if (timeDelta >= PROGRESS_INTERVAL || bytesDelta >= MIN_BYTES_FOR_PROGRESS) {
-            const speed = timeDelta > 0 ? (bytesDelta / timeDelta) * 1000 : 0 // bytes per second
-            const percentage = totalBytes > 0 ? (bytesTransferred / totalBytes) * 100 : 0
-
-            options.onProgress({
-              bytesTransferred,
-              totalBytes,
-              percentage,
-              speed
-            })
-
-            lastProgressTime = now
-            lastBytesTransferred = bytesTransferred
-          }
+        // Update progress tracker and report if throttle threshold met
+        const shouldReport = progressTracker.update(buf.length)
+        if (options?.onProgress && shouldReport) {
+          const progress = progressTracker.getProgress()
+          options.onProgress(progress)
+          progressTracker.commitProgress()
         }
       })
 
@@ -841,13 +796,14 @@ export class FileTransferEngine {
 
       readStream.on('end', () => {
         // Verify we read exactly what we expected
-        if (bytesTransferred !== totalBytes && !streamError) {
+        const bytesRead = progressTracker.getBytesTransferred()
+        if (bytesRead !== totalBytes && !streamError) {
           writeStream.destroy()
           // Clean up temp file from tracking on incomplete read
           this.activeTempFiles.delete(destPath)
           reject(
             TransferError.fromValidation(
-              `Incomplete read: expected ${totalBytes} bytes, got ${bytesTransferred} bytes`
+              `Incomplete read: expected ${totalBytes} bytes, got ${bytesRead} bytes`
             )
           )
         }
@@ -861,20 +817,15 @@ export class FileTransferEngine {
           return
         }
 
-        // Final progress report
+        // Final progress report using tracker's final state
         if (options?.onProgress) {
-          options.onProgress({
-            bytesTransferred: totalBytes,
-            totalBytes,
-            percentage: 100,
-            speed: 0
-          })
+          options.onProgress(progressTracker.getFinalProgress())
         }
 
         // Call finish callback if provided (for checksum calculation)
         if (onFinish) {
           try {
-            await onFinish(bytesTransferred)
+            await onFinish(progressTracker.getBytesTransferred())
             // Note: onFinish may resolve/reject an outer promise, but we still resolve here
             // The caller (copyFileWithStreamingChecksum) handles the actual return value
             resolve()
