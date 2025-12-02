@@ -50,4 +50,3 @@ export function setupLogHandlers(): void {
     return logger.getByDateRange(startTime, endTime)
   })
 }
-

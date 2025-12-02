@@ -20,4 +20,3 @@ export function setupUpdateHandlers(): void {
     await shell.openExternal(getReleasesUrl())
   })
 }
-

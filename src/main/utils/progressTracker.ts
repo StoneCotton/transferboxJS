@@ -78,10 +78,7 @@ export class ProgressTracker {
     const bytesDelta = this.bytesTransferred - this.lastBytesTransferred
 
     // Check if we should report progress
-    if (
-      timeDelta >= this.throttleConfig.interval ||
-      bytesDelta >= this.throttleConfig.minBytes
-    ) {
+    if (timeDelta >= this.throttleConfig.interval || bytesDelta >= this.throttleConfig.minBytes) {
       return true
     }
 
@@ -202,4 +199,3 @@ export class ProgressTracker {
 export function createProgressTracker(totalBytes: number): ProgressTracker {
   return new ProgressTracker(totalBytes)
 }
-

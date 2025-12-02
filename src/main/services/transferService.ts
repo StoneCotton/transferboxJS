@@ -224,9 +224,7 @@ export class TransferService {
   /**
    * Prepare files for transfer (filter, process paths, resolve conflicts)
    */
-  async prepareTransferFiles(
-    request: ValidatedTransferRequest
-  ): Promise<{
+  async prepareTransferFiles(request: ValidatedTransferRequest): Promise<{
     transferFiles: Array<{ source: string; dest: string }>
     fileSizes: number[]
     totalBytes: number
@@ -497,7 +495,8 @@ export class TransferService {
                 : {
                     sourcePath: context.transferFiles[currentFileIndex]?.source || '',
                     destinationPath: context.transferFiles[currentFileIndex]?.dest || '',
-                    fileName: context.transferFiles[currentFileIndex]?.source.split('/').pop() || '',
+                    fileName:
+                      context.transferFiles[currentFileIndex]?.source.split('/').pop() || '',
                     fileSize: 0,
                     bytesTransferred: 0,
                     percentage: 0,
@@ -684,4 +683,3 @@ export function getTransferService(): TransferService {
   }
   return globalTransferService
 }
-

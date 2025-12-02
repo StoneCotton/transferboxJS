@@ -170,4 +170,3 @@ export async function cleanupIpc(): Promise<void> {
 
 // Re-export state functions for external use
 export { getMainWindow, setMainWindow } from './state'
-

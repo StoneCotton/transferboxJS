@@ -151,7 +151,16 @@ describe('TransferService', () => {
         '/source',
         '/dest',
         ['/source/file.txt'],
-        { device: 'disk1', displayName: 'Test Drive', description: '', mountpoints: ['/Volumes/Test'], size: 1000, isRemovable: true, isSystem: false, busType: 'USB' }
+        {
+          device: 'disk1',
+          displayName: 'Test Drive',
+          description: '',
+          mountpoints: ['/Volumes/Test'],
+          size: 1000,
+          isRemovable: true,
+          isSystem: false,
+          busType: 'USB'
+        }
       )
 
       expect(result.isValid).toBe(true)
@@ -159,11 +168,7 @@ describe('TransferService', () => {
     })
 
     it('should work without drive info', async () => {
-      const result = await service.validateTransferRequest(
-        '/source',
-        '/dest',
-        ['/source/file.txt']
-      )
+      const result = await service.validateTransferRequest('/source', '/dest', ['/source/file.txt'])
 
       expect(result).toBeDefined()
     })
@@ -172,12 +177,21 @@ describe('TransferService', () => {
   describe('prepareTransferFiles', () => {
     it('should prepare files for transfer', async () => {
       service.reset()
-      
+
       const result = await service.prepareTransferFiles({
         sourceRoot: '/source',
         destinationRoot: '/dest',
         files: ['/source/file.txt'],
-        driveInfo: { device: 'disk1', displayName: 'Test Drive', description: '', mountpoints: ['/Volumes/Test'], size: 1000, isRemovable: true, isSystem: false, busType: 'USB' }
+        driveInfo: {
+          device: 'disk1',
+          displayName: 'Test Drive',
+          description: '',
+          mountpoints: ['/Volumes/Test'],
+          size: 1000,
+          isRemovable: true,
+          isSystem: false,
+          busType: 'USB'
+        }
       })
 
       expect(result.transferFiles).toBeDefined()
@@ -188,12 +202,21 @@ describe('TransferService', () => {
 
     it('should handle skip conflict resolution', async () => {
       service.reset()
-      
+
       const result = await service.prepareTransferFiles({
         sourceRoot: '/source',
         destinationRoot: '/dest',
         files: ['/source/file.txt'],
-        driveInfo: { device: 'disk1', displayName: 'Test Drive', description: '', mountpoints: ['/Volumes/Test'], size: 1000, isRemovable: true, isSystem: false, busType: 'USB' },
+        driveInfo: {
+          device: 'disk1',
+          displayName: 'Test Drive',
+          description: '',
+          mountpoints: ['/Volumes/Test'],
+          size: 1000,
+          isRemovable: true,
+          isSystem: false,
+          busType: 'USB'
+        },
         conflictResolutions: {
           '/source/file.txt': 'skip'
         }
@@ -205,17 +228,15 @@ describe('TransferService', () => {
 
   describe('validateDiskSpace', () => {
     it('should pass when enough space', async () => {
-      await expect(
-        service.validateDiskSpace('/dest', 1000)
-      ).resolves.not.toThrow()
+      await expect(service.validateDiskSpace('/dest', 1000)).resolves.not.toThrow()
     })
 
     it('should throw when insufficient space', async () => {
       ;(hasEnoughSpace as jest.Mock).mockResolvedValueOnce(false)
 
-      await expect(
-        service.validateDiskSpace('/dest', 1000000000000)
-      ).rejects.toThrow('Insufficient disk space')
+      await expect(service.validateDiskSpace('/dest', 1000000000000)).rejects.toThrow(
+        'Insufficient disk space'
+      )
     })
   })
 
@@ -226,7 +247,16 @@ describe('TransferService', () => {
           sourceRoot: '/source',
           destinationRoot: '/dest',
           files: ['/source/file.txt'],
-          driveInfo: { device: 'disk1', displayName: 'Test Drive', description: '', mountpoints: ['/Volumes/Test'], size: 1000, isRemovable: true, isSystem: false, busType: 'USB' }
+          driveInfo: {
+            device: 'disk1',
+            displayName: 'Test Drive',
+            description: '',
+            mountpoints: ['/Volumes/Test'],
+            size: 1000,
+            isRemovable: true,
+            isSystem: false,
+            busType: 'USB'
+          }
         },
         1,
         1000
@@ -261,7 +291,15 @@ describe('TransferService', () => {
       const result = service.updateSessionCompletion(
         'session-123',
         [
-          { success: true, sourcePath: '/source/file.txt', destPath: '/dest/file.txt', bytesTransferred: 1000, checksumVerified: true, sourceChecksum: 'abc', duration: 100 }
+          {
+            success: true,
+            sourcePath: '/source/file.txt',
+            destPath: '/dest/file.txt',
+            bytesTransferred: 1000,
+            checksumVerified: true,
+            sourceChecksum: 'abc',
+            duration: 100
+          }
         ],
         Date.now()
       )
@@ -275,7 +313,15 @@ describe('TransferService', () => {
       const result = service.updateSessionCompletion(
         'session-123',
         [
-          { success: false, sourcePath: '/source/file.txt', destPath: '/dest/file.txt', bytesTransferred: 0, checksumVerified: false, error: 'Failed', duration: 100 }
+          {
+            success: false,
+            sourcePath: '/source/file.txt',
+            destPath: '/dest/file.txt',
+            bytesTransferred: 0,
+            checksumVerified: false,
+            error: 'Failed',
+            duration: 100
+          }
         ],
         Date.now()
       )
@@ -312,4 +358,3 @@ describe('getTransferService', () => {
     expect(service).toBeInstanceOf(TransferService)
   })
 })
-

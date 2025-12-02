@@ -133,7 +133,10 @@ export class TransferQueue<T> {
     this.errors = []
 
     // Start initial batch of transfers
-    while (this.nextTaskIndex < Math.min(this.concurrencyLimit, this.tasks.length) && !this.stopped) {
+    while (
+      this.nextTaskIndex < Math.min(this.concurrencyLimit, this.tasks.length) &&
+      !this.stopped
+    ) {
       this.startTask(this.nextTaskIndex)
       this.nextTaskIndex++
     }
@@ -229,4 +232,3 @@ export class TransferQueue<T> {
 export function createTransferQueue<T>(options?: TransferQueueOptions): TransferQueue<T> {
   return new TransferQueue<T>(options)
 }
-

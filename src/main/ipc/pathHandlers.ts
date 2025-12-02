@@ -29,4 +29,3 @@ export function setupPathHandlers(): void {
     return result.filePaths[0]
   })
 }
-

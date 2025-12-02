@@ -99,4 +99,3 @@ export function resetIpcState(): void {
   state.pathProcessor = null
   state.mainWindow = null
 }
-

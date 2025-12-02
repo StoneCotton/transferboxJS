@@ -40,7 +40,7 @@ describe('IPC State Module', () => {
   describe('DriveMonitor state', () => {
     it('should get and set drive monitor', () => {
       expect(getDriveMonitor()).toBeNull()
-      
+
       setDriveMonitor(mockDriveMonitor)
       expect(getDriveMonitor()).toBe(mockDriveMonitor)
     })
@@ -55,7 +55,7 @@ describe('IPC State Module', () => {
   describe('TransferEngine state', () => {
     it('should get and set transfer engine', () => {
       expect(getTransferEngine()).toBeNull()
-      
+
       setTransferEngine(mockTransferEngine)
       expect(getTransferEngine()).toBe(mockTransferEngine)
     })
@@ -70,7 +70,7 @@ describe('IPC State Module', () => {
   describe('PathProcessor state', () => {
     it('should get and set path processor', () => {
       expect(getPathProcessor()).toBeNull()
-      
+
       setPathProcessor(mockPathProcessor)
       expect(getPathProcessor()).toBe(mockPathProcessor)
     })
@@ -85,7 +85,7 @@ describe('IPC State Module', () => {
   describe('MainWindow state', () => {
     it('should get and set main window', () => {
       expect(getMainWindow()).toBeNull()
-      
+
       setMainWindow(mockWindow)
       expect(getMainWindow()).toBe(mockWindow)
     })
@@ -125,7 +125,7 @@ describe('IPC State Module', () => {
   describe('state isolation', () => {
     it('should maintain separate state for each property', () => {
       setDriveMonitor(mockDriveMonitor)
-      
+
       expect(getDriveMonitor()).toBe(mockDriveMonitor)
       expect(getTransferEngine()).toBeNull()
       expect(getPathProcessor()).toBeNull()
@@ -133,4 +133,3 @@ describe('IPC State Module', () => {
     })
   })
 })
-
