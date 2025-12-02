@@ -429,7 +429,7 @@ export function setupTransferHandlers(): void {
         // Send completion event
         event.sender.send(IPC_CHANNELS.TRANSFER_COMPLETE, {
           id: sessionId,
-          status: 'complete',
+          status: failedCount > 0 ? 'error' : 'complete',
           driveId: driveInfo.device,
           driveName: driveInfo.displayName,
           sourceRoot,
@@ -449,4 +449,3 @@ export function setupTransferHandlers(): void {
     )
   })
 }
-
