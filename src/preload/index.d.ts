@@ -29,6 +29,7 @@ interface IpcApi {
   listDrives: () => Promise<DriveInfo[]>
   scanDrive: (device: string) => Promise<ScannedMedia>
   unmountDrive: (device: string) => Promise<boolean>
+  revealDrive: (device: string) => Promise<void>
 
   // Transfer operations
   validateTransfer: (request: TransferValidateRequest) => Promise<TransferValidateResponse>

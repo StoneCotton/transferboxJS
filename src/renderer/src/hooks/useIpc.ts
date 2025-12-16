@@ -34,6 +34,7 @@ export interface IpcApi {
   listDrives: () => Promise<DriveInfo[]>
   scanDrive: (device: string) => Promise<ScannedMedia>
   unmountDrive: (device: string) => Promise<boolean>
+  revealDrive: (device: string) => Promise<void>
 
   // Transfer operations
   validateTransfer: (request: TransferValidateRequest) => Promise<TransferValidateResponse>
@@ -133,6 +134,10 @@ export function useIpc(): IpcApi {
 
   const unmountDrive = useCallback(async (device: string) => {
     return await window.api.unmountDrive(device)
+  }, [])
+
+  const revealDrive = useCallback(async (device: string) => {
+    return await window.api.revealDrive(device)
   }, [])
 
   // Transfer operations
@@ -284,6 +289,7 @@ export function useIpc(): IpcApi {
     listDrives,
     scanDrive,
     unmountDrive,
+    revealDrive,
     validateTransfer,
     startTransfer,
     stopTransfer,

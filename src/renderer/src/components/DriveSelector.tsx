@@ -2,12 +2,24 @@
  * Drive Selector Component
  */
 
-import { HardDrive, Loader2, Usb, Check, Sparkles, Clock, PowerOff } from 'lucide-react'
+import {
+  HardDrive,
+  Loader2,
+  Usb,
+  Check,
+  Sparkles,
+  Clock,
+  PowerOff,
+  MoreVertical,
+  FolderOpen,
+  CircleArrowOutUpRight
+} from 'lucide-react'
 import { useDriveStore, useConfigStore, useStore, useTransferStore } from '../store'
 import { useIpc } from '../hooks/useIpc'
 import { useUiDensity } from '../hooks/useUiDensity'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/Card'
 import { Tooltip } from './ui/Tooltip'
+import { DropdownMenu, type DropdownMenuItem } from './ui/DropdownMenu'
 import { formatBytes, cn } from '../lib/utils'
 import type { DriveInfo } from '../../../shared/types'
 import { playErrorSound } from '../utils/soundManager'
@@ -28,6 +40,47 @@ export function DriveSelector() {
   const { isTransferring } = useTransferStore()
   const { isCondensed } = useUiDensity()
   const ipc = useIpc()
+
+  const handleRevealDrive = async (drive: DriveInfo): Promise<void> => {
+    try {
+      await ipc.revealDrive(drive.device)
+    } catch (error) {
+      console.error('Failed to reveal drive:', error)
+      useStore.getState().addToast({
+        type: 'error',
+        message: `Failed to open ${drive.displayName} in file explorer`,
+        duration: 4000
+      })
+    }
+  }
+
+  const handleEjectDrive = async (drive: DriveInfo): Promise<void> => {
+    try {
+      const success = await ipc.unmountDrive(drive.device)
+      if (success) {
+        useStore.getState().addToast({
+          type: 'success',
+          message: `${drive.displayName} safely ejected`,
+          duration: 3000
+        })
+      } else {
+        useStore.getState().addToast({
+          type: 'error',
+          message: `Failed to eject ${drive.displayName}. The drive may be in use.`,
+          duration: 5000
+        })
+        playErrorSound()
+      }
+    } catch (error) {
+      console.error('Failed to eject drive:', error)
+      useStore.getState().addToast({
+        type: 'error',
+        message: `Failed to eject ${drive.displayName}`,
+        duration: 4000
+      })
+      playErrorSound()
+    }
+  }
 
   const handleSelectDrive = async (drive: DriveInfo): Promise<void> => {
     // Don't allow selection of unmounted drives
@@ -197,33 +250,78 @@ export function DriveSelector() {
               )
             }
 
+            // Build menu items for this drive
+            const menuItems: DropdownMenuItem[] = [
+              {
+                id: 'reveal',
+                label: 'Reveal in Finder',
+                icon: <FolderOpen className="h-4 w-4" />,
+                onClick: () => handleRevealDrive(drive),
+                disabled: isUnmounted
+              },
+              {
+                id: 'eject',
+                label: 'Safely Eject',
+                icon: <CircleArrowOutUpRight className="h-4 w-4" />,
+                onClick: () => handleEjectDrive(drive),
+                disabled: isUnmounted || isTransferring,
+                danger: true
+              }
+            ]
+
             return (
-              <button
-                key={drive.device}
-                onClick={() => handleSelectDrive(drive)}
-                disabled={isDisabled}
-                className={cn(
-                  'group relative w-full overflow-hidden rounded-xl border-2 text-left transition-all duration-300',
-                  isCondensed ? 'p-2' : 'p-4',
-                  !isDisabled && 'hover:shadow-lg hover:shadow-brand-500/20',
-                  isDisabled
-                    ? 'cursor-not-allowed border-red-300 bg-gradient-to-br from-red-50/50 to-orange-50/50 opacity-70 dark:border-red-800 dark:from-red-950/30 dark:to-orange-950/30'
-                    : isSelected
-                      ? 'border-brand-500 bg-gradient-to-br from-brand-50 to-orange-50 dark:border-brand-400 dark:from-brand-950/50 dark:to-orange-950/50'
-                      : isExisting && isAutoMode
-                        ? 'border-amber-300 bg-gradient-to-br from-amber-50 to-yellow-50 dark:border-amber-600 dark:from-amber-950/50 dark:to-yellow-950/50'
-                        : 'border-gray-200 bg-white hover:border-brand-300 dark:border-gray-700 dark:bg-gray-800/50 dark:hover:border-brand-600'
-                )}
-              >
-                {/* Status indicators */}
-                {isUnmounted ? (
+              <div key={drive.device} className="relative">
+                {/* Three-dot menu - positioned to the left of status indicators */}
+                <div
+                  className={cn(
+                    'absolute z-20',
+                    isCondensed ? 'right-8 top-1' : 'right-12 top-2'
+                  )}
+                >
+                  <DropdownMenu
+                    trigger={
+                      <button
+                        type="button"
+                        className={cn(
+                          'flex items-center justify-center rounded-md transition-colors',
+                          'text-gray-400 hover:bg-gray-100 hover:text-gray-600',
+                          'dark:text-gray-500 dark:hover:bg-gray-700 dark:hover:text-gray-300',
+                          isCondensed ? 'h-6 w-6' : 'h-7 w-7'
+                        )}
+                      >
+                        <MoreVertical className={isCondensed ? 'h-4 w-4' : 'h-5 w-5'} />
+                      </button>
+                    }
+                    items={menuItems}
+                    align="right"
+                  />
+                </div>
+
+                <button
+                  onClick={() => handleSelectDrive(drive)}
+                  disabled={isDisabled}
+                  className={cn(
+                    'group relative w-full overflow-hidden rounded-xl border-2 text-left transition-all duration-300',
+                    isCondensed ? 'p-2' : 'p-4',
+                    !isDisabled && 'hover:shadow-lg hover:shadow-brand-500/20',
+                    isDisabled
+                      ? 'cursor-not-allowed border-red-300 bg-gradient-to-br from-red-50/50 to-orange-50/50 opacity-70 dark:border-red-800 dark:from-red-950/30 dark:to-orange-950/30'
+                      : isSelected
+                        ? 'border-brand-500 bg-gradient-to-br from-brand-50 to-orange-50 dark:border-brand-400 dark:from-brand-950/50 dark:to-orange-950/50'
+                        : isExisting && isAutoMode
+                          ? 'border-amber-300 bg-gradient-to-br from-amber-50 to-yellow-50 dark:border-amber-600 dark:from-amber-950/50 dark:to-yellow-950/50'
+                          : 'border-gray-200 bg-white hover:border-brand-300 dark:border-gray-700 dark:bg-gray-800/50 dark:hover:border-brand-600'
+                  )}
+                >
+                  {/* Status indicators */}
+                  {isUnmounted ? (
                   <Tooltip
                     content="Drive disconnected. Please reconnect to use this drive."
                     position="left"
                   >
                     <div
                       className={cn(
-                        'absolute flex items-center justify-center rounded-full bg-red-500 text-white shadow-lg',
+                        'absolute z-10 flex items-center justify-center rounded-full bg-red-500 text-white shadow-lg',
                         isCondensed ? 'right-2 top-2 h-5 w-5' : 'right-3 top-3 h-7 w-7'
                       )}
                     >
@@ -234,7 +332,7 @@ export function DriveSelector() {
                   <Tooltip content="Currently selected drive for transfer" position="left">
                     <div
                       className={cn(
-                        'absolute flex items-center justify-center rounded-full bg-brand-500 text-white shadow-lg',
+                        'absolute z-10 flex items-center justify-center rounded-full bg-brand-500 text-white shadow-lg',
                         isCondensed ? 'right-2 top-2 h-4 w-4' : 'right-3 top-3 h-6 w-6'
                       )}
                     >
@@ -248,7 +346,7 @@ export function DriveSelector() {
                   >
                     <div
                       className={cn(
-                        'absolute flex items-center justify-center rounded-full bg-amber-500 text-white shadow-lg',
+                        'absolute z-10 flex items-center justify-center rounded-full bg-amber-500 text-white shadow-lg',
                         isCondensed ? 'right-2 top-2 h-4 w-4' : 'right-3 top-3 h-6 w-6'
                       )}
                     >
@@ -361,6 +459,7 @@ export function DriveSelector() {
                   </div>
                 </div>
               </button>
+              </div>
             )
           })}
         </div>

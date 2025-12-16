@@ -28,6 +28,7 @@ export const IPC_CHANNELS = {
   DRIVE_LIST: 'drive:list',
   DRIVE_SCAN: 'drive:scan',
   DRIVE_UNMOUNT: 'drive:unmount',
+  DRIVE_REVEAL: 'drive:reveal', // Reveal drive in Finder/Explorer
   DRIVE_DETECTED: 'drive:detected', // Event from main to renderer
   DRIVE_REMOVED: 'drive:removed', // Event from main to renderer
   DRIVE_UNMOUNTED: 'drive:unmounted', // Event from main to renderer when drive is unmounted but still connected
@@ -220,6 +221,7 @@ export interface IpcHandlers {
   [IPC_CHANNELS.DRIVE_LIST]: () => Promise<DriveInfo[]>
   [IPC_CHANNELS.DRIVE_SCAN]: (device: string) => Promise<ScannedMedia>
   [IPC_CHANNELS.DRIVE_UNMOUNT]: (device: string) => Promise<boolean>
+  [IPC_CHANNELS.DRIVE_REVEAL]: (device: string) => Promise<void>
 
   [IPC_CHANNELS.TRANSFER_VALIDATE]: (
     request: TransferValidateRequest
