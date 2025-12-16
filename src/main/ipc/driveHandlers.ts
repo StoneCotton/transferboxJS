@@ -3,7 +3,7 @@
  * Handles all DRIVE_* IPC channels
  */
 
-import { ipcMain } from 'electron'
+import { ipcMain, shell } from 'electron'
 import { IPC_CHANNELS } from '../../shared/types'
 import { DriveMonitor } from '../driveMonitor'
 import { getConfig } from '../configManager'
@@ -137,6 +137,40 @@ export function setupDriveHandlers(): void {
         error: error instanceof Error ? error.message : String(error)
       })
       return false
+    }
+  })
+
+  ipcMain.handle(IPC_CHANNELS.DRIVE_REVEAL, async (_, device: unknown) => {
+    const validatedDevice = validateDeviceId(device)
+    getLogger().info('Reveal drive requested', { device: validatedDevice })
+
+    try {
+      const monitor = ensureDriveMonitor()
+      const drives = await monitor.listRemovableDrives()
+      const drive = drives.find((d) => d.device === validatedDevice)
+
+      if (!drive) {
+        throw new Error('Drive not found')
+      }
+
+      if (drive.mountpoints.length === 0) {
+        throw new Error('Drive is not mounted')
+      }
+
+      const mountPoint = drive.mountpoints[0]
+      getLogger().debug('Opening drive in file explorer', { device: validatedDevice, mountPoint })
+
+      // shell.showItemInFolder reveals the item in the parent folder
+      // For a mount point, we want to open the folder itself, so use shell.openPath
+      await shell.openPath(mountPoint)
+
+      getLogger().info('Drive revealed in file explorer', { device: validatedDevice, mountPoint })
+    } catch (error) {
+      getLogger().error('Error revealing drive', {
+        device: validatedDevice,
+        error: error instanceof Error ? error.message : String(error)
+      })
+      throw error
     }
   })
 }

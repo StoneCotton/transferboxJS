@@ -18,6 +18,7 @@ const api = {
   listDrives: () => ipcRenderer.invoke(IPC_CHANNELS.DRIVE_LIST),
   scanDrive: (device: string) => ipcRenderer.invoke(IPC_CHANNELS.DRIVE_SCAN, device),
   unmountDrive: (device: string) => ipcRenderer.invoke(IPC_CHANNELS.DRIVE_UNMOUNT, device),
+  revealDrive: (device: string) => ipcRenderer.invoke(IPC_CHANNELS.DRIVE_REVEAL, device),
 
   // Transfer operations
   validateTransfer: (request: any) => ipcRenderer.invoke(IPC_CHANNELS.TRANSFER_VALIDATE, request),
