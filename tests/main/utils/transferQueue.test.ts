@@ -170,12 +170,12 @@ describe('TransferQueue', () => {
   describe('stop', () => {
     it('should stop queue execution', async () => {
       const queue = new TransferQueue<number>({ concurrencyLimit: 1 })
-      let startedCount = 0
+      let _startedCount = 0
 
       const tasks: TransferTask<number>[] = Array.from({ length: 5 }, (_, i) => ({
         index: i,
         execute: async () => {
-          startedCount++
+          _startedCount++
           if (i === 1) {
             queue.stop()
           }

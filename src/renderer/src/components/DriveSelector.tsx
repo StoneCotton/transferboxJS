@@ -85,7 +85,6 @@ export function DriveSelector() {
   const handleSelectDrive = async (drive: DriveInfo): Promise<void> => {
     // Don't allow selection of unmounted drives
     if (isDriveUnmounted(drive.device)) {
-      console.log('[DriveSelector] Cannot select unmounted drive')
       setScanError('Drive is unmounted. Please reconnect the drive.')
       playErrorSound()
       return
@@ -93,7 +92,6 @@ export function DriveSelector() {
 
     // Don't allow drive selection during active transfer
     if (isTransferring) {
-      console.log('[DriveSelector] Cannot select drive during active transfer')
       setScanError('Cannot select drive while transfer is in progress.')
       playErrorSound()
       return
@@ -112,7 +110,6 @@ export function DriveSelector() {
       if (result.driveInfo) {
         selectDrive(result.driveInfo)
       }
-      console.log(`Found ${result.files.length} media files on ${drive.displayName}`)
 
       // Show toast notification (logs are already created in main process)
       if (result.files.length > 0) {
@@ -127,11 +124,9 @@ export function DriveSelector() {
           message: `Scan complete: No valid files found on ${drive.displayName}`,
           duration: 4000
         })
-        console.log('[DriveSelector] No valid files found on drive - playing error sound')
         playErrorSound()
       }
     } catch (error) {
-      console.error('Failed to scan drive:', error)
       const errorMessage = error instanceof Error ? error.message : 'Failed to scan drive'
       setScanError(errorMessage)
       setScannedFiles([])
@@ -241,15 +236,6 @@ export function DriveSelector() {
             const isAutoMode =
               config.transferMode === 'fully-autonomous' || config.transferMode === 'auto-transfer'
 
-            // Debug logging
-            if (isUnmounted) {
-              console.log(
-                '[DriveSelector] Rendering unmounted drive:',
-                drive.device,
-                drive.displayName
-              )
-            }
-
             // Build menu items for this drive
             const menuItems: DropdownMenuItem[] = [
               {
@@ -273,10 +259,7 @@ export function DriveSelector() {
               <div key={drive.device} className="relative">
                 {/* Three-dot menu - positioned to the left of status indicators */}
                 <div
-                  className={cn(
-                    'absolute z-20',
-                    isCondensed ? 'right-8 top-1' : 'right-12 top-2'
-                  )}
+                  className={cn('absolute z-20', isCondensed ? 'right-8 top-1' : 'right-12 top-2')}
                 >
                   <DropdownMenu
                     trigger={
@@ -315,150 +298,155 @@ export function DriveSelector() {
                 >
                   {/* Status indicators */}
                   {isUnmounted ? (
-                  <Tooltip
-                    content="Drive disconnected. Please reconnect to use this drive."
-                    position="left"
-                  >
-                    <div
-                      className={cn(
-                        'absolute z-10 flex items-center justify-center rounded-full bg-red-500 text-white shadow-lg',
-                        isCondensed ? 'right-2 top-2 h-5 w-5' : 'right-3 top-3 h-7 w-7'
-                      )}
+                    <Tooltip
+                      content="Drive disconnected. Please reconnect to use this drive."
+                      position="left"
                     >
-                      <PowerOff className={isCondensed ? 'h-3 w-3' : 'h-4 w-4'} strokeWidth={2.5} />
-                    </div>
-                  </Tooltip>
-                ) : isSelected ? (
-                  <Tooltip content="Currently selected drive for transfer" position="left">
-                    <div
-                      className={cn(
-                        'absolute z-10 flex items-center justify-center rounded-full bg-brand-500 text-white shadow-lg',
-                        isCondensed ? 'right-2 top-2 h-4 w-4' : 'right-3 top-3 h-6 w-6'
-                      )}
-                    >
-                      <Check className={isCondensed ? 'h-3 w-3' : 'h-4 w-4'} strokeWidth={3} />
-                    </div>
-                  </Tooltip>
-                ) : isExisting && isAutoMode ? (
-                  <Tooltip
-                    content="Already connected drive. Click to scan manually."
-                    position="left"
-                  >
-                    <div
-                      className={cn(
-                        'absolute z-10 flex items-center justify-center rounded-full bg-amber-500 text-white shadow-lg',
-                        isCondensed ? 'right-2 top-2 h-4 w-4' : 'right-3 top-3 h-6 w-6'
-                      )}
-                    >
-                      <Clock className={isCondensed ? 'h-3 w-3' : 'h-4 w-4'} strokeWidth={3} />
-                    </div>
-                  </Tooltip>
-                ) : null}
-
-                <div className={cn('flex items-center', isCondensed ? 'gap-2' : 'gap-4')}>
-                  {/* Icon */}
-                  <div
-                    className={cn(
-                      'relative flex flex-shrink-0 items-center justify-center rounded-xl transition-all',
-                      isCondensed ? 'h-10 w-10' : 'h-14 w-14',
-                      isUnmounted
-                        ? 'bg-red-100 text-red-500 dark:bg-red-900/30 dark:text-red-400'
-                        : isSelected
-                          ? 'bg-gradient-to-br from-brand-500 to-brand-600 text-white shadow-lg shadow-brand-500/30'
-                          : 'bg-gray-100 text-gray-600 group-hover:bg-brand-100 group-hover:text-brand-600 dark:bg-gray-800 dark:text-gray-400'
-                    )}
-                  >
-                    {isScanningThis ? (
-                      <Loader2
-                        className={isCondensed ? 'h-5 w-5 animate-spin' : 'h-7 w-7 animate-spin'}
-                      />
-                    ) : drive.busType === 'USB' ? (
-                      <Usb className={isCondensed ? 'h-5 w-5' : 'h-7 w-7'} />
-                    ) : (
-                      <HardDrive className={isCondensed ? 'h-5 w-5' : 'h-7 w-7'} />
-                    )}
-                  </div>
-
-                  {/* Info */}
-                  <div className="min-w-0 flex-1">
-                    <h3
-                      className={cn(
-                        'truncate font-bold',
-                        isCondensed ? 'text-sm' : 'text-base',
-                        isUnmounted
-                          ? 'text-red-700 dark:text-red-300'
-                          : isSelected
-                            ? 'text-brand-900 dark:text-brand-100'
-                            : 'text-gray-900 dark:text-white'
-                      )}
-                    >
-                      {drive.displayName}
-                      {isUnmounted && (
-                        <span className="ml-2 text-xs font-semibold text-red-600 dark:text-red-400">
-                          (Unmounted)
-                        </span>
-                      )}
-                    </h3>
-                    <p
-                      className={cn(
-                        'font-medium',
-                        isCondensed ? 'text-xs' : 'mt-1 text-sm',
-                        isUnmounted
-                          ? 'text-red-600 dark:text-red-400'
-                          : isSelected
-                            ? 'text-brand-700 dark:text-brand-300'
-                            : 'text-gray-600 dark:text-gray-400'
-                      )}
-                    >
-                      {drive.description} •{' '}
-                      {formatBytes(drive.size, config?.unitSystem || 'decimal')}
-                    </p>
-                    {!isCondensed && (
-                      <p
+                      <div
                         className={cn(
-                          'mt-1 truncate text-xs',
-                          isUnmounted
-                            ? 'text-red-500 dark:text-red-500'
-                            : isSelected
-                              ? 'text-brand-600 dark:text-brand-400'
-                              : 'text-gray-500 dark:text-gray-500'
+                          'absolute z-10 flex items-center justify-center rounded-full bg-red-500 text-white shadow-lg',
+                          isCondensed ? 'right-2 top-2 h-5 w-5' : 'right-3 top-3 h-7 w-7'
                         )}
                       >
-                        {drive.mountpoints[0] || drive.device}
-                      </p>
-                    )}
-                    {isUnmounted && !isCondensed ? (
-                      <div className="mt-2 flex items-center gap-2">
-                        <PowerOff className="h-3 w-3 text-red-600 dark:text-red-400" />
-                        <span className="text-xs font-semibold text-red-700 dark:text-red-300">
-                          Drive unmounted - please reconnect to use
-                        </span>
+                        <PowerOff
+                          className={isCondensed ? 'h-3 w-3' : 'h-4 w-4'}
+                          strokeWidth={2.5}
+                        />
                       </div>
-                    ) : isScanningThis ? (
-                      <div className={cn('flex items-center gap-2', isCondensed ? 'mt-1' : 'mt-2')}>
-                        <div
+                    </Tooltip>
+                  ) : isSelected ? (
+                    <Tooltip content="Currently selected drive for transfer" position="left">
+                      <div
+                        className={cn(
+                          'absolute z-10 flex items-center justify-center rounded-full bg-brand-500 text-white shadow-lg',
+                          isCondensed ? 'right-2 top-2 h-4 w-4' : 'right-3 top-3 h-6 w-6'
+                        )}
+                      >
+                        <Check className={isCondensed ? 'h-3 w-3' : 'h-4 w-4'} strokeWidth={3} />
+                      </div>
+                    </Tooltip>
+                  ) : isExisting && isAutoMode ? (
+                    <Tooltip
+                      content="Already connected drive. Click to scan manually."
+                      position="left"
+                    >
+                      <div
+                        className={cn(
+                          'absolute z-10 flex items-center justify-center rounded-full bg-amber-500 text-white shadow-lg',
+                          isCondensed ? 'right-2 top-2 h-4 w-4' : 'right-3 top-3 h-6 w-6'
+                        )}
+                      >
+                        <Clock className={isCondensed ? 'h-3 w-3' : 'h-4 w-4'} strokeWidth={3} />
+                      </div>
+                    </Tooltip>
+                  ) : null}
+
+                  <div className={cn('flex items-center', isCondensed ? 'gap-2' : 'gap-4')}>
+                    {/* Icon */}
+                    <div
+                      className={cn(
+                        'relative flex flex-shrink-0 items-center justify-center rounded-xl transition-all',
+                        isCondensed ? 'h-10 w-10' : 'h-14 w-14',
+                        isUnmounted
+                          ? 'bg-red-100 text-red-500 dark:bg-red-900/30 dark:text-red-400'
+                          : isSelected
+                            ? 'bg-gradient-to-br from-brand-500 to-brand-600 text-white shadow-lg shadow-brand-500/30'
+                            : 'bg-gray-100 text-gray-600 group-hover:bg-brand-100 group-hover:text-brand-600 dark:bg-gray-800 dark:text-gray-400'
+                      )}
+                    >
+                      {isScanningThis ? (
+                        <Loader2
+                          className={isCondensed ? 'h-5 w-5 animate-spin' : 'h-7 w-7 animate-spin'}
+                        />
+                      ) : drive.busType === 'USB' ? (
+                        <Usb className={isCondensed ? 'h-5 w-5' : 'h-7 w-7'} />
+                      ) : (
+                        <HardDrive className={isCondensed ? 'h-5 w-5' : 'h-7 w-7'} />
+                      )}
+                    </div>
+
+                    {/* Info */}
+                    <div className="min-w-0 flex-1">
+                      <h3
+                        className={cn(
+                          'truncate font-bold',
+                          isCondensed ? 'text-sm' : 'text-base',
+                          isUnmounted
+                            ? 'text-red-700 dark:text-red-300'
+                            : isSelected
+                              ? 'text-brand-900 dark:text-brand-100'
+                              : 'text-gray-900 dark:text-white'
+                        )}
+                      >
+                        {drive.displayName}
+                        {isUnmounted && (
+                          <span className="ml-2 text-xs font-semibold text-red-600 dark:text-red-400">
+                            (Unmounted)
+                          </span>
+                        )}
+                      </h3>
+                      <p
+                        className={cn(
+                          'font-medium',
+                          isCondensed ? 'text-xs' : 'mt-1 text-sm',
+                          isUnmounted
+                            ? 'text-red-600 dark:text-red-400'
+                            : isSelected
+                              ? 'text-brand-700 dark:text-brand-300'
+                              : 'text-gray-600 dark:text-gray-400'
+                        )}
+                      >
+                        {drive.description} •{' '}
+                        {formatBytes(drive.size, config?.unitSystem || 'decimal')}
+                      </p>
+                      {!isCondensed && (
+                        <p
                           className={cn(
-                            'flex-1 overflow-hidden rounded-full bg-brand-200 dark:bg-brand-900',
-                            isCondensed ? 'h-1' : 'h-1.5'
+                            'mt-1 truncate text-xs',
+                            isUnmounted
+                              ? 'text-red-500 dark:text-red-500'
+                              : isSelected
+                                ? 'text-brand-600 dark:text-brand-400'
+                                : 'text-gray-500 dark:text-gray-500'
                           )}
                         >
-                          <div className="h-full w-1/3 animate-pulse rounded-full bg-gradient-to-r from-brand-500 to-orange-500" />
+                          {drive.mountpoints[0] || drive.device}
+                        </p>
+                      )}
+                      {isUnmounted && !isCondensed ? (
+                        <div className="mt-2 flex items-center gap-2">
+                          <PowerOff className="h-3 w-3 text-red-600 dark:text-red-400" />
+                          <span className="text-xs font-semibold text-red-700 dark:text-red-300">
+                            Drive unmounted - please reconnect to use
+                          </span>
                         </div>
-                        <span className="text-xs font-semibold text-brand-600 dark:text-brand-400">
-                          Scanning...
-                        </span>
-                      </div>
-                    ) : isExisting && isAutoMode && !isSelected && !isCondensed ? (
-                      <div className="mt-2 flex items-center gap-2">
-                        <Clock className="h-3 w-3 text-amber-600 dark:text-amber-400" />
-                        <span className="text-xs font-medium text-amber-700 dark:text-amber-300">
-                          Already connected - click to scan manually
-                        </span>
-                      </div>
-                    ) : null}
+                      ) : isScanningThis ? (
+                        <div
+                          className={cn('flex items-center gap-2', isCondensed ? 'mt-1' : 'mt-2')}
+                        >
+                          <div
+                            className={cn(
+                              'flex-1 overflow-hidden rounded-full bg-brand-200 dark:bg-brand-900',
+                              isCondensed ? 'h-1' : 'h-1.5'
+                            )}
+                          >
+                            <div className="h-full w-1/3 animate-pulse rounded-full bg-gradient-to-r from-brand-500 to-orange-500" />
+                          </div>
+                          <span className="text-xs font-semibold text-brand-600 dark:text-brand-400">
+                            Scanning...
+                          </span>
+                        </div>
+                      ) : isExisting && isAutoMode && !isSelected && !isCondensed ? (
+                        <div className="mt-2 flex items-center gap-2">
+                          <Clock className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+                          <span className="text-xs font-medium text-amber-700 dark:text-amber-300">
+                            Already connected - click to scan manually
+                          </span>
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
-                </div>
-              </button>
+                </button>
               </div>
             )
           })}

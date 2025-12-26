@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, powerMonitor, dialog } from 'electron'
+import { app, shell, BrowserWindow, powerMonitor } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/TransferBox_Icon.png?asset'
@@ -8,6 +8,7 @@ import { cleanupOrphanedPartFiles } from './fileTransfer'
 import { getConfig, getLastMigration, clearLastMigration } from './configManager'
 import { IPC_CHANNELS } from '../shared/types'
 import { createApplicationMenu } from './menu'
+import { getDialogService } from './services/dialogService'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -36,17 +37,10 @@ function createWindow(): void {
     if (isTransferInProgress()) {
       event.preventDefault()
 
-      const result = await dialog.showMessageBox(mainWindow!, {
-        type: 'warning',
-        title: 'Transfer in Progress',
-        message: 'A file transfer is currently in progress.',
-        detail: 'Closing the application will cancel the transfer. Are you sure you want to quit?',
-        buttons: ['Cancel Transfer & Quit', 'Keep Transfer Running'],
-        defaultId: 1, // Default to "Keep Transfer Running"
-        cancelId: 1 // ESC key will select "Keep Transfer Running"
-      })
+      const dialogService = getDialogService()
+      const result = await dialogService.showTransferInProgressDialog(mainWindow!, 'closing')
 
-      if (result.response === 0) {
+      if (result === 'quit') {
         // User chose to cancel transfer and quit
         getLogger().info('User chose to cancel transfer and quit application')
         await cleanupIpc()
@@ -224,20 +218,13 @@ app.on('window-all-closed', () => {
 
 // App is quitting - cleanup and transfer check
 app.on('before-quit', async (event) => {
-  if (isTransferInProgress()) {
+  if (isTransferInProgress() && mainWindow) {
     event.preventDefault()
 
-    const result = await dialog.showMessageBox(mainWindow!, {
-      type: 'warning',
-      title: 'Transfer in Progress',
-      message: 'A file transfer is currently in progress.',
-      detail: 'Quitting the application will cancel the transfer. Are you sure you want to quit?',
-      buttons: ['Cancel Transfer & Quit', 'Keep Transfer Running'],
-      defaultId: 1, // Default to "Keep Transfer Running"
-      cancelId: 1 // ESC key will select "Keep Transfer Running"
-    })
+    const dialogService = getDialogService()
+    const result = await dialogService.showTransferInProgressDialog(mainWindow, 'quitting')
 
-    if (result.response === 0) {
+    if (result === 'quit') {
       // User chose to cancel transfer and quit
       getLogger().info('User chose to cancel transfer and quit application')
       await cleanupIpc()

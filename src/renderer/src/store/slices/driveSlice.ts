@@ -99,12 +99,8 @@ export const createDriveSlice: StateCreator<DriveSlice> = (set, get) => ({
   // Mount status actions
   markDriveAsUnmounted: (device) =>
     set((state) => {
-      console.log('[driveSlice] markDriveAsUnmounted called with device:', device)
-      console.log('[driveSlice] Current state.unmountedDrives:', state.unmountedDrives)
-
       // Only add if not already in the array
       if (state.unmountedDrives.includes(device)) {
-        console.log('[driveSlice] Device already unmounted, skipping')
         return state
       }
 
@@ -112,7 +108,7 @@ export const createDriveSlice: StateCreator<DriveSlice> = (set, get) => ({
       // This allows retry logic to work and keeps the queue visible to users
       const isTransferring = (state as DriveSlice & CrossSliceState).isTransferring || false
 
-      const update = {
+      return {
         unmountedDrives: [...state.unmountedDrives, device],
         // Deselect the drive when it's unmounted
         selectedDrive: state.selectedDrive?.device === device ? null : state.selectedDrive,
@@ -120,21 +116,7 @@ export const createDriveSlice: StateCreator<DriveSlice> = (set, get) => ({
         scannedFiles:
           state.selectedDrive?.device === device && !isTransferring ? [] : state.scannedFiles
       }
-
-      console.log('[driveSlice] Returning update with unmountedDrives:', update.unmountedDrives)
-      console.log(
-        '[driveSlice] isTransferring:',
-        isTransferring,
-        'scannedFiles preserved:',
-        state.selectedDrive?.device === device && isTransferring
-      )
-
-      return update
     }),
 
-  isDriveUnmounted: (device) => {
-    const result = get().unmountedDrives.includes(device)
-    console.log('[driveSlice] isDriveUnmounted called for:', device, 'result:', result)
-    return result
-  }
+  isDriveUnmounted: (device) => get().unmountedDrives.includes(device)
 })

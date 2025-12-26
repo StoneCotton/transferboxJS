@@ -97,7 +97,7 @@ import { hasEnoughSpace } from '../../../src/main/pathValidator'
 
 // Get mock references after imports
 const { __mockDb: mockDb } = jest.requireMock('../../../src/main/databaseManager')
-const { __mockEngine: mockTransferEngine } = jest.requireMock('../../../src/main/fileTransfer')
+const { __mockEngine: _mockTransferEngine } = jest.requireMock('../../../src/main/fileTransfer')
 
 describe('TransferService', () => {
   let service: TransferService

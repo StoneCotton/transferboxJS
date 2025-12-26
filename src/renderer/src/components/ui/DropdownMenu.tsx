@@ -29,6 +29,8 @@ export function DropdownMenu({ trigger, items, align = 'right', className }: Dro
 
   // Close menu when clicking outside
   useEffect(() => {
+    if (!isOpen) return
+
     function handleClickOutside(event: globalThis.MouseEvent) {
       if (
         menuRef.current &&
@@ -40,24 +42,22 @@ export function DropdownMenu({ trigger, items, align = 'right', className }: Dro
       }
     }
 
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside)
-      return () => document.removeEventListener('mousedown', handleClickOutside)
-    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [isOpen])
 
   // Close menu on escape key
   useEffect(() => {
+    if (!isOpen) return
+
     function handleEscape(event: KeyboardEvent) {
       if (event.key === 'Escape') {
         setIsOpen(false)
       }
     }
 
-    if (isOpen) {
-      document.addEventListener('keydown', handleEscape)
-      return () => document.removeEventListener('keydown', handleEscape)
-    }
+    document.addEventListener('keydown', handleEscape)
+    return () => document.removeEventListener('keydown', handleEscape)
   }, [isOpen])
 
   const handleTriggerClick = (e: MouseEvent) => {
@@ -118,4 +118,3 @@ export function DropdownMenu({ trigger, items, align = 'right', className }: Dro
     </div>
   )
 }
-

@@ -50,6 +50,7 @@ export const IPC_CHANNELS = {
 
   // Logging
   LOG_GET_RECENT: 'log:get-recent',
+  LOG_GET_RANGE: 'log:get-range',
   LOG_CLEAR: 'log:clear',
   LOG_ENTRY: 'log:entry', // Event from main to renderer
 
@@ -236,6 +237,11 @@ export interface IpcHandlers {
   [IPC_CHANNELS.HISTORY_CLEAR]: () => Promise<void>
 
   [IPC_CHANNELS.LOG_GET_RECENT]: (limit?: number) => Promise<LogEntry[]>
+  [IPC_CHANNELS.LOG_GET_RANGE]: (request: {
+    startTime: number
+    endTime: number
+    level?: 'debug' | 'info' | 'warn' | 'error'
+  }) => Promise<LogEntry[]>
   [IPC_CHANNELS.LOG_CLEAR]: () => Promise<void>
 
   [IPC_CHANNELS.SYSTEM_SHUTDOWN]: () => Promise<void>

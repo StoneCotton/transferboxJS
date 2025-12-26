@@ -6,8 +6,10 @@ import type {
   TransferStartRequest,
   TransferValidateRequest,
   TransferValidateResponse,
+  TransferRetryRequest,
   TransferSession,
   TransferStatusResponse,
+  TransferProgress,
   LogEntry,
   DriveInfo,
   ScannedMedia,
@@ -36,10 +38,7 @@ interface IpcApi {
   startTransfer: (request: TransferStartRequest) => Promise<void>
   stopTransfer: () => Promise<void>
   getTransferStatus: () => Promise<TransferStatusResponse>
-  retryTransfer: (request: {
-    files: Array<{ sourcePath: string; destinationPath: string }>
-    driveInfo: { device: string; displayName: string }
-  }) => Promise<void>
+  retryTransfer: (request: TransferRetryRequest) => Promise<void>
 
   // History
   getHistory: () => Promise<TransferSession[]>
@@ -82,8 +81,8 @@ interface IpcApi {
   onDriveDetected: (callback: (drive: DriveInfo) => void) => () => void
   onDriveRemoved: (callback: (device: string) => void) => () => void
   onDriveUnmounted: (callback: (device: string) => void) => () => void
-  onTransferProgress: (callback: (progress: any) => void) => () => void
-  onTransferComplete: (callback: (data: any) => void) => () => void
+  onTransferProgress: (callback: (progress: TransferProgress) => void) => () => void
+  onTransferComplete: (callback: (data: TransferSession) => void) => () => void
   onTransferError: (callback: (error: string) => void) => () => void
   onLogEntry: (callback: (entry: LogEntry) => void) => () => void
   onSystemSuspend: (callback: () => void) => () => void

@@ -5,7 +5,6 @@
 
 import { ipcMain } from 'electron'
 import { IPC_CHANNELS, DriveInfo } from '../../shared/types'
-import { getConfig } from '../configManager'
 import { getDatabaseManager } from '../databaseManager'
 import { getLogger } from '../logger'
 import { validateTransferStartRequest } from '../utils/ipcValidator'
@@ -199,14 +198,13 @@ export function setupTransferHandlers(): void {
       .conflictResolutions as Record<string, 'skip' | 'rename' | 'overwrite'> | undefined
 
     // Prepare files for transfer
-    const { transferFiles, fileSizes, totalBytes, skippedCount } =
-      await transferService.prepareTransferFiles({
-        sourceRoot: validatedRequest.sourceRoot,
-        destinationRoot: validatedRequest.destinationRoot,
-        files: validatedRequest.files,
-        driveInfo: validatedRequest.driveInfo,
-        conflictResolutions
-      })
+    const { transferFiles, fileSizes, totalBytes } = await transferService.prepareTransferFiles({
+      sourceRoot: validatedRequest.sourceRoot,
+      destinationRoot: validatedRequest.destinationRoot,
+      files: validatedRequest.files,
+      driveInfo: validatedRequest.driveInfo,
+      conflictResolutions
+    })
 
     // Validate disk space
     await transferService.validateDiskSpace(validatedRequest.destinationRoot, totalBytes)
@@ -420,7 +418,7 @@ export function setupTransferHandlers(): void {
       },
       // Complete callback
       (results) => {
-        const { completedCount, failedCount } = transferService.updateSessionCompletion(
+        const { failedCount } = transferService.updateSessionCompletion(
           sessionId,
           results,
           startTime

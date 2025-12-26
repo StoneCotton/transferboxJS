@@ -4,7 +4,7 @@
  */
 
 import { stat } from 'fs/promises'
-import { IPC_CHANNELS, DriveInfo } from '../../shared/types'
+import type { DriveInfo } from '../../shared/types'
 import { FileTransferEngine, TransferResult } from '../fileTransfer'
 import { getDatabaseManager } from '../databaseManager'
 import { getConfig } from '../configManager'
@@ -416,7 +416,6 @@ export class TransferService {
       number,
       { success: boolean; checksum?: string; error?: string }
     >()
-    const fileStartTimes = new Map<number, number>()
 
     updateMenuForTransferState(true)
 
@@ -620,7 +619,7 @@ export class TransferService {
   updateSessionCompletion(
     sessionId: string,
     results: TransferResult[],
-    startTime: number
+    _startTime: number
   ): { completedCount: number; failedCount: number } {
     const db = getDatabaseManager()
     const logger = getLogger()

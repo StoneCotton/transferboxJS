@@ -82,7 +82,7 @@ export interface IpcApi {
   onDriveRemoved: (callback: (device: string) => void) => () => void
   onDriveUnmounted: (callback: (device: string) => void) => () => void
   onTransferProgress: (callback: (progress: TransferProgress) => void) => () => void
-  onTransferComplete: (callback: (data: TransferProgress) => void) => () => void
+  onTransferComplete: (callback: (data: TransferSession) => void) => () => void
   onTransferError: (callback: (error: string) => void) => () => void
   onLogEntry: (callback: (entry: LogEntry) => void) => () => void
   onSystemSuspend: (callback: () => void) => () => void
@@ -233,7 +233,7 @@ export function useIpc(): IpcApi {
     return window.api.onTransferProgress(callback)
   }, [])
 
-  const onTransferComplete = useCallback((callback: (data: TransferProgress) => void) => {
+  const onTransferComplete = useCallback((callback: (data: TransferSession) => void) => {
     return window.api.onTransferComplete(callback)
   }, [])
 

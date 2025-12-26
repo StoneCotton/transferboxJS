@@ -11,6 +11,7 @@ import { getLogger, onLogEntry } from '../logger'
 import { checkForUpdates } from '../updateChecker'
 import { updateMenuForTransferState } from '../menu'
 import { getTransferService } from '../services/transferService'
+import { DRIVE_POLLING_INTERVAL_MS } from '../constants/pollingConstants'
 
 // Import handler modules
 import { setupConfigHandlers } from './configHandlers'
@@ -94,7 +95,7 @@ export function startDriveMonitoring(window: BrowserWindow): void {
 
   monitor
     .start({
-      pollingInterval: 2000,
+      pollingInterval: DRIVE_POLLING_INTERVAL_MS,
       onDriveAdded: (drive) => {
         getLogger().logDriveDetected(drive.device, drive.displayName)
         const mainWindow = getMainWindow()

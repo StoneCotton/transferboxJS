@@ -175,12 +175,10 @@ export const createTransferSlice: StateCreator<TransferSlice> = (set, get) => ({
   // NEW: Pause/Resume
   pauseTransfer: () => {
     set({ isPaused: true })
-    console.log('[TransferSlice] Transfer paused')
   },
 
   resumeTransfer: () => {
     set({ isPaused: false })
-    console.log('[TransferSlice] Transfer resumed')
   },
 
   // NEW: Retry logic
@@ -200,8 +198,7 @@ export const createTransferSlice: StateCreator<TransferSlice> = (set, get) => ({
 
   clearRetryState: () => set({ retryState: null }),
 
-  retryFailedFiles: async (files) => {
-    console.log('[TransferSlice] Retrying failed files:', files.length)
+  retryFailedFiles: async (_files) => {
     // Trigger IPC to retry files - this will be called from the UI
     set({
       retryState: {

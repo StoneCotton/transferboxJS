@@ -6,8 +6,8 @@
 import { createReadStream, createWriteStream } from 'fs'
 import { stat, mkdir, rename, unlink, chmod, access, constants, readdir, utimes } from 'fs/promises'
 import * as path from 'path'
-import { XXHash64 } from 'xxhash-addon'
 import { TransferError, wrapError } from './errors/TransferError'
+import { getChecksumCalculator } from './services/checksumCalculator'
 import { TransferErrorType } from '../shared/types'
 import { getLogger } from './logger'
 import { withRetry } from './utils/retryStrategy'
@@ -15,6 +15,16 @@ import { safeAdd, validateFileSize } from './utils/fileSizeUtils'
 import { validateFilePath } from './utils/ipcValidator'
 import { FileValidator } from './validators/fileValidator'
 import { DEFAULT_BUFFER_SIZE, ORPHANED_FILE_MAX_AGE_MS } from './constants/fileConstants'
+import {
+  DEFAULT_CONCURRENT_LIMIT,
+  MIN_CONCURRENT_LIMIT,
+  MAX_CONCURRENT_LIMIT,
+  MAX_STOP_WAIT_TIME_MS,
+  PROGRESS_AGGREGATION_INTERVAL_MS,
+  CLEANUP_DELAY_MS,
+  MIN_BUFFER_SIZE,
+  MAX_BUFFER_SIZE
+} from './constants/transferConstants'
 import { createProgressTracker } from './utils/progressTracker'
 
 export interface TransferProgress {
@@ -59,18 +69,6 @@ export interface TransferResult {
 interface AbortableTransfer {
   abort: () => void
 }
-
-/**
- * Constants for transfer operations
- */
-const DEFAULT_CONCURRENT_LIMIT = 3
-const MIN_CONCURRENT_LIMIT = 1
-const MAX_CONCURRENT_LIMIT = 10
-const MAX_STOP_WAIT_TIME_MS = 5000
-const PROGRESS_AGGREGATION_INTERVAL_MS = 100
-const CLEANUP_DELAY_MS = 50
-const MIN_BUFFER_SIZE = 1024 // 1KB minimum
-const MAX_BUFFER_SIZE = 10485760 // 10MB maximum (matching configManager.ts)
 
 /**
  * File Transfer Engine Class
@@ -860,10 +858,9 @@ export class FileTransferEngine {
     bufferSize: number,
     options?: TransferOptions
   ): Promise<{ sourceChecksum: string; destChecksum: string }> {
-    // Use XXHash64 for streaming checksum (imported at top of file)
-    const seed = Buffer.alloc(8)
-    const sourceHasher = new XXHash64(seed)
-    const destHasher = new XXHash64(seed)
+    // Use ChecksumCalculator service for streaming checksum
+    const calculator = getChecksumCalculator()
+    const { sourceHasher, destHasher } = calculator.createHasherPair()
 
     // Store checksums to return after stream completes
     let checksums: { sourceChecksum: string; destChecksum: string } | null = null
@@ -881,8 +878,8 @@ export class FileTransferEngine {
       },
       // onFinish: calculate checksums (stored for return)
       () => {
-        const sourceChecksum = sourceHasher.digest().toString('hex')
-        const destChecksum = destHasher.digest().toString('hex')
+        const sourceChecksum = sourceHasher.digest()
+        const destChecksum = destHasher.digest()
         checksums = { sourceChecksum, destChecksum }
       }
     )
