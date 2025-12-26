@@ -46,10 +46,8 @@ export interface TransferSlice extends TransferState {
   }) => void
   clearValidation: () => void
 
-  // NEW: System state actions
+  // System state actions
   setSystemSleeping: (sleeping: boolean) => void
-  setNetworkDestination: (isNetwork: boolean) => void
-  setOrphanedFiles: (hasOrphaned: boolean) => void
 
   // NEW: File-level actions
   updateFileState: (fileId: string, update: Partial<FileTransferInfo>) => void
@@ -78,9 +76,7 @@ export const createTransferSlice: StateCreator<TransferSlice> = (set, get) => ({
   retryState: null,
   validationState: null,
   systemState: {
-    isSleeping: false,
-    isNetworkDestination: false,
-    hasOrphanedFiles: false
+    isSleeping: false
   },
   fileStates: new Map(),
 
@@ -232,20 +228,10 @@ export const createTransferSlice: StateCreator<TransferSlice> = (set, get) => ({
 
   clearValidation: () => set({ validationState: null }),
 
-  // NEW: System state
+  // System state
   setSystemSleeping: (sleeping) =>
     set((state) => ({
       systemState: { ...state.systemState, isSleeping: sleeping }
-    })),
-
-  setNetworkDestination: (isNetwork) =>
-    set((state) => ({
-      systemState: { ...state.systemState, isNetworkDestination: isNetwork }
-    })),
-
-  setOrphanedFiles: (hasOrphaned) =>
-    set((state) => ({
-      systemState: { ...state.systemState, hasOrphanedFiles: hasOrphaned }
     })),
 
   // NEW: File-level tracking

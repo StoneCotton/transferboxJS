@@ -530,7 +530,7 @@ describe('IPC Handlers', () => {
       mockTransferEngine.isTransferring.mockReturnValue(false)
 
       const result = await handler!(mockEvent)
-      expect(result).toEqual({ isTransferring: false })
+      expect(result).toEqual({ isTransferring: false, isPaused: false })
     })
   })
 

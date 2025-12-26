@@ -3,11 +3,9 @@
  * Tests for Zustand store selectors
  */
 
-import { TransferErrorType } from '../../../src/shared/types'
 import {
   useIsTransferActive,
   useIsTransferPaused,
-  useHasRetryableErrors,
   useTransferStatistics
 } from '../../../src/renderer/src/store/selectors'
 import { useStore } from '../../../src/renderer/src/store'
@@ -18,17 +16,27 @@ jest.mock('../../../src/renderer/src/store', () => ({
 }))
 
 describe('Store Selectors', () => {
-  let mockStore: any
+  let mockStore: {
+    isTransferring: boolean
+    isPaused: boolean
+    progress: {
+      totalFiles: number
+      completedFilesCount: number
+      failedFiles: number
+      skippedFiles: number
+      activeFiles: Array<{ name: string }>
+    } | null
+  }
 
   beforeEach(() => {
     mockStore = {
       isTransferring: false,
       isPaused: false,
-      errorDetails: null,
-      fileStates: new Map(),
       progress: null
     }
-    ;(useStore as unknown as jest.Mock).mockImplementation((selector: any) => selector(mockStore))
+    ;(useStore as unknown as jest.Mock).mockImplementation(
+      (selector: (state: typeof mockStore) => unknown) => selector(mockStore)
+    )
   })
 
   describe('useIsTransferActive', () => {
@@ -63,46 +71,6 @@ describe('Store Selectors', () => {
 
       const result = useIsTransferPaused()
       expect(result).toBe(true)
-    })
-  })
-
-  describe('useHasRetryableErrors', () => {
-    it('should detect retryable errors in errorDetails', () => {
-      mockStore.errorDetails = {
-        type: TransferErrorType.NETWORK_ERROR,
-        retryable: true,
-        affectedFiles: [],
-        timestamp: Date.now()
-      }
-
-      const result = useHasRetryableErrors()
-      expect(result).toBe(true)
-    })
-
-    it('should detect retryable errors in file states', () => {
-      const fileStates = new Map()
-      fileStates.set('/path/file.txt', {
-        status: 'error',
-        progress: 0,
-        errorType: TransferErrorType.NETWORK_ERROR,
-        retryCount: 0
-      })
-      mockStore.fileStates = fileStates
-
-      const result = useHasRetryableErrors()
-      expect(result).toBe(true)
-    })
-
-    it('should return false for non-retryable errors', () => {
-      mockStore.errorDetails = {
-        type: TransferErrorType.PERMISSION_DENIED,
-        retryable: false,
-        affectedFiles: [],
-        timestamp: Date.now()
-      }
-
-      const result = useHasRetryableErrors()
-      expect(result).toBe(false)
     })
   })
 

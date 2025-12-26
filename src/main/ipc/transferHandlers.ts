@@ -246,7 +246,8 @@ export function setupTransferHandlers(): void {
         const { completedCount, failedCount } = transferService.updateSessionCompletion(
           sessionId,
           results,
-          startTime
+          startTime,
+          validatedRequest.destinationRoot
         )
 
         // Auto-unmount on success
@@ -287,11 +288,30 @@ export function setupTransferHandlers(): void {
     logger.info('Transfer stopped by user')
   })
 
+  // Pause transfer handler
+  ipcMain.handle(IPC_CHANNELS.TRANSFER_PAUSE, async (event) => {
+    const transferService = getTransferService()
+    transferService.pause()
+    logger.info('Transfer paused by user')
+    // Notify renderer of pause
+    event.sender.send(IPC_CHANNELS.TRANSFER_PAUSED)
+  })
+
+  // Resume transfer handler
+  ipcMain.handle(IPC_CHANNELS.TRANSFER_RESUME, async (event) => {
+    const transferService = getTransferService()
+    transferService.resume()
+    logger.info('Transfer resumed by user')
+    // Notify renderer of resume
+    event.sender.send(IPC_CHANNELS.TRANSFER_RESUMED)
+  })
+
   // Transfer status handler
   ipcMain.handle(IPC_CHANNELS.TRANSFER_STATUS, async () => {
     const transferService = getTransferService()
     return {
-      isTransferring: transferService.isTransferring()
+      isTransferring: transferService.isTransferring(),
+      isPaused: transferService.isPaused()
     }
   })
 
@@ -418,11 +438,8 @@ export function setupTransferHandlers(): void {
       },
       // Complete callback
       (results) => {
-        const { failedCount } = transferService.updateSessionCompletion(
-          sessionId,
-          results,
-          startTime
-        )
+        const { completedCount: _completedCount, failedCount } =
+          transferService.updateSessionCompletion(sessionId, results, startTime, destRoot)
 
         // Send completion event
         event.sender.send(IPC_CHANNELS.TRANSFER_COMPLETE, {

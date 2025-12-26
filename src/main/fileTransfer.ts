@@ -77,6 +77,9 @@ interface AbortableTransfer {
 export class FileTransferEngine {
   private stopped = false
   private stopping = false // Intermediate state to prevent new transfers during stop
+  private paused = false // Pause state for pause/resume functionality
+  private pausePromise: Promise<void> | null = null // Promise that resolves when resumed
+  private pauseResolve: (() => void) | null = null // Resolver for pause promise
   private currentTransfer: AbortableTransfer | null = null
   private activeTempFiles: Set<string> = new Set()
   private activeTransferCount = 0 // Track number of active transfers
@@ -584,6 +587,9 @@ export class FileTransferEngine {
 
     // Start initial batch of transfers
     while (nextFileIndex < Math.min(concurrentLimit, files.length) && !this.stopped) {
+      // Check for pause before starting new transfers
+      await this.waitIfPaused()
+      if (this.stopped) break
       startTransfer(nextFileIndex)
       nextFileIndex++
     }
@@ -595,8 +601,11 @@ export class FileTransferEngine {
         // If continueOnError is false and a transfer fails, Promise.race will reject
         await Promise.race(Array.from(activeTransfers.values()))
 
-        // Start next transfer if there are more files
-        if (nextFileIndex < files.length) {
+        // Check for pause between files (safe pause point)
+        await this.waitIfPaused()
+
+        // Start next transfer if there are more files and not stopped
+        if (nextFileIndex < files.length && !this.stopped) {
           startTransfer(nextFileIndex)
           nextFileIndex++
         }
@@ -683,9 +692,60 @@ export class FileTransferEngine {
   reset(): void {
     this.stopped = false
     this.stopping = false
+    this.paused = false
+    this.pausePromise = null
+    this.pauseResolve = null
     this.currentTransfer = null
     this.activeTempFiles.clear()
     this.activeTransferCount = 0
+  }
+
+  /**
+   * Pause the transfer engine
+   * Note: Pausing happens between files, not mid-file, to ensure data integrity
+   */
+  pause(): void {
+    if (this.paused) return
+
+    this.paused = true
+    // Create a promise that will resolve when resumed
+    this.pausePromise = new Promise<void>((resolve) => {
+      this.pauseResolve = resolve
+    })
+    getLogger().info('[FileTransferEngine] Transfer paused')
+  }
+
+  /**
+   * Resume the transfer engine
+   */
+  resume(): void {
+    if (!this.paused) return
+
+    this.paused = false
+    // Resolve the pause promise to allow waiting transfers to continue
+    if (this.pauseResolve) {
+      this.pauseResolve()
+      this.pauseResolve = null
+    }
+    this.pausePromise = null
+    getLogger().info('[FileTransferEngine] Transfer resumed')
+  }
+
+  /**
+   * Check if the engine is currently paused
+   */
+  isPaused(): boolean {
+    return this.paused
+  }
+
+  /**
+   * Wait for resume if paused
+   * Called between files to allow pause points
+   */
+  private async waitIfPaused(): Promise<void> {
+    if (this.paused && this.pausePromise) {
+      await this.pausePromise
+    }
   }
 
   /**

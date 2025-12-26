@@ -3,13 +3,8 @@
  */
 
 import {
-  getIpcState,
   getDriveMonitor,
   setDriveMonitor,
-  getTransferEngine,
-  setTransferEngine,
-  getPathProcessor,
-  setPathProcessor,
   getMainWindow,
   setMainWindow,
   resetIpcState
@@ -17,24 +12,12 @@ import {
 
 // Mock types
 const mockDriveMonitor = { listDrives: jest.fn() } as any
-const mockTransferEngine = { transferFile: jest.fn() } as any
-const mockPathProcessor = { processFilePath: jest.fn() } as any
 const mockWindow = { webContents: { send: jest.fn() }, isDestroyed: () => false } as any
 
 describe('IPC State Module', () => {
   afterEach(() => {
     // Reset state after each test
     resetIpcState()
-  })
-
-  describe('getIpcState', () => {
-    it('should return initial state with null values', () => {
-      const state = getIpcState()
-      expect(state.driveMonitor).toBeNull()
-      expect(state.transferEngine).toBeNull()
-      expect(state.pathProcessor).toBeNull()
-      expect(state.mainWindow).toBeNull()
-    })
   })
 
   describe('DriveMonitor state', () => {
@@ -49,36 +32,6 @@ describe('IPC State Module', () => {
       setDriveMonitor(mockDriveMonitor)
       setDriveMonitor(null)
       expect(getDriveMonitor()).toBeNull()
-    })
-  })
-
-  describe('TransferEngine state', () => {
-    it('should get and set transfer engine', () => {
-      expect(getTransferEngine()).toBeNull()
-
-      setTransferEngine(mockTransferEngine)
-      expect(getTransferEngine()).toBe(mockTransferEngine)
-    })
-
-    it('should allow setting to null', () => {
-      setTransferEngine(mockTransferEngine)
-      setTransferEngine(null)
-      expect(getTransferEngine()).toBeNull()
-    })
-  })
-
-  describe('PathProcessor state', () => {
-    it('should get and set path processor', () => {
-      expect(getPathProcessor()).toBeNull()
-
-      setPathProcessor(mockPathProcessor)
-      expect(getPathProcessor()).toBe(mockPathProcessor)
-    })
-
-    it('should allow setting to null', () => {
-      setPathProcessor(mockPathProcessor)
-      setPathProcessor(null)
-      expect(getPathProcessor()).toBeNull()
     })
   })
 
@@ -101,14 +54,10 @@ describe('IPC State Module', () => {
     it('should reset all state to null', () => {
       // Set all state values
       setDriveMonitor(mockDriveMonitor)
-      setTransferEngine(mockTransferEngine)
-      setPathProcessor(mockPathProcessor)
       setMainWindow(mockWindow)
 
       // Verify they're set
       expect(getDriveMonitor()).not.toBeNull()
-      expect(getTransferEngine()).not.toBeNull()
-      expect(getPathProcessor()).not.toBeNull()
       expect(getMainWindow()).not.toBeNull()
 
       // Reset
@@ -116,8 +65,6 @@ describe('IPC State Module', () => {
 
       // Verify all are null
       expect(getDriveMonitor()).toBeNull()
-      expect(getTransferEngine()).toBeNull()
-      expect(getPathProcessor()).toBeNull()
       expect(getMainWindow()).toBeNull()
     })
   })
@@ -127,8 +74,6 @@ describe('IPC State Module', () => {
       setDriveMonitor(mockDriveMonitor)
 
       expect(getDriveMonitor()).toBe(mockDriveMonitor)
-      expect(getTransferEngine()).toBeNull()
-      expect(getPathProcessor()).toBeNull()
       expect(getMainWindow()).toBeNull()
     })
   })

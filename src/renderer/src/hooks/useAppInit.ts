@@ -481,6 +481,28 @@ export function useAppInit(): null {
       playErrorSound()
     })
 
+    const unsubTransferPaused = ipc.onTransferPaused(() => {
+      console.log('[useAppInit] Transfer paused')
+      const store = useStore.getState()
+      store.pauseTransfer()
+      store.addToast({
+        type: 'info',
+        message: 'Transfer paused',
+        duration: 3000
+      })
+    })
+
+    const unsubTransferResumed = ipc.onTransferResumed(() => {
+      console.log('[useAppInit] Transfer resumed')
+      const store = useStore.getState()
+      store.resumeTransfer()
+      store.addToast({
+        type: 'info',
+        message: 'Transfer resumed',
+        duration: 3000
+      })
+    })
+
     const unsubLogEntry = ipc.onLogEntry((entry) => {
       useStore.getState().addLog(entry)
     })
@@ -607,6 +629,8 @@ export function useAppInit(): null {
       unsubTransferProgress()
       unsubTransferComplete()
       unsubTransferError()
+      unsubTransferPaused()
+      unsubTransferResumed()
       unsubLogEntry()
       unsubSystemSuspend()
       unsubSystemResume()

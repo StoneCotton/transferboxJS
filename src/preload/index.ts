@@ -39,6 +39,8 @@ const api = {
   startTransfer: (request: TransferStartRequest) =>
     ipcRenderer.invoke(IPC_CHANNELS.TRANSFER_START, request),
   stopTransfer: () => ipcRenderer.invoke(IPC_CHANNELS.TRANSFER_STOP),
+  pauseTransfer: () => ipcRenderer.invoke(IPC_CHANNELS.TRANSFER_PAUSE),
+  resumeTransfer: () => ipcRenderer.invoke(IPC_CHANNELS.TRANSFER_RESUME),
   getTransferStatus: () => ipcRenderer.invoke(IPC_CHANNELS.TRANSFER_STATUS),
   retryTransfer: (request: TransferRetryRequest) =>
     ipcRenderer.invoke(IPC_CHANNELS.TRANSFER_RETRY, request),
@@ -102,6 +104,16 @@ const api = {
     const listener = (_event: IpcRendererEvent, error: string) => callback(error)
     ipcRenderer.on(IPC_CHANNELS.TRANSFER_ERROR, listener)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.TRANSFER_ERROR, listener)
+  },
+  onTransferPaused: (callback: () => void) => {
+    const listener = () => callback()
+    ipcRenderer.on(IPC_CHANNELS.TRANSFER_PAUSED, listener)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.TRANSFER_PAUSED, listener)
+  },
+  onTransferResumed: (callback: () => void) => {
+    const listener = () => callback()
+    ipcRenderer.on(IPC_CHANNELS.TRANSFER_RESUMED, listener)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.TRANSFER_RESUMED, listener)
   },
   onLogEntry: (callback: (entry: LogEntry) => void) => {
     const listener = (_event: IpcRendererEvent, entry: LogEntry) => callback(entry)

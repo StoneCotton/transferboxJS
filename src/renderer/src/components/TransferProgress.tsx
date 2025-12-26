@@ -3,7 +3,7 @@
  */
 
 import { useState } from 'react'
-import { CheckCircle2, XCircle, Loader2, AlertCircle } from 'lucide-react'
+import { CheckCircle2, XCircle, Loader2, AlertCircle, Pause, Play } from 'lucide-react'
 import { useTransferStore, useConfigStore, useStore, useDriveStore } from '../store'
 import { useUiDensity } from '../hooks/useUiDensity'
 import { Card, CardHeader, CardTitle, CardContent } from './ui/Card'
@@ -16,12 +16,22 @@ import { TransferErrorType } from '../../../shared/types'
 import { TransferStatsGrid, ActiveFileProgress, TransferErrorDisplay } from './transfer'
 
 export function TransferProgress() {
-  const { isTransferring, progress, error, cancelTransfer, startTransfer } = useTransferStore()
+  const {
+    isTransferring,
+    isPaused,
+    progress,
+    error,
+    cancelTransfer,
+    startTransfer,
+    pauseTransfer,
+    resumeTransfer
+  } = useTransferStore()
   const { selectedDrive } = useDriveStore()
   const { config } = useConfigStore()
   const { isCondensed } = useUiDensity()
   const ipc = useIpc()
   const [isRetrying, setIsRetrying] = useState(false)
+  const [isPauseToggling, setIsPauseToggling] = useState(false)
 
   // Get retryable failed files (network errors and drive disconnection)
   const getRetryableFiles = () => {
@@ -95,6 +105,30 @@ export function TransferProgress() {
     }
   }
 
+  // Handle pause/resume toggle
+  const handlePauseResume = async () => {
+    setIsPauseToggling(true)
+    try {
+      if (isPaused) {
+        await ipc.resumeTransfer()
+        resumeTransfer()
+      } else {
+        await ipc.pauseTransfer()
+        pauseTransfer()
+      }
+    } catch (error) {
+      console.error('Failed to toggle pause:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to toggle pause'
+      useStore.getState().addToast({
+        type: 'error',
+        message: errorMessage,
+        duration: 4000
+      })
+    } finally {
+      setIsPauseToggling(false)
+    }
+  }
+
   // Handle transfer cancellation
   const handleCancelTransfer = async () => {
     try {
@@ -156,14 +190,20 @@ export function TransferProgress() {
                 hasError
                   ? 'bg-red-500 text-white'
                   : isTransferring
-                    ? 'bg-gradient-to-br from-brand-500 to-orange-600 text-white'
+                    ? isPaused
+                      ? 'bg-gradient-to-br from-amber-500 to-orange-500 text-white'
+                      : 'bg-gradient-to-br from-brand-500 to-orange-600 text-white'
                     : 'bg-gradient-to-br from-green-500 to-emerald-600 text-white'
               )}
             >
               {hasError ? (
                 <XCircle className={isCondensed ? 'h-4 w-4' : 'h-6 w-6'} />
               ) : isTransferring ? (
-                <Loader2 className={cn('animate-spin', isCondensed ? 'h-4 w-4' : 'h-6 w-6')} />
+                isPaused ? (
+                  <Pause className={isCondensed ? 'h-4 w-4' : 'h-6 w-6'} />
+                ) : (
+                  <Loader2 className={cn('animate-spin', isCondensed ? 'h-4 w-4' : 'h-6 w-6')} />
+                )
               ) : (
                 <CheckCircle2 className={isCondensed ? 'h-4 w-4' : 'h-6 w-6'} />
               )}
@@ -173,27 +213,63 @@ export function TransferProgress() {
                 {hasError
                   ? 'Transfer Failed'
                   : isTransferring
-                    ? 'Transfer in Progress'
+                    ? isPaused
+                      ? 'Transfer Paused'
+                      : 'Transfer in Progress'
                     : 'Transfer Complete'}
               </CardTitle>
               {!isCondensed && (
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   {isTransferring
-                    ? 'Please wait while files are being transferred'
+                    ? isPaused
+                      ? 'Transfer is paused - click Resume to continue'
+                      : 'Please wait while files are being transferred'
                     : 'Operation completed'}
                 </p>
               )}
             </div>
           </div>
           {isTransferring && (
-            <Button
-              variant="danger"
-              size={isCondensed ? 'xs' : 'sm'}
-              onClick={handleCancelTransfer}
-              className="bg-red-500 text-white hover:bg-red-600"
-            >
-              {isCondensed ? 'Cancel' : 'Cancel Transfer'}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="secondary"
+                size={isCondensed ? 'xs' : 'sm'}
+                onClick={handlePauseResume}
+                disabled={isPauseToggling}
+                className={cn(
+                  'transition-colors',
+                  isPaused
+                    ? 'bg-green-500 text-white hover:bg-green-600'
+                    : 'bg-amber-500 text-white hover:bg-amber-600'
+                )}
+              >
+                {isPauseToggling ? (
+                  <Loader2 className={cn('animate-spin', isCondensed ? 'h-3 w-3' : 'h-4 w-4')} />
+                ) : isPaused ? (
+                  <>
+                    <Play
+                      className={cn(isCondensed ? 'h-3 w-3' : 'h-4 w-4', !isCondensed && 'mr-1')}
+                    />
+                    {!isCondensed && 'Resume'}
+                  </>
+                ) : (
+                  <>
+                    <Pause
+                      className={cn(isCondensed ? 'h-3 w-3' : 'h-4 w-4', !isCondensed && 'mr-1')}
+                    />
+                    {!isCondensed && 'Pause'}
+                  </>
+                )}
+              </Button>
+              <Button
+                variant="danger"
+                size={isCondensed ? 'xs' : 'sm'}
+                onClick={handleCancelTransfer}
+                className="bg-red-500 text-white hover:bg-red-600"
+              >
+                {isCondensed ? 'Cancel' : 'Cancel Transfer'}
+              </Button>
+            </div>
           )}
         </div>
       </CardHeader>

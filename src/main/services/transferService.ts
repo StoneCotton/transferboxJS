@@ -16,6 +16,7 @@ import { FilenameUtils } from '../utils/filenameUtils'
 import { safeSum } from '../utils/fileSizeUtils'
 import { BYTES_PER_GB } from '../constants/fileConstants'
 import { updateMenuForTransferState } from '../menu'
+import { generateMhlFile, createMhlEntriesFromResults } from '../mhlGenerator'
 
 /**
  * Transfer request after validation
@@ -128,6 +129,32 @@ export class TransferService {
       await this.transferEngine.stop()
       updateMenuForTransferState(false)
     }
+  }
+
+  /**
+   * Pause the current transfer
+   * Pausing happens between files, not mid-file, to ensure data integrity
+   */
+  pause(): void {
+    if (this.transferEngine) {
+      this.transferEngine.pause()
+    }
+  }
+
+  /**
+   * Resume a paused transfer
+   */
+  resume(): void {
+    if (this.transferEngine) {
+      this.transferEngine.resume()
+    }
+  }
+
+  /**
+   * Check if the transfer is currently paused
+   */
+  isPaused(): boolean {
+    return this.transferEngine?.isPaused() ?? false
   }
 
   /**
@@ -619,10 +646,12 @@ export class TransferService {
   updateSessionCompletion(
     sessionId: string,
     results: TransferResult[],
-    _startTime: number
+    startTime: number,
+    destinationRoot?: string
   ): { completedCount: number; failedCount: number } {
     const db = getDatabaseManager()
     const logger = getLogger()
+    const config = getConfig()
 
     const completedCount = results.filter((r) => r.success).length
     const failedCount = results.filter((r) => !r.success).length
@@ -650,7 +679,58 @@ export class TransferService {
 
     logger.logTransferComplete(sessionId, completedCount, 0)
 
+    // Generate MHL file if enabled and there are successful transfers
+    if (config.generateMHLChecksumFiles && completedCount > 0 && destinationRoot) {
+      this.generateMhlForSession(sessionId, results, startTime, destinationRoot).catch((error) => {
+        logger.warn('[TransferService] MHL generation failed', {
+          sessionId,
+          error: error instanceof Error ? error.message : String(error)
+        })
+      })
+    }
+
     return { completedCount, failedCount }
+  }
+
+  /**
+   * Generate MHL file for a completed transfer session
+   */
+  private async generateMhlForSession(
+    sessionId: string,
+    results: TransferResult[],
+    startTime: number,
+    destinationRoot: string
+  ): Promise<void> {
+    const logger = getLogger()
+
+    try {
+      const mhlEntries = createMhlEntriesFromResults(destinationRoot, results)
+
+      if (mhlEntries.length === 0) {
+        logger.debug('[TransferService] No files with checksums for MHL generation')
+        return
+      }
+
+      const mhlPath = await generateMhlFile({
+        destinationRoot,
+        sessionId,
+        files: mhlEntries,
+        startTime: new Date(startTime),
+        endTime: new Date()
+      })
+
+      logger.info('[TransferService] MHL file generated', {
+        sessionId,
+        mhlPath,
+        fileCount: mhlEntries.length
+      })
+    } catch (error) {
+      logger.error('[TransferService] Failed to generate MHL file', {
+        sessionId,
+        error: error instanceof Error ? error.message : String(error)
+      })
+      throw error
+    }
   }
 
   /**

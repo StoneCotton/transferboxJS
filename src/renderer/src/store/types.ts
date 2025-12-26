@@ -64,8 +64,6 @@ export interface TransferState {
   // System state awareness
   systemState: {
     isSleeping: boolean
-    isNetworkDestination: boolean
-    hasOrphanedFiles: boolean
   }
 
   // File-level tracking
@@ -108,16 +106,6 @@ export interface UIState {
   showLogs: boolean
   showHistory: boolean
 
-  // Modals and dialogs
-  modals: {
-    confirmTransfer: boolean
-    retryFailedFiles: boolean
-    insufficientSpace: boolean
-    networkWarning: boolean
-    fileConflicts: boolean
-    sanitizationWarning: boolean
-  }
-
   // Toast notifications
   toasts: Array<{
     id: string
@@ -126,22 +114,7 @@ export interface UIState {
     duration?: number
   }>
 
-  // Loading states
-  loadingStates: {
-    validating: boolean
-    scanning: boolean
-    transferring: boolean
-    retrying: boolean
-  }
-
-  // Sidebar/panel visibility
-  panels: {
-    errorDetails: boolean
-    fileList: boolean
-    retryQueue: boolean
-  }
-
-  // Notification history
+  // Notification history (displayed in LogViewer)
   notificationHistory: Array<{
     id: string
     type: 'info' | 'success' | 'warning' | 'error'
