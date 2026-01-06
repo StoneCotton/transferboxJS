@@ -9,6 +9,7 @@ import { useUiDensity } from '../hooks/useUiDensity'
 import { Card, CardHeader, CardTitle, CardContent } from './ui/Card'
 import { Progress } from './ui/Progress'
 import { Button } from './ui/Button'
+import { ConfirmDialog } from './ui/ConfirmDialog'
 import { formatBytes, cn } from '../lib/utils'
 import { useIpc } from '../hooks/useIpc'
 import { playErrorSound } from '../utils/soundManager'
@@ -32,6 +33,8 @@ export function TransferProgress() {
   const ipc = useIpc()
   const [isRetrying, setIsRetrying] = useState(false)
   const [isPauseToggling, setIsPauseToggling] = useState(false)
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false)
+  const [isCancelling, setIsCancelling] = useState(false)
 
   // Get retryable failed files (network errors and drive disconnection)
   const getRetryableFiles = () => {
@@ -129,8 +132,25 @@ export function TransferProgress() {
     }
   }
 
-  // Handle transfer cancellation
-  const handleCancelTransfer = async () => {
+  // Build confirmation message with transfer progress info
+  const getCancelConfirmationMessage = (): string => {
+    if (!progress) {
+      return 'Are you sure you want to cancel the transfer? This action cannot be undone.'
+    }
+    const completed = progress.completedFilesCount || 0
+    const total = progress.totalFiles || 0
+    const remaining = total - completed
+
+    if (remaining <= 0) {
+      return 'The transfer is almost complete. Are you sure you want to cancel?'
+    }
+
+    return `${completed} of ${total} files transferred. Cancelling will stop ${remaining} remaining file${remaining !== 1 ? 's' : ''}. This action cannot be undone.`
+  }
+
+  // Execute the actual transfer cancellation
+  const executeCancelTransfer = async () => {
+    setIsCancelling(true)
     try {
       // Stop the transfer via IPC
       await ipc.stopTransfer()
@@ -153,6 +173,21 @@ export function TransferProgress() {
         message: `Failed to cancel transfer: ${errorMessage}`,
         duration: 5000
       })
+    } finally {
+      setIsCancelling(false)
+      setShowCancelConfirm(false)
+    }
+  }
+
+  // Show cancel confirmation dialog
+  const handleCancelTransfer = () => {
+    setShowCancelConfirm(true)
+  }
+
+  // Handle closing the cancel confirmation dialog
+  const handleCancelConfirmClose = () => {
+    if (!isCancelling) {
+      setShowCancelConfirm(false)
     }
   }
 
@@ -164,6 +199,7 @@ export function TransferProgress() {
   const hasError = !!error
 
   return (
+    <>
     <Card
       className={cn(
         'relative overflow-hidden border-0 shadow-2xl backdrop-blur-sm',
@@ -398,5 +434,19 @@ export function TransferProgress() {
         )}
       </CardContent>
     </Card>
+
+    {/* Cancel Transfer Confirmation Dialog */}
+    <ConfirmDialog
+      isOpen={showCancelConfirm}
+      onClose={handleCancelConfirmClose}
+      onConfirm={executeCancelTransfer}
+      title="Cancel Transfer?"
+      message={getCancelConfirmationMessage()}
+      confirmText="Cancel Transfer"
+      cancelText="Continue Transfer"
+      variant="danger"
+      isLoading={isCancelling}
+    />
+    </>
   )
 }

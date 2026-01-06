@@ -11,6 +11,8 @@ import { createApplicationMenu } from './menu'
 import { getDialogService } from './services/dialogService'
 
 let mainWindow: BrowserWindow | null = null
+let isShowingQuitDialog = false // Prevent multiple quit dialogs
+let isCleanedUp = false // Prevent multiple cleanup attempts
 
 function createWindow(): void {
   // Create the browser window.
@@ -34,23 +36,35 @@ function createWindow(): void {
 
   // Handle window close event with transfer check
   mainWindow.on('close', async (event) => {
+    // Prevent multiple quit dialogs or cleanup attempts
+    if (isShowingQuitDialog || isCleanedUp) {
+      return
+    }
+
     if (isTransferInProgress()) {
       event.preventDefault()
+      isShowingQuitDialog = true
 
-      const dialogService = getDialogService()
-      const result = await dialogService.showTransferInProgressDialog(mainWindow!, 'closing')
+      try {
+        const dialogService = getDialogService()
+        const result = await dialogService.showTransferInProgressDialog(mainWindow!, 'closing')
 
-      if (result === 'quit') {
-        // User chose to cancel transfer and quit
-        getLogger().info('User chose to cancel transfer and quit application')
-        await cleanupIpc()
-        mainWindow = null
-        app.quit()
+        if (result === 'quit') {
+          // User chose to cancel transfer and quit
+          getLogger().info('User chose to cancel transfer and quit application')
+          isCleanedUp = true
+          await cleanupIpc()
+          mainWindow = null
+          app.quit()
+        }
+        // If user chose to keep transfer running, do nothing (event.preventDefault() already called)
+      } finally {
+        isShowingQuitDialog = false
       }
-      // If user chose to keep transfer running, do nothing (event.preventDefault() already called)
     } else {
       // No transfer in progress, allow normal close
       getLogger().info('Application closing normally')
+      isCleanedUp = true
       await cleanupIpc()
       mainWindow = null
       app.quit()
@@ -218,22 +232,34 @@ app.on('window-all-closed', () => {
 
 // App is quitting - cleanup and transfer check
 app.on('before-quit', async (event) => {
+  // Prevent multiple quit dialogs or cleanup attempts
+  if (isShowingQuitDialog || isCleanedUp) {
+    return
+  }
+
   if (isTransferInProgress() && mainWindow) {
     event.preventDefault()
+    isShowingQuitDialog = true
 
-    const dialogService = getDialogService()
-    const result = await dialogService.showTransferInProgressDialog(mainWindow, 'quitting')
+    try {
+      const dialogService = getDialogService()
+      const result = await dialogService.showTransferInProgressDialog(mainWindow, 'quitting')
 
-    if (result === 'quit') {
-      // User chose to cancel transfer and quit
-      getLogger().info('User chose to cancel transfer and quit application')
-      await cleanupIpc()
-      app.quit()
+      if (result === 'quit') {
+        // User chose to cancel transfer and quit
+        getLogger().info('User chose to cancel transfer and quit application')
+        isCleanedUp = true
+        await cleanupIpc()
+        app.quit()
+      }
+      // If user chose to keep transfer running, do nothing (event.preventDefault() already called)
+    } finally {
+      isShowingQuitDialog = false
     }
-    // If user chose to keep transfer running, do nothing (event.preventDefault() already called)
   } else {
     // No transfer in progress, allow normal quit
     getLogger().info('TransferBox shutting down')
+    isCleanedUp = true
     await cleanupIpc()
   }
 })
