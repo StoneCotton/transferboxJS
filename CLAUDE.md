@@ -8,13 +8,14 @@ TransferBox is a cross-platform Electron desktop application for reliable file t
 
 **Tech Stack:**
 
-- Electron 38 (main + renderer process architecture)
-- React 19 + TypeScript
-- Zustand for state management
-- electron-store for persistent configuration
-- better-sqlite3 for transfer history database
-- Tailwind CSS for styling
-- Jest + React Testing Library for testing
+- Electron 38.1.2 (main + renderer process architecture)
+- React 19.1.1 + TypeScript 5.9.2
+- Vite 7.1.6 via electron-vite
+- Zustand 5.0.8 for state management
+- electron-store 11.0.0 for persistent configuration
+- better-sqlite3 12.4.1 for transfer history database
+- Tailwind CSS 3.4.19 for styling
+- Jest 30.2.0 + React Testing Library for testing
 
 ## Common Development Commands
 
@@ -97,11 +98,13 @@ npm run build:mac-arm64 # Build for macOS ARM64 only
 **File Transfer Engine** (`src/main/fileTransfer.ts`):
 
 - Atomic operations using `.TBPART` temporary files
-- Streaming file I/O with 4MB buffer
+- Streaming file I/O with 4MB buffer (configurable 1-10MB)
 - XXHash64 checksum verification
-- Parallel transfers (up to 3 concurrent files, configurable 1-10)
-- Retry strategy optimized for device reconnection (5 attempts, ~24s window)
-- Progress tracking with speed/ETA calculation
+- Parallel transfers (1-10 concurrent files, default 3)
+- Pause/Resume capability for transfer control
+- Auto-unmount option after successful transfer
+- Retry strategy optimized for device reconnection (5 attempts, ~15.5s window)
+- Progress tracking with speed/ETA calculation (100ms debounce)
 
 **Drive Monitor** (`src/main/driveMonitor.ts`):
 
@@ -130,24 +133,86 @@ npm run build:mac-arm64 # Build for macOS ARM64 only
 - Custom filename templates with variable substitution
 - Conflict detection and resolution (skip/rename/overwrite)
 
-**IPC Setup** (`src/main/ipc.ts`):
+**MHL Generator** (`src/main/mhlGenerator.ts`):
 
-- Centralizes all `ipcMain.handle()` registrations
-- Request/response validation using validators from `src/main/utils/ipcValidator.ts`
-- Security validation for paths from `src/main/utils/securityValidation.ts`
+- Generates MHL 1.1 format XML files for transfer sessions
+- Industry-standard format for professional media integrity verification
+- Includes XXHash64 checksums, file sizes, modification dates
+- Optional generation via config setting
+
+**Update Checker** (`src/main/updateChecker.ts`):
+
+- GitHub API integration for release checking
+- Supports pre-releases (beta, alpha)
+- Result caching (1 hour) for performance
+- Version comparison using VersionUtils
+
+**IPC Architecture** (`src/main/ipc/`):
+
+Modular handler structure with centralized state:
+
+- `index.ts` - Orchestration (setupIpcHandlers, startDriveMonitoring, cleanupIpc)
+- `state.ts` - Shared state management (DriveMonitor, MainWindow singletons)
+- Handler modules:
+  - `configHandlers.ts` - Configuration CRUD
+  - `driveHandlers.ts` - Drive operations (list, scan, unmount, reveal)
+  - `transferHandlers.ts` - Transfer lifecycle (validate, start, stop, pause, resume, retry)
+  - `historyHandlers.ts` - Transfer history queries
+  - `logHandlers.ts` - Log retrieval and clearing
+  - `pathHandlers.ts` - Path validation and selection
+  - `systemHandlers.ts` - System operations
+  - `updateHandlers.ts` - Update checking
+
+**Services Layer** (`src/main/services/`):
+
+Business logic abstraction:
+
+- `transferService.ts` - Transfer orchestration, MHL generation, session management
+- `dialogService.ts` - Centralized dialog prompts (transfer-in-progress warnings)
+- `checksumCalculator.ts` - XXHash64 streaming checksum service
+
+### Transfer Modes
+
+TransferBox supports 4 automation modes configured via settings:
+
+- **fully-autonomous**: Auto-scan on drive insert + auto-transfer (no user intervention)
+- **auto-transfer**: Auto-scan on drive insert, user selects destination
+- **confirm-transfer**: Auto-scan, user must confirm before transfer starts
+- **manual**: Full manual control (select drive, scan, select destination, confirm)
+
+Mode logic implemented in `useAppInit.ts` hook with per-mode IPC event handling.
 
 ### State Management (Renderer)
 
-Zustand store is split into domain slices (`src/renderer/src/store/slices/`):
+Zustand store split into domain slices (`src/renderer/src/store/slices/`):
 
-- `driveSlice.ts` - Detected drives, selected drive, scanned files
-- `transferSlice.ts` - Transfer progress, current session, history
+- `driveSlice.ts` - Detected drives, selected drive, scanned files, unmounted drive tracking
+- `transferSlice.ts` - Transfer progress, sessions, file-level tracking with retry counters
 - `configSlice.ts` - App configuration
 - `logSlice.ts` - Application logs with filtering
-- `uiSlice.ts` - UI state (modals, destination selection)
-- `errorSlice.ts` - Global error handling
+- `uiSlice.ts` - UI state (modals, toasts, notifications history)
+- `errorSlice.ts` - Error handling with severity levels (low, medium, high, critical)
 
-Combined in `src/renderer/src/store/index.ts` with convenience hooks.
+Combined in `src/renderer/src/store/index.ts` with convenience hooks:
+
+- `useDriveStore()`, `useTransferStore()`, `useConfigStore()`, etc.
+- Selectors: `useIsTransferActive()`, `useIsTransferPaused()`, `useTransferStatistics()`
+
+### Custom Hooks (`src/renderer/src/hooks/`)
+
+- **useAppInit.ts** - Comprehensive initialization hook:
+  - Loads config, history, existing drives
+  - Sets up 18+ IPC event listeners
+  - Implements transfer mode-specific logic
+  - Sound manager integration
+  - System suspend/resume handling
+
+- **useIpc.ts** - Type-safe IPC wrapper:
+  - 50+ methods for all IPC operations
+  - Config, drive, transfer, history, log management
+  - Update checking and version info
+
+- **useUiDensity.ts** - UI density/theme preference
 
 ### Security Architecture
 
@@ -218,25 +283,39 @@ When adding retry logic, use `withRetry()` wrapper from `retryStrategy.ts`.
 
 2. Add types to `IpcHandlers` or `IpcEvents` interface
 
-3. Register handler in `src/main/ipc.ts`:
+3. Register handler in appropriate handler file (`src/main/ipc/*Handlers.ts`):
 
    ```typescript
-   ipcMain.handle(IPC_CHANNELS.MY_OPERATION, async (_, arg) => {
-     // Validate arg with validators from utils/ipcValidator.ts
-     // Perform operation
-     // Return result
-   })
+   // In src/main/ipc/myHandlers.ts
+   export function registerMyHandlers(): void {
+     ipcMain.handle(IPC_CHANNELS.MY_OPERATION, async (_, arg) => {
+       // Validate arg with validators from utils/ipcValidator.ts
+       // Perform operation
+       // Return result
+     })
+   }
    ```
 
-4. Expose in preload (`src/preload/index.ts`):
+4. Call registration from `src/main/ipc/index.ts`:
+
+   ```typescript
+   import { registerMyHandlers } from './myHandlers'
+
+   export function setupIpcHandlers(): void {
+     // ... existing handlers
+     registerMyHandlers()
+   }
+   ```
+
+5. Expose in preload (`src/preload/index.ts`):
 
    ```typescript
    myOperation: (arg) => ipcRenderer.invoke(IPC_CHANNELS.MY_OPERATION, arg)
    ```
 
-5. Add to preload types (`src/preload/index.d.ts`)
+6. Add to preload types (`src/preload/index.d.ts`)
 
-6. Call from renderer:
+7. Call from renderer:
    ```typescript
    const result = await window.api.myOperation(arg)
    ```
@@ -256,6 +335,46 @@ Use safe arithmetic from `src/main/utils/fileSizeUtils.ts`:
 - `safeSum()` - Safely sum array of sizes
 - `validateFileSize()` - Ensures size is within safe integer range
 - Constants in `src/main/constants/fileConstants.ts` (BYTES_PER_GB, etc.)
+
+### Services Pattern
+
+Use singleton services for business logic abstraction:
+
+```typescript
+// src/main/services/myService.ts
+class MyService {
+  private static instance: MyService
+
+  static getInstance(): MyService {
+    if (!MyService.instance) {
+      MyService.instance = new MyService()
+    }
+    return MyService.instance
+  }
+
+  async performOperation(): Promise<Result> {
+    // Business logic here
+  }
+}
+
+export const myService = MyService.getInstance()
+```
+
+### Power Monitoring
+
+Handle system suspend/resume events in main process:
+
+```typescript
+powerMonitor.on('suspend', () => {
+  // Pause active transfers, notify renderer
+})
+
+powerMonitor.on('resume', () => {
+  // Resume or prompt user for transfer state
+})
+```
+
+Renderer receives events via IPC and updates UI accordingly.
 
 ## Configuration System
 
@@ -286,19 +405,34 @@ Use the `TransferError` class from `src/main/errors/TransferError.ts`:
 1. **Never use synchronous fs operations** in main process during transfers - use `fs/promises`
 2. **Progress updates are debounced** to ~100ms intervals - don't spam IPC
 3. **Maximum concurrent transfers:** 3 by default (configurable 1-10)
-4. **File buffer size:** 4MB (DEFAULT_BUFFER_SIZE constant)
+4. **File buffer size:** 4MB default (configurable 1-10MB via BUFFER_SIZE_BYTES)
 5. **Orphaned .TBPART files:** Cleaned up if older than 1 hour
 6. **Test files:** Use `tests/__mocks__/electron.ts` for Electron API mocks
+7. **Pause state:** When paused, engine completes current file before stopping
+8. **Auto-unmount:** Only triggers after ALL files successfully transferred
+9. **Power events:** Transfers auto-pause on system suspend
 
 ## Common Gotchas
 
-- **Import alias:** Renderer uses `~/` alias (e.g., `~/components/Button`), mapped to `src/renderer/src/`
+- **Import alias:** Renderer uses `@renderer` alias (e.g., `@renderer/components/Button`), mapped to `src/renderer/src/`
 - **contextBridge:** Only preload can expose APIs - renderer cannot import Node modules directly
 - **Drive detection:** `drivelist` behavior varies by platform - always test cross-platform
 - **Menu integration:** Menu actions trigger IPC events to renderer (`MENU_OPEN_SETTINGS`, etc.)
 - **Hot reload:** Dev mode uses `ELECTRON_RENDERER_URL` env var for HMR
 - **Database location:** SQLite database in `app.getPath('userData')/transferbox.db`
 - **Log location:** Logs in `app.getPath('userData')/logs/`
+- **MHL files:** Generated alongside transfers when enabled, uses XXHash64 checksums
+- **Transfer modes:** Mode logic lives in `useAppInit.ts`, not in store slices
+- **IPC state:** DriveMonitor and MainWindow managed via `src/main/ipc/state.ts` singleton
+
+## Constants Organization
+
+Constants are organized in `src/main/constants/`:
+
+- **fileConstants.ts** - File size units (KB, MB, GB), buffer sizes, progress thresholds, time constants
+- **transferConstants.ts** - Concurrency limits, timing, retry configuration
+- **pollingConstants.ts** - Drive monitoring intervals
+- **version.ts** - APP_VERSION, CONFIG_VERSION, MIN_SUPPORTED_CONFIG_VERSION
 
 ## Development Process (from .cursor/rules/typescript.mdc)
 
