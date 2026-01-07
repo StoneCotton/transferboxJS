@@ -20,7 +20,7 @@ export interface DriveState {
   scannedFiles: ScannedFile[]
   scanInProgress: boolean
   scanError: string | null
-  existingDrives: Set<string> // Track drives that were present at startup
+  existingDrives: string[] // Track drives that were present at startup
   unmountedDrives: string[] // Track drives that are unmounted but still physically connected
 }
 
@@ -45,7 +45,7 @@ export interface TransferState {
     isRetrying: boolean
     currentAttempt: number
     maxAttempts: number
-    files: Map<string, { attempts: number; lastError: string }>
+    files: Record<string, { attempts: number; lastError: string }>
   } | null
 
   // Pre-transfer validation state
@@ -67,7 +67,7 @@ export interface TransferState {
   }
 
   // File-level tracking
-  fileStates: Map<
+  fileStates: Record<
     string,
     {
       status:

@@ -1,6 +1,6 @@
 {
   "name": "TransferBox",
-  "version": "2.0.1-beta.17",
+  "version": "2.0.1-beta.18",
   "description": "Media ingest utility.",
   "main": "./out/main/index.js",
   "author": "Tyler Saari",
@@ -43,6 +43,7 @@
     "electron-store": "^11.0.0",
     "lucide-react": "^0.544.0",
     "tailwind-merge": "^3.3.1",
+    "tailwindcss": "^3.4.19",
     "xxhash-addon": "^2.0.3",
     "zustand": "^5.0.8"
   },
@@ -72,7 +73,6 @@
     "prettier": "^3.6.2",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
-    "tailwindcss": "^3.4.15",
     "ts-jest": "^29.4.4",
     "typescript": "^5.9.2",
     "vite": "^7.1.6"

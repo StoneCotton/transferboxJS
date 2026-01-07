@@ -3,13 +3,17 @@
  * Handles all DRIVE_* IPC channels
  */
 
-import { ipcMain } from 'electron'
+import { ipcMain, shell } from 'electron'
 import { IPC_CHANNELS } from '../../shared/types'
 import { DriveMonitor } from '../driveMonitor'
 import { getConfig } from '../configManager'
 import { getLogger } from '../logger'
 import { validateDeviceId } from '../utils/ipcValidator'
 import { getDriveMonitor, setDriveMonitor, getMainWindow } from './state'
+import {
+  DRIVE_SCAN_MAX_RETRIES,
+  DRIVE_SCAN_RETRY_DELAY_MS
+} from '../constants/driveConstants'
 
 /**
  * Ensure drive monitor instance exists
@@ -37,11 +41,9 @@ export function setupDriveHandlers(): void {
     const monitor = ensureDriveMonitor()
 
     // Retry mechanism for drives that are detected but not yet mounted
-    const MAX_RETRIES = 10
-    const RETRY_DELAY_MS = 1000
     let lastError: Error | null = null
 
-    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    for (let attempt = 0; attempt < DRIVE_SCAN_MAX_RETRIES; attempt++) {
       try {
         const drives = await monitor.listRemovableDrives()
         const drive = drives.find((d) => d.device === validatedDevice)
@@ -72,15 +74,15 @@ export function setupDriveHandlers(): void {
         }
 
         // If not mounted yet and we have retries left, wait and retry
-        if (attempt < MAX_RETRIES - 1 && lastError.message.includes('not mounted')) {
+        if (attempt < DRIVE_SCAN_MAX_RETRIES - 1 && lastError.message.includes('not mounted')) {
           getLogger().info('[IPC] Drive detected but not mounted yet, waiting for OS to mount', {
             device: validatedDevice,
             attempt: attempt + 1,
-            maxRetries: MAX_RETRIES,
-            retryDelayMs: RETRY_DELAY_MS,
-            remainingTime: `${((MAX_RETRIES - attempt - 1) * RETRY_DELAY_MS) / 1000}s`
+            maxRetries: DRIVE_SCAN_MAX_RETRIES,
+            retryDelayMs: DRIVE_SCAN_RETRY_DELAY_MS,
+            remainingTime: `${((DRIVE_SCAN_MAX_RETRIES - attempt - 1) * DRIVE_SCAN_RETRY_DELAY_MS) / 1000}s`
           })
-          await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS))
+          await new Promise((resolve) => setTimeout(resolve, DRIVE_SCAN_RETRY_DELAY_MS))
           continue
         }
 
@@ -88,8 +90,8 @@ export function setupDriveHandlers(): void {
         if (lastError.message.includes('not mounted')) {
           getLogger().error('[IPC] Drive mount timeout - drive not mounted within retry window', {
             device: validatedDevice,
-            attemptsUsed: MAX_RETRIES,
-            totalTimeWaited: `${(MAX_RETRIES * RETRY_DELAY_MS) / 1000}s`,
+            attemptsUsed: DRIVE_SCAN_MAX_RETRIES,
+            totalTimeWaited: `${(DRIVE_SCAN_MAX_RETRIES * DRIVE_SCAN_RETRY_DELAY_MS) / 1000}s`,
             suggestion: 'Drive may need more time to mount or there may be a hardware issue'
           })
         }
@@ -137,6 +139,40 @@ export function setupDriveHandlers(): void {
         error: error instanceof Error ? error.message : String(error)
       })
       return false
+    }
+  })
+
+  ipcMain.handle(IPC_CHANNELS.DRIVE_REVEAL, async (_, device: unknown) => {
+    const validatedDevice = validateDeviceId(device)
+    getLogger().info('Reveal drive requested', { device: validatedDevice })
+
+    try {
+      const monitor = ensureDriveMonitor()
+      const drives = await monitor.listRemovableDrives()
+      const drive = drives.find((d) => d.device === validatedDevice)
+
+      if (!drive) {
+        throw new Error('Drive not found')
+      }
+
+      if (drive.mountpoints.length === 0) {
+        throw new Error('Drive is not mounted')
+      }
+
+      const mountPoint = drive.mountpoints[0]
+      getLogger().debug('Opening drive in file explorer', { device: validatedDevice, mountPoint })
+
+      // shell.showItemInFolder reveals the item in the parent folder
+      // For a mount point, we want to open the folder itself, so use shell.openPath
+      await shell.openPath(mountPoint)
+
+      getLogger().info('Drive revealed in file explorer', { device: validatedDevice, mountPoint })
+    } catch (error) {
+      getLogger().error('Error revealing drive', {
+        device: validatedDevice,
+        error: error instanceof Error ? error.message : String(error)
+      })
+      throw error
     }
   })
 }

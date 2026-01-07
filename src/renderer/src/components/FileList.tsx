@@ -3,263 +3,30 @@
  */
 
 import {
-  File,
-  FileVideo,
-  FileAudio,
-  FileImage,
   Folder,
-  FileType,
   CheckCircle2,
   Clock,
   AlertCircle,
   XCircle,
   Loader2,
-  Copy
+  Copy,
+  FileType as FileTypeIcon
 } from 'lucide-react'
 import { useMemo, useState, type ReactElement } from 'react'
 import { useDriveStore, useTransferStore } from '../store'
 import { useUiDensity } from '../hooks/useUiDensity'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/Card'
 import { Tooltip } from './ui/Tooltip'
+import { StatusBadge } from './ui/StatusBadge'
 import { cn, formatDuration } from '../lib/utils'
-
-function getFileIcon(filePath: string) {
-  const ext = filePath.toLowerCase().split('.').pop()
-
-  if (
-    [
-      '.mp4',
-      '.mov',
-      '.avi',
-      '.mkv',
-      '.mts',
-      '.m2ts',
-      '.m4v',
-      '.mpg',
-      '.mpeg',
-      '.crm',
-      '.mxf',
-      '.webm',
-      '.braw',
-      '.r3d'
-    ].includes(`.${ext}`)
-  ) {
-    return FileVideo
-  }
-  if (['.mp3', '.wav', '.flac', '.aac', '.m4a'].includes(`.${ext}`)) {
-    return FileAudio
-  }
-  if (
-    [
-      '.jpg',
-      '.jpeg',
-      '.png',
-      '.raw',
-      '.cr2',
-      '.cr3',
-      '.nef',
-      '.arw',
-      '.dng',
-      '.heic',
-      '.heif'
-    ].includes(`.${ext}`)
-  ) {
-    return FileImage
-  }
-  if (['.xml'].includes(`.${ext}`)) {
-    return FileType
-  }
-  return File
-}
-
-function getFileType(filePath: string): 'video' | 'audio' | 'image' | 'other' {
-  const ext = filePath.toLowerCase().split('.').pop()
-
-  if (
-    [
-      '.mp4',
-      '.mov',
-      '.avi',
-      '.mkv',
-      '.mts',
-      '.m2ts',
-      '.m4v',
-      '.mpg',
-      '.mpeg',
-      '.crm',
-      '.mxf',
-      '.webm',
-      '.braw',
-      '.r3d'
-    ].includes(`.${ext}`)
-  ) {
-    return 'video'
-  }
-  if (['.mp3', '.wav', '.flac', '.aac', '.m4a'].includes(`.${ext}`)) {
-    return 'audio'
-  }
-  if (
-    [
-      '.jpg',
-      '.jpeg',
-      '.png',
-      '.raw',
-      '.cr2',
-      '.cr3',
-      '.nef',
-      '.arw',
-      '.dng',
-      '.heic',
-      '.heif'
-    ].includes(`.${ext}`)
-  ) {
-    return 'image'
-  }
-  if (['.xml'].includes(`.${ext}`)) {
-    return 'other'
-  }
-  return 'other'
-}
-
-// Helper function to get file transfer status
-function getFileTransferStatus(
-  filePath: string,
-  progress: unknown
-): 'pending' | 'transferring' | 'verifying' | 'complete' | 'error' | 'skipped' {
-  if (!progress || typeof progress !== 'object' || progress === null) {
-    return 'pending'
-  }
-
-  const progressObj = progress as {
-    activeFiles?: Array<{ sourcePath: string; status: string }>
-    currentFile?: { sourcePath: string; status: string }
-    completedFiles?: Array<{ sourcePath: string; status: string }>
-  }
-
-  // Check if file is in completed files first
-  if (progressObj.completedFiles) {
-    const completedFile = progressObj.completedFiles.find((file) => file.sourcePath === filePath)
-    if (completedFile) {
-      return completedFile.status as
-        | 'pending'
-        | 'transferring'
-        | 'verifying'
-        | 'complete'
-        | 'error'
-        | 'skipped'
-    }
-  }
-
-  // Check if file is currently being transferred
-  if (progressObj.currentFile && progressObj.currentFile.sourcePath === filePath) {
-    return progressObj.currentFile.status as
-      | 'pending'
-      | 'transferring'
-      | 'verifying'
-      | 'complete'
-      | 'error'
-      | 'skipped'
-  }
-
-  // Check if file is in active files (parallel transfers)
-  if (progressObj.activeFiles) {
-    const activeFile = progressObj.activeFiles.find((file) => file.sourcePath === filePath)
-    if (activeFile) {
-      return activeFile.status as
-        | 'pending'
-        | 'transferring'
-        | 'verifying'
-        | 'complete'
-        | 'error'
-        | 'skipped'
-    }
-  }
-
-  return 'pending'
-}
-
-// Helper function to get checksum for completed files
-function getFileChecksum(filePath: string, progress: unknown): string | null {
-  if (!progress || typeof progress !== 'object' || progress === null) {
-    return null
-  }
-
-  const progressObj = progress as {
-    activeFiles?: Array<{ sourcePath: string; checksum?: string }>
-    currentFile?: { sourcePath: string; checksum?: string }
-    completedFiles?: Array<{ sourcePath: string; checksum?: string }>
-  }
-
-  // Check completed files first (most likely to have checksums)
-  if (progressObj.completedFiles) {
-    const completedFile = progressObj.completedFiles.find((file) => file.sourcePath === filePath)
-    if (completedFile?.checksum) {
-      return completedFile.checksum
-    }
-  }
-
-  // Check current file
-  if (
-    progressObj.currentFile &&
-    progressObj.currentFile.sourcePath === filePath &&
-    progressObj.currentFile.checksum
-  ) {
-    return progressObj.currentFile.checksum
-  }
-
-  // Check active files
-  if (progressObj.activeFiles) {
-    const activeFile = progressObj.activeFiles.find((file) => file.sourcePath === filePath)
-    if (activeFile?.checksum) {
-      return activeFile.checksum
-    }
-  }
-
-  return null
-}
-
-// Helper function to get file elapsed time
-function getFileElapsedTime(filePath: string, progress: unknown): number | null {
-  if (!progress || typeof progress !== 'object' || progress === null) {
-    return null
-  }
-
-  const progressObj = progress as {
-    activeFiles?: Array<{ sourcePath: string; duration?: number }>
-    currentFile?: { sourcePath: string; duration?: number }
-    completedFiles?: Array<{ sourcePath: string; duration?: number }>
-  }
-
-  // Check if file is currently being transferred
-  if (progressObj.currentFile && progressObj.currentFile.sourcePath === filePath) {
-    return progressObj.currentFile.duration || null
-  }
-
-  // Check if file is in active files (parallel transfers)
-  if (progressObj.activeFiles) {
-    const activeFile = progressObj.activeFiles.find((file) => file.sourcePath === filePath)
-    if (activeFile?.duration) {
-      return activeFile.duration
-    }
-  }
-
-  // Check if file is in completed files
-  if (progressObj.completedFiles) {
-    const completedFile = progressObj.completedFiles.find((file) => file.sourcePath === filePath)
-    if (completedFile?.duration) {
-      return completedFile.duration
-    }
-  }
-
-  return null
-}
-
-// Helper function to copy checksum to clipboard
-function copyToClipboard(text: string): void {
-  navigator.clipboard.writeText(text).catch((err) => {
-    console.error('Failed to copy to clipboard:', err)
-  })
-}
+import {
+  getFileIcon,
+  getFileType,
+  getFileTransferStatus,
+  getFileChecksum,
+  getFileElapsedTime,
+  copyToClipboard
+} from '../utils/fileListHelpers'
 
 export function FileList() {
   const { scannedFiles, scanInProgress } = useDriveStore()
@@ -386,7 +153,7 @@ export function FileList() {
                 isCondensed ? 'h-6 w-6' : 'h-8 w-8'
               )}
             >
-              <FileType className={isCondensed ? 'h-3 w-3' : 'h-4 w-4'} />
+              <FileTypeIcon className={isCondensed ? 'h-3 w-3' : 'h-4 w-4'} />
             </div>
             <div>
               <CardTitle className={isCondensed ? 'text-sm' : 'text-lg'}>Transfer Queue</CardTitle>
@@ -398,146 +165,11 @@ export function FileList() {
 
           {/* Transfer Status Statistics */}
           <div className={cn('flex', isCondensed ? 'gap-1' : 'gap-2')}>
-            {transferStats.complete > 0 && (
-              <Tooltip
-                content={`${transferStats.complete} file${transferStats.complete !== 1 ? 's' : ''} successfully transferred and verified`}
-                position="bottom"
-              >
-                <div
-                  className={cn(
-                    'flex items-center rounded-lg bg-green-100 dark:bg-green-900/30',
-                    isCondensed ? 'gap-1 px-1.5 py-0.5' : 'gap-1.5 px-2 py-1'
-                  )}
-                >
-                  <CheckCircle2
-                    className={cn(
-                      'text-green-600 dark:text-green-400',
-                      isCondensed ? 'h-2.5 w-2.5' : 'h-3 w-3'
-                    )}
-                  />
-                  <span
-                    className={cn(
-                      'font-bold text-green-900 dark:text-green-100',
-                      isCondensed ? 'text-[10px]' : 'text-xs'
-                    )}
-                  >
-                    {transferStats.complete}
-                  </span>
-                </div>
-              </Tooltip>
-            )}
-            {transferStats.transferring > 0 && (
-              <Tooltip
-                content={`${transferStats.transferring} file${transferStats.transferring !== 1 ? 's' : ''} currently being transferred`}
-                position="bottom"
-              >
-                <div
-                  className={cn(
-                    'flex items-center rounded-lg bg-blue-100 dark:bg-blue-900/30',
-                    isCondensed ? 'gap-1 px-1.5 py-0.5' : 'gap-1.5 px-2 py-1'
-                  )}
-                >
-                  <Loader2
-                    className={cn(
-                      'animate-spin text-blue-600 dark:text-blue-400',
-                      isCondensed ? 'h-2.5 w-2.5' : 'h-3 w-3'
-                    )}
-                  />
-                  <span
-                    className={cn(
-                      'font-bold text-blue-900 dark:text-blue-100',
-                      isCondensed ? 'text-[10px]' : 'text-xs'
-                    )}
-                  >
-                    {transferStats.transferring}
-                  </span>
-                </div>
-              </Tooltip>
-            )}
-            {transferStats.verifying > 0 && (
-              <Tooltip
-                content={`${transferStats.verifying} file${transferStats.verifying !== 1 ? 's' : ''} being verified with checksum`}
-                position="bottom"
-              >
-                <div
-                  className={cn(
-                    'flex items-center rounded-lg bg-yellow-100 dark:bg-yellow-900/30',
-                    isCondensed ? 'gap-1 px-1.5 py-0.5' : 'gap-1.5 px-2 py-1'
-                  )}
-                >
-                  <Clock
-                    className={cn(
-                      'text-yellow-600 dark:text-yellow-400',
-                      isCondensed ? 'h-2.5 w-2.5' : 'h-3 w-3'
-                    )}
-                  />
-                  <span
-                    className={cn(
-                      'font-bold text-yellow-900 dark:text-yellow-100',
-                      isCondensed ? 'text-[10px]' : 'text-xs'
-                    )}
-                  >
-                    {transferStats.verifying}
-                  </span>
-                </div>
-              </Tooltip>
-            )}
-            {transferStats.error > 0 && (
-              <Tooltip
-                content={`${transferStats.error} file${transferStats.error !== 1 ? 's' : ''} failed to transfer`}
-                position="bottom"
-              >
-                <div
-                  className={cn(
-                    'flex items-center rounded-lg bg-red-100 dark:bg-red-900/30',
-                    isCondensed ? 'gap-1 px-1.5 py-0.5' : 'gap-1.5 px-2 py-1'
-                  )}
-                >
-                  <XCircle
-                    className={cn(
-                      'text-red-600 dark:text-red-400',
-                      isCondensed ? 'h-2.5 w-2.5' : 'h-3 w-3'
-                    )}
-                  />
-                  <span
-                    className={cn(
-                      'font-bold text-red-900 dark:text-red-100',
-                      isCondensed ? 'text-[10px]' : 'text-xs'
-                    )}
-                  >
-                    {transferStats.error}
-                  </span>
-                </div>
-              </Tooltip>
-            )}
-            {transferStats.pending > 0 && (
-              <Tooltip
-                content={`${transferStats.pending} file${transferStats.pending !== 1 ? 's' : ''} waiting to be transferred`}
-                position="bottom"
-              >
-                <div
-                  className={cn(
-                    'flex items-center rounded-lg bg-gray-100 dark:bg-gray-800',
-                    isCondensed ? 'gap-1 px-1.5 py-0.5' : 'gap-1.5 px-2 py-1'
-                  )}
-                >
-                  <Clock
-                    className={cn(
-                      'text-gray-600 dark:text-gray-400',
-                      isCondensed ? 'h-2.5 w-2.5' : 'h-3 w-3'
-                    )}
-                  />
-                  <span
-                    className={cn(
-                      'font-bold text-gray-900 dark:text-gray-100',
-                      isCondensed ? 'text-[10px]' : 'text-xs'
-                    )}
-                  >
-                    {transferStats.pending}
-                  </span>
-                </div>
-              </Tooltip>
-            )}
+            <StatusBadge status="complete" count={transferStats.complete} isCondensed={isCondensed} />
+            <StatusBadge status="transferring" count={transferStats.transferring} isCondensed={isCondensed} />
+            <StatusBadge status="verifying" count={transferStats.verifying} isCondensed={isCondensed} />
+            <StatusBadge status="error" count={transferStats.error} isCondensed={isCondensed} />
+            <StatusBadge status="pending" count={transferStats.pending} isCondensed={isCondensed} />
           </div>
         </div>
       </CardHeader>
@@ -548,7 +180,7 @@ export function FileList() {
             isCondensed ? 'max-h-[300px] space-y-1 p-2' : 'max-h-[500px] space-y-2 p-3'
           )}
         >
-          {scannedFiles.map((file, index) => {
+          {scannedFiles.map((file) => {
             const filePath = file.path
             const Icon = getFileIcon(filePath)
             const fileName = filePath.split('/').pop() || filePath
@@ -608,7 +240,7 @@ export function FileList() {
 
             return (
               <div
-                key={index}
+                key={filePath}
                 className={cn(
                   'group flex items-center rounded-lg border transition-colors',
                   isCondensed ? 'gap-2 p-2' : 'gap-3 p-3',

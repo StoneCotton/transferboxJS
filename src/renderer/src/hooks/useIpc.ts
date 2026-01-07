@@ -3,7 +3,7 @@
  * Provides typed access to IPC calls
  */
 
-import { useCallback } from 'react'
+import { useMemo } from 'react'
 import type {
   PathValidationRequest,
   PathValidationResponse,
@@ -16,7 +16,8 @@ import type {
   LogEntry,
   DriveInfo,
   ScannedMedia,
-  UpdateCheckResult
+  UpdateCheckResult,
+  TransferErrorInfo
 } from '../../../shared/types'
 
 // Type-safe IPC API
@@ -34,6 +35,7 @@ export interface IpcApi {
   listDrives: () => Promise<DriveInfo[]>
   scanDrive: (device: string) => Promise<ScannedMedia>
   unmountDrive: (device: string) => Promise<boolean>
+  revealDrive: (device: string) => Promise<void>
 
   // Transfer operations
   validateTransfer: (request: TransferValidateRequest) => Promise<TransferValidateResponse>
@@ -83,8 +85,8 @@ export interface IpcApi {
   onDriveRemoved: (callback: (device: string) => void) => () => void
   onDriveUnmounted: (callback: (device: string) => void) => () => void
   onTransferProgress: (callback: (progress: TransferProgress) => void) => () => void
-  onTransferComplete: (callback: (data: TransferProgress) => void) => () => void
-  onTransferError: (callback: (error: string) => void) => () => void
+  onTransferComplete: (callback: (data: TransferSession) => void) => () => void
+  onTransferError: (callback: (error: TransferErrorInfo) => void) => () => void
   onTransferPaused: (callback: () => void) => () => void
   onTransferResumed: (callback: () => void) => () => void
   onLogEntry: (callback: (entry: LogEntry) => void) => () => void
@@ -102,242 +104,75 @@ export interface IpcApi {
 
 /**
  * Hook to access IPC API
+ * Returns a stable reference to window.api methods
  */
 export function useIpc(): IpcApi {
-  // Configuration
-  const getConfig = useCallback(async () => {
-    return await window.api.getConfig()
-  }, [])
+  return useMemo(
+    () => ({
+      // Configuration
+      getConfig: window.api.getConfig,
+      updateConfig: window.api.updateConfig,
+      resetConfig: window.api.resetConfig,
 
-  const updateConfig = useCallback(async (config: Partial<AppConfig>) => {
-    return await window.api.updateConfig(config)
-  }, [])
+      // Path validation
+      validatePath: window.api.validatePath,
+      selectFolder: window.api.selectFolder,
 
-  const resetConfig = useCallback(async () => {
-    return await window.api.resetConfig()
-  }, [])
+      // Drive operations
+      listDrives: window.api.listDrives,
+      scanDrive: window.api.scanDrive,
+      unmountDrive: window.api.unmountDrive,
+      revealDrive: window.api.revealDrive,
 
-  // Path validation
-  const validatePath = useCallback(async (request: PathValidationRequest) => {
-    return await window.api.validatePath(request)
-  }, [])
+      // Transfer operations
+      validateTransfer: window.api.validateTransfer,
+      startTransfer: window.api.startTransfer,
+      stopTransfer: window.api.stopTransfer,
+      pauseTransfer: window.api.pauseTransfer,
+      resumeTransfer: window.api.resumeTransfer,
+      retryTransfer: window.api.retryTransfer,
 
-  const selectFolder = useCallback(async () => {
-    return await window.api.selectFolder()
-  }, [])
+      // History
+      getHistory: window.api.getHistory,
+      getHistoryById: window.api.getHistoryById,
+      clearHistory: window.api.clearHistory,
 
-  // Drive operations
-  const listDrives = useCallback(async () => {
-    return await window.api.listDrives()
-  }, [])
+      // Logs
+      getRecentLogs: window.api.getRecentLogs,
+      clearLogs: window.api.clearLogs,
 
-  const scanDrive = useCallback(async (device: string) => {
-    return await window.api.scanDrive(device)
-  }, [])
+      // App info
+      getAppVersion: window.api.getAppVersion,
 
-  const unmountDrive = useCallback(async (device: string) => {
-    return await window.api.unmountDrive(device)
-  }, [])
+      // Update checking
+      checkForUpdates: window.api.checkForUpdates,
+      openReleasesPage: window.api.openReleasesPage,
 
-  // Transfer operations
-  const validateTransfer = useCallback(async (request: TransferValidateRequest) => {
-    return await window.api.validateTransfer(request)
-  }, [])
+      // Config version management
+      getVersionInfo: window.api.getVersionInfo,
+      getNewerConfigWarning: window.api.getNewerConfigWarning,
+      handleNewerConfigChoice: window.api.handleNewerConfigChoice,
+      clearNewerConfigWarning: window.api.clearNewerConfigWarning,
 
-  const startTransfer = useCallback(async (request: TransferStartRequest) => {
-    return await window.api.startTransfer(request)
-  }, [])
-
-  const stopTransfer = useCallback(async () => {
-    return await window.api.stopTransfer()
-  }, [])
-
-  const pauseTransfer = useCallback(async () => {
-    return await window.api.pauseTransfer()
-  }, [])
-
-  const resumeTransfer = useCallback(async () => {
-    return await window.api.resumeTransfer()
-  }, [])
-
-  const retryTransfer = useCallback(
-    async (request: {
-      files: Array<{ sourcePath: string; destinationPath: string }>
-      driveInfo: DriveInfo
-    }) => {
-      return await window.api.retryTransfer(request)
-    },
+      // Event listeners
+      onDriveDetected: window.api.onDriveDetected,
+      onDriveRemoved: window.api.onDriveRemoved,
+      onDriveUnmounted: window.api.onDriveUnmounted,
+      onTransferProgress: window.api.onTransferProgress,
+      onTransferComplete: window.api.onTransferComplete,
+      onTransferError: window.api.onTransferError,
+      onTransferPaused: window.api.onTransferPaused,
+      onTransferResumed: window.api.onTransferResumed,
+      onLogEntry: window.api.onLogEntry,
+      onSystemSuspend: window.api.onSystemSuspend,
+      onSystemResume: window.api.onSystemResume,
+      onMenuOpenSettings: window.api.onMenuOpenSettings,
+      onMenuOpenHistory: window.api.onMenuOpenHistory,
+      onMenuNewTransfer: window.api.onMenuNewTransfer,
+      onMenuSelectDestination: window.api.onMenuSelectDestination,
+      onConfigMigrated: window.api.onConfigMigrated,
+      onUpdateAvailable: window.api.onUpdateAvailable
+    }),
     []
   )
-
-  // History
-  const getHistory = useCallback(async () => {
-    return await window.api.getHistory()
-  }, [])
-
-  const getHistoryById = useCallback(async (id: string) => {
-    return await window.api.getHistoryById(id)
-  }, [])
-
-  const clearHistory = useCallback(async () => {
-    return await window.api.clearHistory()
-  }, [])
-
-  // Logs
-  const getRecentLogs = useCallback(async (limit?: number) => {
-    return await window.api.getRecentLogs(limit)
-  }, [])
-
-  const clearLogs = useCallback(async () => {
-    return await window.api.clearLogs()
-  }, [])
-
-  // App info
-  const getAppVersion = useCallback(async () => {
-    return await window.api.getAppVersion()
-  }, [])
-
-  // Update checking
-  const checkForUpdates = useCallback(async (forceRefresh?: boolean) => {
-    return await window.api.checkForUpdates(forceRefresh)
-  }, [])
-
-  const openReleasesPage = useCallback(async () => {
-    return await window.api.openReleasesPage()
-  }, [])
-
-  // Config version management
-  const getVersionInfo = useCallback(async () => {
-    return await window.api.getVersionInfo()
-  }, [])
-
-  const getNewerConfigWarning = useCallback(async () => {
-    return await window.api.getNewerConfigWarning()
-  }, [])
-
-  const handleNewerConfigChoice = useCallback(async (choice: 'continue' | 'reset') => {
-    return await window.api.handleNewerConfigChoice(choice)
-  }, [])
-
-  const clearNewerConfigWarning = useCallback(async () => {
-    return await window.api.clearNewerConfigWarning()
-  }, [])
-
-  // Event listeners
-  const onDriveDetected = useCallback((callback: (drive: DriveInfo) => void) => {
-    return window.api.onDriveDetected(callback)
-  }, [])
-
-  const onDriveRemoved = useCallback((callback: (device: string) => void) => {
-    return window.api.onDriveRemoved(callback)
-  }, [])
-
-  const onDriveUnmounted = useCallback((callback: (device: string) => void) => {
-    return window.api.onDriveUnmounted(callback)
-  }, [])
-
-  const onTransferProgress = useCallback((callback: (progress: TransferProgress) => void) => {
-    return window.api.onTransferProgress(callback)
-  }, [])
-
-  const onTransferComplete = useCallback((callback: (data: TransferProgress) => void) => {
-    return window.api.onTransferComplete(callback)
-  }, [])
-
-  const onTransferError = useCallback((callback: (error: string) => void) => {
-    return window.api.onTransferError(callback)
-  }, [])
-
-  const onTransferPaused = useCallback((callback: () => void) => {
-    return window.api.onTransferPaused(callback)
-  }, [])
-
-  const onTransferResumed = useCallback((callback: () => void) => {
-    return window.api.onTransferResumed(callback)
-  }, [])
-
-  const onLogEntry = useCallback((callback: (entry: LogEntry) => void) => {
-    return window.api.onLogEntry(callback)
-  }, [])
-
-  const onSystemSuspend = useCallback((callback: () => void) => {
-    return window.api.onSystemSuspend(callback)
-  }, [])
-
-  const onSystemResume = useCallback((callback: () => void) => {
-    return window.api.onSystemResume(callback)
-  }, [])
-
-  const onMenuOpenSettings = useCallback((callback: () => void) => {
-    return window.api.onMenuOpenSettings(callback)
-  }, [])
-
-  const onMenuOpenHistory = useCallback((callback: () => void) => {
-    return window.api.onMenuOpenHistory(callback)
-  }, [])
-
-  const onMenuNewTransfer = useCallback((callback: () => void) => {
-    return window.api.onMenuNewTransfer(callback)
-  }, [])
-
-  const onMenuSelectDestination = useCallback((callback: () => void) => {
-    return window.api.onMenuSelectDestination(callback)
-  }, [])
-
-  const onConfigMigrated = useCallback(
-    (callback: (data: { fromVersion: string; toVersion: string }) => void) => {
-      return window.api.onConfigMigrated(callback)
-    },
-    []
-  )
-
-  const onUpdateAvailable = useCallback((callback: (result: UpdateCheckResult) => void) => {
-    return window.api.onUpdateAvailable(callback)
-  }, [])
-
-  return {
-    getConfig,
-    updateConfig,
-    resetConfig,
-    validatePath,
-    selectFolder,
-    listDrives,
-    scanDrive,
-    unmountDrive,
-    validateTransfer,
-    startTransfer,
-    stopTransfer,
-    pauseTransfer,
-    resumeTransfer,
-    retryTransfer,
-    getHistory,
-    getHistoryById,
-    clearHistory,
-    getRecentLogs,
-    clearLogs,
-    getAppVersion,
-    checkForUpdates,
-    openReleasesPage,
-    getVersionInfo,
-    getNewerConfigWarning,
-    handleNewerConfigChoice,
-    clearNewerConfigWarning,
-    onDriveDetected,
-    onDriveRemoved,
-    onDriveUnmounted,
-    onTransferProgress,
-    onTransferComplete,
-    onTransferError,
-    onTransferPaused,
-    onTransferResumed,
-    onLogEntry,
-    onSystemSuspend,
-    onSystemResume,
-    onMenuOpenSettings,
-    onMenuOpenHistory,
-    onMenuNewTransfer,
-    onMenuSelectDestination,
-    onConfigMigrated,
-    onUpdateAvailable
-  }
 }

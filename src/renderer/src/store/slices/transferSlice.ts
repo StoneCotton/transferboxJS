@@ -78,7 +78,7 @@ export const createTransferSlice: StateCreator<TransferSlice> = (set, get) => ({
   systemState: {
     isSleeping: false
   },
-  fileStates: new Map(),
+  fileStates: {},
 
   // Existing actions
   startTransfer: (session) =>
@@ -89,7 +89,7 @@ export const createTransferSlice: StateCreator<TransferSlice> = (set, get) => ({
       isPaused: false,
       error: null,
       errorDetails: null,
-      fileStates: new Map()
+      fileStates: {}
     }),
 
   updateProgress: (progress) => {
@@ -97,9 +97,9 @@ export const createTransferSlice: StateCreator<TransferSlice> = (set, get) => ({
 
     // Update file states from progress
     if (progress.activeFiles) {
-      const fileStates = new Map(get().fileStates)
+      const fileStates = { ...get().fileStates }
       progress.activeFiles.forEach((file) => {
-        fileStates.set(file.sourcePath, {
+        fileStates[file.sourcePath] = {
           status: file.status as
             | 'pending'
             | 'validating'
@@ -112,7 +112,7 @@ export const createTransferSlice: StateCreator<TransferSlice> = (set, get) => ({
           progress: file.percentage,
           errorType: file.errorType,
           retryCount: file.retryCount || 0
-        })
+        }
       })
       set({ fileStates })
     }
@@ -171,12 +171,10 @@ export const createTransferSlice: StateCreator<TransferSlice> = (set, get) => ({
   // NEW: Pause/Resume
   pauseTransfer: () => {
     set({ isPaused: true })
-    console.log('[TransferSlice] Transfer paused')
   },
 
   resumeTransfer: () => {
     set({ isPaused: false })
-    console.log('[TransferSlice] Transfer resumed')
   },
 
   // NEW: Retry logic
@@ -186,25 +184,31 @@ export const createTransferSlice: StateCreator<TransferSlice> = (set, get) => ({
         isRetrying: true,
         currentAttempt: 0,
         maxAttempts: 3,
-        files: new Map()
+        files: {}
       }
 
-      retryState.files.set(fileId, { attempts: attempt, lastError: error })
-
-      return { retryState: { ...retryState, currentAttempt: attempt } }
+      return {
+        retryState: {
+          ...retryState,
+          currentAttempt: attempt,
+          files: {
+            ...retryState.files,
+            [fileId]: { attempts: attempt, lastError: error }
+          }
+        }
+      }
     }),
 
   clearRetryState: () => set({ retryState: null }),
 
-  retryFailedFiles: async (files) => {
-    console.log('[TransferSlice] Retrying failed files:', files.length)
+  retryFailedFiles: async (_files) => {
     // Trigger IPC to retry files - this will be called from the UI
     set({
       retryState: {
         isRetrying: true,
         currentAttempt: 1,
         maxAttempts: 3,
-        files: new Map()
+        files: {}
       }
     })
   },
@@ -240,49 +244,58 @@ export const createTransferSlice: StateCreator<TransferSlice> = (set, get) => ({
   // NEW: File-level tracking
   updateFileState: (fileId, update) =>
     set((state) => {
-      const fileStates = new Map(state.fileStates)
-      const current = fileStates.get(fileId) || {
+      const current = state.fileStates[fileId] || {
         status: 'pending' as const,
         progress: 0,
         retryCount: 0
       }
-      fileStates.set(fileId, { ...current, ...update })
-      return { fileStates }
+      return {
+        fileStates: {
+          ...state.fileStates,
+          [fileId]: { ...current, ...update }
+        }
+      }
     }),
 
   setFileError: (fileId, _error, errorType) =>
     set((state) => {
-      const fileStates = new Map(state.fileStates)
-      const current = fileStates.get(fileId) || {
+      const current = state.fileStates[fileId] || {
         status: 'pending' as const,
         progress: 0,
         retryCount: 0
       }
-      fileStates.set(fileId, {
-        ...current,
-        status: 'error',
-        errorType
-      })
-      return { fileStates }
+      return {
+        fileStates: {
+          ...state.fileStates,
+          [fileId]: {
+            ...current,
+            status: 'error',
+            errorType
+          }
+        }
+      }
     }),
 
   setFileRetrying: (fileId, attempt) =>
     set((state) => {
-      const fileStates = new Map(state.fileStates)
-      const current = fileStates.get(fileId) || {
+      const current = state.fileStates[fileId] || {
         status: 'pending' as const,
         progress: 0,
         retryCount: 0
       }
-      fileStates.set(fileId, {
-        ...current,
-        status: 'retrying',
-        retryCount: attempt
-      })
-      return { fileStates }
+      return {
+        fileStates: {
+          ...state.fileStates,
+          [fileId]: {
+            ...current,
+            status: 'retrying',
+            retryCount: attempt
+          }
+        }
+      }
     }),
 
-  clearFileStates: () => set({ fileStates: new Map() }),
+  clearFileStates: () => set({ fileStates: {} }),
 
   // NEW: Enhanced error tracking
   setErrorDetails: (details) =>

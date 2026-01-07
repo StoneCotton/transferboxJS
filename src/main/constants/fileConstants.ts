@@ -56,3 +56,11 @@ export const PATH_LENGTH_LIMITS = {
   linux: 4096, // PATH_MAX on Linux
   default: 4096
 } as const
+
+// ===== Filename Length Limits (NAME_MAX) =====
+export const NAME_LENGTH_LIMITS = {
+  win32: 255,
+  darwin: 255,
+  linux: 255,
+  default: 255
+} as const

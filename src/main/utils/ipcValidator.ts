@@ -10,6 +10,14 @@ import {
   MAX_DISPLAY_NAME_LENGTH,
   MAX_FILES_PER_TRANSFER
 } from '../constants/fileConstants'
+import {
+  validateNoControlCharacters,
+  validateNoPathTraversal,
+  validateNoCommandInjection,
+  validateNoWildcards,
+  isSafeDeviceId,
+  getMaxPathLength
+} from './securityValidation'
 
 /**
  * Validates that a string is a valid file path
@@ -46,8 +54,9 @@ export function validateFilePath(filePath: string, allowRelative: boolean = fals
     throw new Error('File path must be absolute')
   }
 
-  // Check path length (prevent extremely long paths)
-  if (normalized.length > 4096) {
+  // Check path length using platform-aware limits
+  const maxLength = getMaxPathLength()
+  if (normalized.length > maxLength) {
     throw new Error('File path exceeds maximum length')
   }
 
@@ -100,12 +109,11 @@ export function validateFilePaths(filePaths: unknown[]): string[] {
  * - Windows drive letters: [A-Z]:, [A-Z]:\
  * - Windows device paths: \\.\PHYSICALDRIVE0, \\?\Volume{guid}, \\.\HarddiskVolume1
  *
- * Security checks:
+ * Security checks (using shared securityValidation utilities):
  * - Control characters (\x00-\x1f)
  * - Path traversal (..)
- * - Shell metacharacters (;|`$())
+ * - Shell metacharacters (;|`$()&<>{})
  * - Wildcards (*?)
- * - Pipe/redirect characters
  */
 export function validateDeviceId(device: unknown): string {
   if (typeof device !== 'string' || device.trim() === '') {
@@ -120,48 +128,23 @@ export function validateDeviceId(device: unknown): string {
   }
 
   // Check for control characters (always invalid, even in device paths)
-  if (/[\x00-\x1f]/.test(trimmed)) {
+  try {
+    validateNoControlCharacters(trimmed, 'Device ID')
+  } catch {
     throw new Error('Device ID contains invalid characters')
   }
 
-  // Device ID format validation (platform-agnostic to support cross-platform testing)
-  // Check recognized formats FIRST before applying general security checks
-
-  // Check if it's a Windows drive letter format: [A-Z]: or [A-Z]:\
-  const isWindowsDrive = /^[A-Z]:(\\)?$/i.test(trimmed)
-
-  // Check if it's a Windows physical drive or volume path:
-  // - \\.\PHYSICALDRIVE0, \\.\PHYSICALDRIVE1, etc.
-  // - \\?\Volume{guid}
-  // - \\.\HarddiskVolume1, etc.
-  const isWindowsDevicePath =
-    /^\\\\[.?]\\(PHYSICALDRIVE\d+|Volume\{[a-fA-F0-9-]+\}|Harddisk(Volume)?\d+)$/i.test(trimmed)
-
-  // Check if it's a Unix device path: /dev/*
-  const isUnixDevice = /^\/dev\/[a-zA-Z0-9_\-/]+$/.test(trimmed)
-
-  if (isWindowsDrive || isWindowsDevicePath) {
-    // Valid Windows drive/device - no additional checks needed
-    return trimmed
-  } else if (isUnixDevice) {
-    // Valid Unix device path - no additional checks needed
+  // Check if it's a recognized safe device format
+  if (isSafeDeviceId(trimmed)) {
     return trimmed
   }
 
   // If not a recognized device format, apply strict security checks
-
-  // Check for path traversal attempts
-  if (trimmed.includes('..')) {
-    throw new Error('Device ID contains invalid characters')
-  }
-
-  // Check for shell metacharacters and command injection vectors
-  if (/[;|`$()]/.test(trimmed)) {
-    throw new Error('Device ID contains invalid characters')
-  }
-
-  // Check for wildcards
-  if (/[*?]/.test(trimmed)) {
+  try {
+    validateNoPathTraversal(trimmed, 'Device ID')
+    validateNoCommandInjection(trimmed, 'Device ID')
+    validateNoWildcards(trimmed, 'Device ID')
+  } catch {
     throw new Error('Device ID contains invalid characters')
   }
 

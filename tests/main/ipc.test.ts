@@ -158,7 +158,7 @@ const mockValidatePath = validatePath as jest.MockedFunction<typeof validatePath
 const mockHasEnoughSpace = hasEnoughSpace as jest.MockedFunction<typeof hasEnoughSpace>
 const mockCheckDiskSpace = checkDiskSpace as jest.MockedFunction<typeof checkDiskSpace>
 const mockValidateTransfer = validateTransfer as jest.MockedFunction<typeof validateTransfer>
-const mockUpdateMenuForTransferState = updateMenuForTransferState as jest.MockedFunction<
+const _mockUpdateMenuForTransferState = updateMenuForTransferState as jest.MockedFunction<
   typeof updateMenuForTransferState
 >
 const mockCheckForUpdates = checkForUpdates as jest.MockedFunction<typeof checkForUpdates>

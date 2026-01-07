@@ -6,12 +6,15 @@ import type {
   TransferStartRequest,
   TransferValidateRequest,
   TransferValidateResponse,
+  TransferRetryRequest,
   TransferSession,
   TransferStatusResponse,
+  TransferProgress,
   LogEntry,
   DriveInfo,
   ScannedMedia,
-  UpdateCheckResult
+  UpdateCheckResult,
+  TransferErrorInfo
 } from '../shared/types'
 
 interface IpcApi {
@@ -29,6 +32,7 @@ interface IpcApi {
   listDrives: () => Promise<DriveInfo[]>
   scanDrive: (device: string) => Promise<ScannedMedia>
   unmountDrive: (device: string) => Promise<boolean>
+  revealDrive: (device: string) => Promise<void>
 
   // Transfer operations
   validateTransfer: (request: TransferValidateRequest) => Promise<TransferValidateResponse>
@@ -37,10 +41,7 @@ interface IpcApi {
   pauseTransfer: () => Promise<void>
   resumeTransfer: () => Promise<void>
   getTransferStatus: () => Promise<TransferStatusResponse>
-  retryTransfer: (request: {
-    files: Array<{ sourcePath: string; destinationPath: string }>
-    driveInfo: { device: string; displayName: string }
-  }) => Promise<void>
+  retryTransfer: (request: TransferRetryRequest) => Promise<void>
 
   // History
   getHistory: () => Promise<TransferSession[]>
@@ -83,9 +84,9 @@ interface IpcApi {
   onDriveDetected: (callback: (drive: DriveInfo) => void) => () => void
   onDriveRemoved: (callback: (device: string) => void) => () => void
   onDriveUnmounted: (callback: (device: string) => void) => () => void
-  onTransferProgress: (callback: (progress: any) => void) => () => void
-  onTransferComplete: (callback: (data: any) => void) => () => void
-  onTransferError: (callback: (error: string) => void) => () => void
+  onTransferProgress: (callback: (progress: TransferProgress) => void) => () => void
+  onTransferComplete: (callback: (data: TransferSession) => void) => () => void
+  onTransferError: (callback: (error: TransferErrorInfo) => void) => () => void
   onTransferPaused: (callback: () => void) => () => void
   onTransferResumed: (callback: () => void) => () => void
   onLogEntry: (callback: (entry: LogEntry) => void) => () => void

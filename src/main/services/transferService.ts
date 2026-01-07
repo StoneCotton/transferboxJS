@@ -4,7 +4,7 @@
  */
 
 import { stat } from 'fs/promises'
-import { DriveInfo } from '../../shared/types'
+import type { DriveInfo } from '../../shared/types'
 import { FileTransferEngine, TransferResult } from '../fileTransfer'
 import { getDatabaseManager } from '../databaseManager'
 import { getConfig } from '../configManager'

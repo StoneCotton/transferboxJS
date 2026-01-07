@@ -2,17 +2,17 @@ import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import {
   IPC_CHANNELS,
-  AppConfig,
   PathValidationRequest,
   TransferValidateRequest,
   TransferStartRequest,
   TransferRetryRequest,
-  DriveInfo,
-  TransferProgress,
-  TransferSession,
   LogEntry,
-  UpdateCheckResult
+  UpdateCheckResult,
+  TransferErrorInfo
 } from '../shared/types'
+import type { AppConfig } from '../shared/types/config'
+import type { DriveInfo } from '../shared/types/drive'
+import type { TransferProgress, TransferSession } from '../shared/types/transfer'
 
 // Custom APIs for renderer
 const api = {
@@ -32,6 +32,7 @@ const api = {
   listDrives: () => ipcRenderer.invoke(IPC_CHANNELS.DRIVE_LIST),
   scanDrive: (device: string) => ipcRenderer.invoke(IPC_CHANNELS.DRIVE_SCAN, device),
   unmountDrive: (device: string) => ipcRenderer.invoke(IPC_CHANNELS.DRIVE_UNMOUNT, device),
+  revealDrive: (device: string) => ipcRenderer.invoke(IPC_CHANNELS.DRIVE_REVEAL, device),
 
   // Transfer operations
   validateTransfer: (request: TransferValidateRequest) =>
@@ -100,8 +101,8 @@ const api = {
     ipcRenderer.on(IPC_CHANNELS.TRANSFER_COMPLETE, listener)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.TRANSFER_COMPLETE, listener)
   },
-  onTransferError: (callback: (error: string) => void) => {
-    const listener = (_event: IpcRendererEvent, error: string) => callback(error)
+  onTransferError: (callback: (error: TransferErrorInfo) => void) => {
+    const listener = (_event: IpcRendererEvent, error: TransferErrorInfo) => callback(error)
     ipcRenderer.on(IPC_CHANNELS.TRANSFER_ERROR, listener)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.TRANSFER_ERROR, listener)
   },

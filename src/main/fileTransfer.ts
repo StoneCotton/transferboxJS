@@ -3,11 +3,11 @@
  * Handles file transfers with atomic operations, checksum verification, and progress tracking
  */
 
-import { createReadStream, createWriteStream } from 'fs'
+import { createReadStream, createWriteStream, ReadStream } from 'fs'
 import { stat, mkdir, rename, unlink, chmod, access, constants, readdir, utimes } from 'fs/promises'
 import * as path from 'path'
-import { XXHash64 } from 'xxhash-addon'
 import { TransferError, wrapError } from './errors/TransferError'
+import { getChecksumCalculator } from './services/checksumCalculator'
 import { TransferErrorType } from '../shared/types'
 import { getLogger } from './logger'
 import { withRetry } from './utils/retryStrategy'
@@ -15,6 +15,16 @@ import { safeAdd, validateFileSize } from './utils/fileSizeUtils'
 import { validateFilePath } from './utils/ipcValidator'
 import { FileValidator } from './validators/fileValidator'
 import { DEFAULT_BUFFER_SIZE, ORPHANED_FILE_MAX_AGE_MS } from './constants/fileConstants'
+import {
+  DEFAULT_CONCURRENT_LIMIT,
+  MIN_CONCURRENT_LIMIT,
+  MAX_CONCURRENT_LIMIT,
+  MAX_STOP_WAIT_TIME_MS,
+  PROGRESS_AGGREGATION_INTERVAL_MS,
+  CLEANUP_DELAY_MS,
+  MIN_BUFFER_SIZE,
+  MAX_BUFFER_SIZE
+} from './constants/transferConstants'
 import { createProgressTracker } from './utils/progressTracker'
 
 export interface TransferProgress {
@@ -61,18 +71,6 @@ interface AbortableTransfer {
 }
 
 /**
- * Constants for transfer operations
- */
-const DEFAULT_CONCURRENT_LIMIT = 3
-const MIN_CONCURRENT_LIMIT = 1
-const MAX_CONCURRENT_LIMIT = 10
-const MAX_STOP_WAIT_TIME_MS = 5000
-const PROGRESS_AGGREGATION_INTERVAL_MS = 100
-const CLEANUP_DELAY_MS = 50
-const MIN_BUFFER_SIZE = 1024 // 1KB minimum
-const MAX_BUFFER_SIZE = 10485760 // 10MB maximum (matching configManager.ts)
-
-/**
  * File Transfer Engine Class
  * Provides atomic file transfers with progress tracking and verification
  */
@@ -85,6 +83,7 @@ export class FileTransferEngine {
   private currentTransfer: AbortableTransfer | null = null
   private activeTempFiles: Set<string> = new Set()
   private activeTransferCount = 0 // Track number of active transfers
+  private activeReadStreams: Set<ReadStream> = new Set() // Track active read streams for mid-stream pause
 
   /**
    * Transfer a single file with atomic operations and retry logic
@@ -651,6 +650,12 @@ export class FileTransferEngine {
       this.currentTransfer = null
     }
 
+    // Phase 2.5: Destroy all active read streams to force stop
+    for (const stream of this.activeReadStreams) {
+      stream.destroy()
+    }
+    this.activeReadStreams.clear()
+
     // Phase 3: Wait for active transfers to complete (with timeout)
     const startTime = Date.now()
 
@@ -700,11 +705,12 @@ export class FileTransferEngine {
     this.currentTransfer = null
     this.activeTempFiles.clear()
     this.activeTransferCount = 0
+    this.activeReadStreams.clear()
   }
 
   /**
    * Pause the transfer engine
-   * Note: Pausing happens between files, not mid-file, to ensure data integrity
+   * Pauses all active read streams immediately for true mid-stream pause
    */
   pause(): void {
     if (this.paused) return
@@ -714,23 +720,41 @@ export class FileTransferEngine {
     this.pausePromise = new Promise<void>((resolve) => {
       this.pauseResolve = resolve
     })
-    getLogger().info('[FileTransferEngine] Transfer paused')
+
+    // Pause all active read streams immediately for true mid-stream pause
+    for (const stream of this.activeReadStreams) {
+      stream.pause()
+    }
+
+    getLogger().info('[FileTransferEngine] Transfer paused', {
+      activeStreams: this.activeReadStreams.size
+    })
   }
 
   /**
    * Resume the transfer engine
+   * Resumes all paused read streams for true mid-stream resume
    */
   resume(): void {
     if (!this.paused) return
 
     this.paused = false
+
+    // Resume all paused read streams for true mid-stream resume
+    for (const stream of this.activeReadStreams) {
+      stream.resume()
+    }
+
     // Resolve the pause promise to allow waiting transfers to continue
     if (this.pauseResolve) {
       this.pauseResolve()
       this.pauseResolve = null
     }
     this.pausePromise = null
-    getLogger().info('[FileTransferEngine] Transfer resumed')
+
+    getLogger().info('[FileTransferEngine] Transfer resumed', {
+      activeStreams: this.activeReadStreams.size
+    })
   }
 
   /**
@@ -789,12 +813,19 @@ export class FileTransferEngine {
         highWaterMark: bufferSize
       })
 
+      // Track this read stream for mid-stream pause support
+      this.activeReadStreams.add(readStream)
+
+      // Start stream in paused mode - we'll resume after setup if not paused
+      readStream.pause()
+
       const writeStream = createWriteStream(destPath, {
         highWaterMark: bufferSize
       })
 
       // Setup abort handler with temp file cleanup
       const abort = (): void => {
+        this.activeReadStreams.delete(readStream)
         readStream.destroy()
         writeStream.destroy()
         // Clean up temp file from tracking
@@ -834,6 +865,19 @@ export class FileTransferEngine {
           options.onProgress(progress)
           progressTracker.commitProgress()
         }
+
+        // Manually write to writeStream (instead of using pipe) for pause control
+        const canContinue = writeStream.write(buf)
+        if (!canContinue) {
+          // Backpressure: pause reading until write buffer drains
+          readStream.pause()
+          writeStream.once('drain', () => {
+            // Only resume if not paused by user AND not stopping
+            if (!this.paused && !this.stopping) {
+              readStream.resume()
+            }
+          })
+        }
       })
 
       let streamError: Error | null = null
@@ -841,12 +885,14 @@ export class FileTransferEngine {
       readStream.on('error', (error) => {
         // Capture error and flush write buffer to ensure clean shutdown
         streamError = error
-        // Clean up temp file from tracking on read error
+        // Clean up stream and temp file from tracking on read error
+        this.activeReadStreams.delete(readStream)
         this.activeTempFiles.delete(destPath)
         writeStream.end()
       })
 
       writeStream.on('error', (error) => {
+        this.activeReadStreams.delete(readStream)
         readStream.destroy()
         // Clean up temp file from tracking on write error
         this.activeTempFiles.delete(destPath)
@@ -858,6 +904,7 @@ export class FileTransferEngine {
         // Verify we read exactly what we expected
         const bytesRead = progressTracker.getBytesTransferred()
         if (bytesRead !== totalBytes && !streamError) {
+          this.activeReadStreams.delete(readStream)
           writeStream.destroy()
           // Clean up temp file from tracking on incomplete read
           this.activeTempFiles.delete(destPath)
@@ -866,10 +913,28 @@ export class FileTransferEngine {
               `Incomplete read: expected ${totalBytes} bytes, got ${bytesRead} bytes`
             )
           )
+        } else {
+          // Signal end of writing (triggers 'finish' event on writeStream)
+          writeStream.end()
+        }
+      })
+
+      readStream.on('close', () => {
+        // Handle forced stream destruction (from stop())
+        // On natural completion, 'end' fires before 'close' and writeStream.end() is called,
+        // so 'finish' will have already resolved the promise - reject here is a safe no-op
+        if (this.stopping || this.stopped) {
+          this.activeReadStreams.delete(readStream)
+          writeStream.destroy()
+          this.activeTempFiles.delete(destPath)
+          reject(new TransferError('Transfer cancelled', TransferErrorType.CANCELLED, false))
         }
       })
 
       writeStream.on('finish', async () => {
+        // Clean up read stream tracking on completion
+        this.activeReadStreams.delete(readStream)
+
         // If we had a read error, reject now that write buffers are flushed
         if (streamError) {
           const nodeError = streamError as NodeJS.ErrnoException
@@ -899,7 +964,20 @@ export class FileTransferEngine {
         }
       })
 
-      readStream.pipe(writeStream)
+      // Start the stream only if not paused AND not stopping (manual flow control instead of pipe)
+      if (this.stopping || this.stopped) {
+        // Engine is stopping/stopped, clean up and reject
+        this.activeReadStreams.delete(readStream)
+        readStream.destroy()
+        // Wait for writeStream to close before rejecting to ensure file handle is released
+        writeStream.on('close', () => {
+          this.activeTempFiles.delete(destPath)
+          reject(new TransferError('Transfer cancelled', TransferErrorType.CANCELLED, false))
+        })
+        writeStream.destroy()
+      } else if (!this.paused) {
+        readStream.resume()
+      }
     })
   }
 
@@ -920,10 +998,9 @@ export class FileTransferEngine {
     bufferSize: number,
     options?: TransferOptions
   ): Promise<{ sourceChecksum: string; destChecksum: string }> {
-    // Use XXHash64 for streaming checksum (imported at top of file)
-    const seed = Buffer.alloc(8)
-    const sourceHasher = new XXHash64(seed)
-    const destHasher = new XXHash64(seed)
+    // Use ChecksumCalculator service for streaming checksum
+    const calculator = getChecksumCalculator()
+    const { sourceHasher, destHasher } = calculator.createHasherPair()
 
     // Store checksums to return after stream completes
     let checksums: { sourceChecksum: string; destChecksum: string } | null = null
@@ -941,8 +1018,8 @@ export class FileTransferEngine {
       },
       // onFinish: calculate checksums (stored for return)
       () => {
-        const sourceChecksum = sourceHasher.digest().toString('hex')
-        const destChecksum = destHasher.digest().toString('hex')
+        const sourceChecksum = sourceHasher.digest()
+        const destChecksum = destHasher.digest()
         checksums = { sourceChecksum, destChecksum }
       }
     )
