@@ -4,8 +4,6 @@
 
 export type TransferMode = 'auto-transfer' | 'confirm-transfer' | 'fully-autonomous' | 'manual'
 
-export type FolderStructure = 'date-based' | 'device-based' | 'flat' | 'preserve-source'
-
 export type ChecksumAlgorithm = 'xxhash64'
 
 export type UnitSystem = 'binary' | 'decimal'
@@ -34,14 +32,12 @@ export interface AppConfig {
   keepOriginalFilename: boolean // Preserve original filename when adding timestamps (requires addTimestampToFilename)
   filenameTemplate: string // Template for renaming files. Use {original} for original name and {timestamp} for timestamp
   timestampFormat: string // Format for timestamps in filenames (e.g., %Y%m%d_%H%M%S for YYYYMMDD_HHMMSS)
-  preserveOriginalNames: boolean // Legacy setting - kept for backward compatibility
 
   // Directory structure settings
   createDateBasedFolders: boolean // Organize files into folders based on their creation date
   dateFolderFormat: string // Format for date-based folder names (e.g., %Y/%m/%d for YYYY/MM/DD)
   createDeviceBasedFolders: boolean // Create separate folders for each source device or drive
   deviceFolderTemplate: string // Template for device folder names. Use {device_name} for the device name
-  folderStructure: FolderStructure // Legacy setting - kept for backward compatibility
   keepFolderStructure: boolean // Maintain the original folder structure from the source drive
 
   // Media file filtering
@@ -60,7 +56,6 @@ export interface AppConfig {
   // Logging
   logLevel?: 'error' | 'warn' | 'info' | 'debug'
   enableLogging: boolean
-  generateMHL: boolean // Legacy setting - kept for backward compatibility
 
   // UI preferences
   showDetailedProgress: boolean
@@ -95,14 +90,12 @@ export const DEFAULT_CONFIG: AppConfig = {
   keepOriginalFilename: false,
   filenameTemplate: '{original}_{timestamp}',
   timestampFormat: '%Y%m%d_%H%M%S', // YYYYMMDD_HHMMSS format
-  preserveOriginalNames: true, // Legacy setting
 
   // Directory structure settings
   createDateBasedFolders: false,
   dateFolderFormat: '%Y/%m/%d', // YYYY/MM/DD format
   createDeviceBasedFolders: false,
   deviceFolderTemplate: '{device_name}',
-  folderStructure: 'preserve-source', // Legacy setting
   keepFolderStructure: false,
 
   // Media file filtering
@@ -157,7 +150,6 @@ export const DEFAULT_CONFIG: AppConfig = {
   // Logging
   logLevel: 'info',
   enableLogging: true,
-  generateMHL: false, // Legacy setting
 
   // UI preferences
   showDetailedProgress: true,

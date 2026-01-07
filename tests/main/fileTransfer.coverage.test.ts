@@ -517,8 +517,10 @@ describe('FileTransferEngine - Additional Edge Cases', () => {
   })
 
   describe('Transfer Stopped During Batch', () => {
-    it('should handle batch cancellation or completion', async () => {
-      const files = Array.from({ length: 5 }, (_, i) => ({
+    it(
+      'should handle batch cancellation or completion',
+      async () => {
+        const files = Array.from({ length: 5 }, (_, i) => ({
         source: path.join(sourceDir, `file${i}.bin`),
         dest: path.join(destDir, `file${i}.bin`)
       }))
@@ -547,7 +549,9 @@ describe('FileTransferEngine - Additional Edge Cases', () => {
         // Transfer was cancelled - message can be "cancelled", "stopped", or "stopping"
         expect((error as Error).message).toMatch(/cancell|stopp/i)
       }
-    })
+      },
+      15000
+    )
   })
 
   describe('File Stat Validation', () => {

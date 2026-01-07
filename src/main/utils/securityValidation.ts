@@ -9,6 +9,7 @@
  */
 
 import { getLogger } from '../logger'
+import { PATH_LENGTH_LIMITS, NAME_LENGTH_LIMITS } from '../constants/fileConstants'
 
 /**
  * Characters that can be used for command injection or shell exploits
@@ -169,26 +170,8 @@ export function isSafeDeviceId(device: string): boolean {
   return false
 }
 
-/**
- * Platform-specific path length limits
- */
-export const PATH_LIMITS = {
-  // Maximum total path length
-  MAX_PATH_LENGTH: {
-    win32: 260, // MAX_PATH on Windows (can be extended with \\?\ prefix)
-    darwin: 1024, // PATH_MAX on macOS
-    linux: 4096, // PATH_MAX on Linux
-    default: 4096
-  },
-
-  // Maximum filename length (NAME_MAX)
-  MAX_NAME_LENGTH: {
-    win32: 255,
-    darwin: 255,
-    linux: 255,
-    default: 255
-  }
-}
+// Re-export path limits from fileConstants for backward compatibility
+export { PATH_LENGTH_LIMITS, NAME_LENGTH_LIMITS } from '../constants/fileConstants'
 
 /**
  * Gets the maximum path length for the current platform
@@ -196,8 +179,8 @@ export const PATH_LIMITS = {
  * @returns Maximum path length in characters
  */
 export function getMaxPathLength(): number {
-  const platform = process.platform as keyof typeof PATH_LIMITS.MAX_PATH_LENGTH
-  return PATH_LIMITS.MAX_PATH_LENGTH[platform] || PATH_LIMITS.MAX_PATH_LENGTH.default
+  const platform = process.platform as keyof typeof PATH_LENGTH_LIMITS
+  return PATH_LENGTH_LIMITS[platform] || PATH_LENGTH_LIMITS.default
 }
 
 /**
@@ -206,8 +189,8 @@ export function getMaxPathLength(): number {
  * @returns Maximum filename length in characters
  */
 export function getMaxNameLength(): number {
-  const platform = process.platform as keyof typeof PATH_LIMITS.MAX_NAME_LENGTH
-  return PATH_LIMITS.MAX_NAME_LENGTH[platform] || PATH_LIMITS.MAX_NAME_LENGTH.default
+  const platform = process.platform as keyof typeof NAME_LENGTH_LIMITS
+  return NAME_LENGTH_LIMITS[platform] || NAME_LENGTH_LIMITS.default
 }
 
 /**

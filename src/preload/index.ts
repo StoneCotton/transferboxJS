@@ -7,7 +7,8 @@ import {
   TransferStartRequest,
   TransferRetryRequest,
   LogEntry,
-  UpdateCheckResult
+  UpdateCheckResult,
+  TransferErrorInfo
 } from '../shared/types'
 import type { AppConfig } from '../shared/types/config'
 import type { DriveInfo } from '../shared/types/drive'
@@ -100,8 +101,8 @@ const api = {
     ipcRenderer.on(IPC_CHANNELS.TRANSFER_COMPLETE, listener)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.TRANSFER_COMPLETE, listener)
   },
-  onTransferError: (callback: (error: string) => void) => {
-    const listener = (_event: IpcRendererEvent, error: string) => callback(error)
+  onTransferError: (callback: (error: TransferErrorInfo) => void) => {
+    const listener = (_event: IpcRendererEvent, error: TransferErrorInfo) => callback(error)
     ipcRenderer.on(IPC_CHANNELS.TRANSFER_ERROR, listener)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.TRANSFER_ERROR, listener)
   },

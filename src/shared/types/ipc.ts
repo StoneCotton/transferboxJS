@@ -4,7 +4,7 @@
  */
 
 import type { AppConfig } from './config'
-import type { TransferProgress, TransferSession } from './transfer'
+import type { TransferProgress, TransferSession, TransferErrorType } from './transfer'
 import type { DriveInfo, ScannedMedia } from './drive'
 
 // IPC Channel names
@@ -111,7 +111,7 @@ export type ConflictResolutionChoice = 'skip' | 'rename' | 'overwrite'
 /**
  * File conflict information
  */
-export interface FileConflictInfo {
+export interface FileConflict {
   sourcePath: string
   destinationPath: string
   fileName: string
@@ -120,6 +120,11 @@ export interface FileConflictInfo {
   existingSize: number
   existingModified: number
 }
+
+/**
+ * @deprecated Use FileConflict instead. Kept for backward compatibility.
+ */
+export type FileConflictInfo = FileConflict
 
 /**
  * Validation warning types
@@ -158,7 +163,7 @@ export interface TransferValidateResponse {
   canProceed: boolean
   requiresConfirmation: boolean
   warnings: ValidationWarning[]
-  conflicts: FileConflictInfo[]
+  conflicts: FileConflict[]
   spaceRequired: number
   spaceAvailable: number
   error?: string
@@ -186,6 +191,16 @@ export interface LogEntry {
   timestamp: number
   level: 'info' | 'warn' | 'error' | 'debug'
   message: string
+  context?: Record<string, unknown>
+}
+
+/**
+ * Structured error information for transfer errors
+ * Includes error type for proper categorization in the UI
+ */
+export interface TransferErrorInfo {
+  message: string
+  type: TransferErrorType
   context?: Record<string, unknown>
 }
 
@@ -269,7 +284,7 @@ export interface IpcEvents {
   [IPC_CHANNELS.DRIVE_UNMOUNTED]: (device: string) => void
   [IPC_CHANNELS.TRANSFER_PROGRESS]: (progress: TransferProgress) => void
   [IPC_CHANNELS.TRANSFER_COMPLETE]: (session: TransferSession) => void
-  [IPC_CHANNELS.TRANSFER_ERROR]: (error: string) => void
+  [IPC_CHANNELS.TRANSFER_ERROR]: (error: TransferErrorInfo) => void
   [IPC_CHANNELS.TRANSFER_PAUSED]: () => void
   [IPC_CHANNELS.TRANSFER_RESUMED]: () => void
   [IPC_CHANNELS.LOG_ENTRY]: (entry: LogEntry) => void

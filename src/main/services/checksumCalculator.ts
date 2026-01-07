@@ -5,6 +5,7 @@
 
 import { createReadStream } from 'fs'
 import { XXHash64 } from 'xxhash-addon'
+import { DEFAULT_BUFFER_SIZE } from '../constants/fileConstants'
 
 /**
  * Interface for a streaming checksum hasher
@@ -65,7 +66,7 @@ export class ChecksumCalculator {
    */
   async calculateFileChecksum(
     filePath: string,
-    bufferSize: number = 4 * 1024 * 1024
+    bufferSize: number = DEFAULT_BUFFER_SIZE
   ): Promise<string> {
     const hasher = this.createHasher()
 

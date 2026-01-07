@@ -12,7 +12,10 @@ export interface SanitizeOptions {
   replacement?: string
 }
 
-export interface ConflictResolution {
+/**
+ * Options for resolving filename conflicts during file operations
+ */
+export interface FilenameConflictOptions {
   strategy: 'overwrite' | 'skip' | 'rename' | 'rename-timestamp' | 'error'
   maxRenameAttempts?: number
 }
@@ -83,7 +86,7 @@ export class FilenameUtils {
    */
   async resolveConflict(
     filePath: string,
-    resolution: ConflictResolution
+    options: FilenameConflictOptions
   ): Promise<{ path: string; action: 'write' | 'skip' }> {
     const exists = await this.fileExists(filePath)
 
@@ -91,7 +94,7 @@ export class FilenameUtils {
       return { path: filePath, action: 'write' }
     }
 
-    switch (resolution.strategy) {
+    switch (options.strategy) {
       case 'overwrite':
         return { path: filePath, action: 'write' }
 
@@ -100,7 +103,7 @@ export class FilenameUtils {
 
       case 'rename':
         return {
-          path: await this.generateUniqueName(filePath, resolution.maxRenameAttempts ?? 100),
+          path: await this.generateUniqueName(filePath, options.maxRenameAttempts ?? 100),
           action: 'write'
         }
 

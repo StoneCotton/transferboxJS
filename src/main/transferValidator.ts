@@ -8,43 +8,15 @@ import * as path from 'path'
 import { stat, access } from 'fs/promises'
 import { hasEnoughSpace, checkDiskSpace } from './pathValidator'
 import { getLogger } from './logger'
+import type {
+  FileConflict,
+  ValidationWarningType,
+  ValidationWarning
+} from '../shared/types/ipc'
+import type { ConflictResolution } from '../shared/types/config'
 
-/**
- * Conflict resolution strategy options
- */
-export type ConflictResolution = 'skip' | 'rename' | 'overwrite' | 'ask'
-
-/**
- * Information about a file conflict
- */
-export interface FileConflict {
-  sourcePath: string
-  destinationPath: string
-  fileName: string
-  sourceSize: number
-  sourceModified: number
-  existingSize: number
-  existingModified: number
-}
-
-/**
- * Warning types for pre-transfer validation
- */
-export type ValidationWarningType =
-  | 'same_directory'
-  | 'nested_source_in_dest'
-  | 'nested_dest_in_source'
-  | 'insufficient_space'
-  | 'file_conflicts'
-
-/**
- * Validation warning structure
- */
-export interface ValidationWarning {
-  type: ValidationWarningType
-  message: string
-  details?: Record<string, unknown>
-}
+// Re-export types for backward compatibility
+export type { ConflictResolution, FileConflict, ValidationWarningType, ValidationWarning }
 
 /**
  * Result of pre-transfer validation

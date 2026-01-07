@@ -872,8 +872,8 @@ export class FileTransferEngine {
           // Backpressure: pause reading until write buffer drains
           readStream.pause()
           writeStream.once('drain', () => {
-            // Only resume if not paused by user
-            if (!this.paused) {
+            // Only resume if not paused by user AND not stopping
+            if (!this.paused && !this.stopping) {
               readStream.resume()
             }
           })
@@ -919,6 +919,18 @@ export class FileTransferEngine {
         }
       })
 
+      readStream.on('close', () => {
+        // Handle forced stream destruction (from stop())
+        // On natural completion, 'end' fires before 'close' and writeStream.end() is called,
+        // so 'finish' will have already resolved the promise - reject here is a safe no-op
+        if (this.stopping || this.stopped) {
+          this.activeReadStreams.delete(readStream)
+          writeStream.destroy()
+          this.activeTempFiles.delete(destPath)
+          reject(new TransferError('Transfer cancelled', TransferErrorType.CANCELLED, false))
+        }
+      })
+
       writeStream.on('finish', async () => {
         // Clean up read stream tracking on completion
         this.activeReadStreams.delete(readStream)
@@ -952,8 +964,18 @@ export class FileTransferEngine {
         }
       })
 
-      // Start the stream only if not paused (manual flow control instead of pipe)
-      if (!this.paused) {
+      // Start the stream only if not paused AND not stopping (manual flow control instead of pipe)
+      if (this.stopping || this.stopped) {
+        // Engine is stopping/stopped, clean up and reject
+        this.activeReadStreams.delete(readStream)
+        readStream.destroy()
+        // Wait for writeStream to close before rejecting to ensure file handle is released
+        writeStream.on('close', () => {
+          this.activeTempFiles.delete(destPath)
+          reject(new TransferError('Transfer cancelled', TransferErrorType.CANCELLED, false))
+        })
+        writeStream.destroy()
+      } else if (!this.paused) {
         readStream.resume()
       }
     })

@@ -13,7 +13,7 @@ import {
   resetConfig,
   validateConfig
 } from '../../src/main/configManager'
-import { AppConfig, DEFAULT_CONFIG, TransferMode, FolderStructure } from '../../src/shared/types'
+import { AppConfig, DEFAULT_CONFIG, TransferMode } from '../../src/shared/types'
 
 describe('ConfigManager', () => {
   let configManager: ConfigManager
@@ -39,7 +39,6 @@ describe('ConfigManager', () => {
       const config = configManager.getConfig()
 
       expect(config.transferMode).toBe('manual')
-      expect(config.folderStructure).toBe('preserve-source')
       expect(config.keepFolderStructure).toBe(false)
       expect(config.verifyChecksums).toBe(true)
       expect(config.checksumAlgorithm).toBe('xxhash64')
@@ -60,20 +59,19 @@ describe('ConfigManager', () => {
       const config = configManager.getConfig()
       expect(config.transferMode).toBe('fully-autonomous')
       // Other values should remain default
-      expect(config.folderStructure).toBe('preserve-source')
       expect(config.keepFolderStructure).toBe(false)
     })
 
     it('should update multiple config values', () => {
       configManager.updateConfig({
         transferMode: 'auto-transfer',
-        folderStructure: 'flat',
+        keepFolderStructure: true,
         verifyChecksums: false
       })
 
       const config = configManager.getConfig()
       expect(config.transferMode).toBe('auto-transfer')
-      expect(config.folderStructure).toBe('flat')
+      expect(config.keepFolderStructure).toBe(true)
       expect(config.verifyChecksums).toBe(false)
     })
 
@@ -90,14 +88,13 @@ describe('ConfigManager', () => {
     it('should reset config to defaults', () => {
       configManager.updateConfig({
         transferMode: 'fully-autonomous',
-        folderStructure: 'flat'
+        keepFolderStructure: true
       })
 
       configManager.resetConfig()
       const config = configManager.getConfig()
 
       expect(config.transferMode).toBe('manual')
-      expect(config.folderStructure).toBe('preserve-source')
       expect(config.keepFolderStructure).toBe(false)
     })
 
@@ -176,12 +173,12 @@ describe('ConfigManager', () => {
       expect(() => validateConfig(invalidConfig)).toThrow()
     })
 
-    it('should validate folder structure', () => {
-      const validConfig: Partial<AppConfig> = { folderStructure: 'date-based' }
+    it('should validate keepFolderStructure', () => {
+      const validConfig: Partial<AppConfig> = { keepFolderStructure: true }
       expect(() => validateConfig(validConfig)).not.toThrow()
 
-      const invalidConfig = { folderStructure: 'invalid' as FolderStructure }
-      expect(() => validateConfig(invalidConfig)).toThrow()
+      const validConfig2: Partial<AppConfig> = { keepFolderStructure: false }
+      expect(() => validateConfig(validConfig2)).not.toThrow()
     })
 
     it('should validate buffer size', () => {

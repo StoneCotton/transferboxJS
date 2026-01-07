@@ -13,7 +13,8 @@ import type {
   LogEntry,
   DriveInfo,
   ScannedMedia,
-  UpdateCheckResult
+  UpdateCheckResult,
+  TransferErrorInfo
 } from '../shared/types'
 
 interface IpcApi {
@@ -85,7 +86,7 @@ interface IpcApi {
   onDriveUnmounted: (callback: (device: string) => void) => () => void
   onTransferProgress: (callback: (progress: TransferProgress) => void) => () => void
   onTransferComplete: (callback: (data: TransferSession) => void) => () => void
-  onTransferError: (callback: (error: string) => void) => () => void
+  onTransferError: (callback: (error: TransferErrorInfo) => void) => () => void
   onTransferPaused: (callback: () => void) => () => void
   onTransferResumed: (callback: () => void) => () => void
   onLogEntry: (callback: (entry: LogEntry) => void) => () => void

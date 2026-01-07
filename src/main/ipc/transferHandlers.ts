@@ -4,115 +4,30 @@
  */
 
 import { ipcMain } from 'electron'
-import { IPC_CHANNELS, DriveInfo } from '../../shared/types'
+import { IPC_CHANNELS, DriveInfo, TransferErrorInfo } from '../../shared/types'
+import { TransferErrorType } from '../../shared/types/transfer'
 import { getDatabaseManager } from '../databaseManager'
 import { getLogger } from '../logger'
 import { validateTransferStartRequest } from '../utils/ipcValidator'
-import { getTransferService, TransferProgressData } from '../services/transferService'
-import { getDriveMonitor, getMainWindow } from './state'
+import { getTransferService } from '../services/transferService'
+import { autoUnmountDrive } from '../services/driveService'
+import { sendCompletionProgress } from '../services/progressService'
+import { TransferError } from '../errors/TransferError'
 
 /**
- * Auto-unmount drive after successful transfer
+ * Create structured error info from an error object
  */
-async function autoUnmountDrive(driveDevice: string, sessionId: string): Promise<void> {
-  const logger = getLogger()
-  const driveMonitor = getDriveMonitor()
-  const mainWindow = getMainWindow()
-
-  try {
-    logger.info('Auto-unmounting drive after successful transfer', {
-      device: driveDevice,
-      sessionId
-    })
-
-    const unmountSuccess = await driveMonitor?.unmountDrive(driveDevice)
-
-    if (unmountSuccess) {
-      logger.info('Drive auto-unmounted successfully', {
-        device: driveDevice,
-        sessionId
-      })
-
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        if (process.platform === 'win32') {
-          logger.debug('[IPC] Sending DRIVE_REMOVED event (auto, win32)', {
-            device: driveDevice
-          })
-          mainWindow.webContents.send(IPC_CHANNELS.DRIVE_REMOVED, driveDevice)
-        } else {
-          logger.debug('[IPC] Sending DRIVE_UNMOUNTED event (auto)', {
-            device: driveDevice
-          })
-          mainWindow.webContents.send(IPC_CHANNELS.DRIVE_UNMOUNTED, driveDevice)
-        }
-      } else {
-        logger.warn('[IPC] Cannot send drive event - mainWindow not available')
-      }
-    } else {
-      logger.warn('Failed to auto-unmount drive', {
-        device: driveDevice,
-        sessionId
-      })
+function createTransferErrorInfo(error: Error): TransferErrorInfo {
+  if (error instanceof TransferError) {
+    return {
+      message: error.message,
+      type: error.errorType
     }
-  } catch (unmountError) {
-    logger.error('Error during auto-unmount', {
-      device: driveDevice,
-      sessionId,
-      error: unmountError instanceof Error ? unmountError.message : String(unmountError)
-    })
   }
-}
-
-/**
- * Send final progress update on completion
- */
-function sendCompletionProgress(
-  sender: Electron.WebContents,
-  context: {
-    totalFiles: number
-    totalBytes: number
-    startTime: number
-    sessionId: string
-    completedCount: number
-    failedCount: number
+  return {
+    message: error.message,
+    type: TransferErrorType.UNKNOWN
   }
-): void {
-  const db = getDatabaseManager()
-  const completedFiles = db.getFilesByStatus(context.sessionId, 'complete')
-  const failedFiles = db.getFilesByStatus(context.sessionId, 'error')
-
-  const progressData: TransferProgressData = {
-    status: context.failedCount > 0 ? 'error' : 'complete',
-    totalFiles: context.totalFiles,
-    completedFilesCount: context.completedCount,
-    failedFiles: context.failedCount,
-    skippedFiles: 0,
-    totalBytes: context.totalBytes,
-    transferredBytes: context.totalBytes,
-    overallPercentage: 100,
-    currentFile: null,
-    activeFiles: [],
-    completedFiles: [...completedFiles, ...failedFiles].map((f) => ({
-      sourcePath: f.sourcePath,
-      destinationPath: f.destinationPath,
-      fileName: f.fileName,
-      fileSize: f.fileSize,
-      bytesTransferred: f.bytesTransferred,
-      percentage: f.percentage,
-      status: f.status as 'complete' | 'error' | 'skipped',
-      error: f.error,
-      checksum: f.checksum
-    })),
-    transferSpeed: 0,
-    averageSpeed: 0,
-    eta: 0,
-    elapsedTime: (Date.now() - context.startTime) / 1000,
-    startTime: context.startTime,
-    endTime: Date.now(),
-    errorCount: context.failedCount
-  }
-
-  sender.send(IPC_CHANNELS.TRANSFER_PROGRESS, progressData)
 }
 
 /**
@@ -253,7 +168,13 @@ export function setupTransferHandlers(): void {
         // Auto-unmount on success
         if (failedCount === 0 && validatedRequest.driveInfo.device) {
           setImmediate(() => {
-            autoUnmountDrive(validatedRequest.driveInfo.device, sessionId)
+            autoUnmountDrive(validatedRequest.driveInfo.device, sessionId).catch((error) => {
+              logger.error('Failed to auto-unmount drive after transfer', {
+                device: validatedRequest.driveInfo.device,
+                sessionId,
+                error: error instanceof Error ? error.message : String(error)
+              })
+            })
           })
         }
 
@@ -276,7 +197,7 @@ export function setupTransferHandlers(): void {
       // Error callback
       (error) => {
         transferService.updateSessionError(sessionId, error.message)
-        event.sender.send(IPC_CHANNELS.TRANSFER_ERROR, error.message)
+        event.sender.send(IPC_CHANNELS.TRANSFER_ERROR, createTransferErrorInfo(error))
       }
     )
   })
@@ -459,7 +380,7 @@ export function setupTransferHandlers(): void {
       // Error callback
       (error) => {
         transferService.updateSessionError(sessionId, error.message)
-        event.sender.send(IPC_CHANNELS.TRANSFER_ERROR, error.message)
+        event.sender.send(IPC_CHANNELS.TRANSFER_ERROR, createTransferErrorInfo(error))
       }
     )
   })

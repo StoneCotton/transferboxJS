@@ -11,7 +11,6 @@ import {
   AppConfig,
   DEFAULT_CONFIG,
   TransferMode,
-  FolderStructure,
   ChecksumAlgorithm
 } from '../shared/types'
 import { CONFIG_VERSION, isCompatible, VersionUtils } from './constants/version'
@@ -198,14 +197,67 @@ export class ConfigManager {
   private migrateFromVersion1(): void {
     console.log('[ConfigManager] Migrating from version 1.x to version 2.x')
 
-    // Add any new config options introduced in version 2.x
-    // This is where you'd add new fields, modify existing ones, etc.
-
-    // Example: Add new field if it doesn't exist
     const currentConfig = this.getConfig()
+
+    // Add unitSystem if it doesn't exist
     if (currentConfig.unitSystem === undefined) {
       console.log('[ConfigManager] Adding unitSystem field')
       this.store.set('unitSystem', 'decimal')
+    }
+
+    // Migrate legacy folderStructure to new settings
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const legacyFolderStructure = (currentConfig as any).folderStructure as string | undefined
+    if (legacyFolderStructure) {
+      console.log(
+        `[ConfigManager] Migrating legacy folderStructure: ${legacyFolderStructure}`
+      )
+      switch (legacyFolderStructure) {
+        case 'date-based':
+          this.store.set('createDateBasedFolders', true)
+          this.store.set('createDeviceBasedFolders', false)
+          this.store.set('keepFolderStructure', false)
+          break
+        case 'device-based':
+          this.store.set('createDateBasedFolders', false)
+          this.store.set('createDeviceBasedFolders', true)
+          this.store.set('keepFolderStructure', false)
+          break
+        case 'preserve-source':
+          this.store.set('createDateBasedFolders', false)
+          this.store.set('createDeviceBasedFolders', false)
+          this.store.set('keepFolderStructure', true)
+          break
+        case 'flat':
+        default:
+          this.store.set('createDateBasedFolders', false)
+          this.store.set('createDeviceBasedFolders', false)
+          this.store.set('keepFolderStructure', false)
+          break
+      }
+      // Remove legacy field
+      this.store.delete('folderStructure')
+    }
+
+    // Migrate legacy generateMHL to generateMHLChecksumFiles
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const legacyGenerateMHL = (currentConfig as any).generateMHL as boolean | undefined
+    if (legacyGenerateMHL !== undefined) {
+      console.log(`[ConfigManager] Migrating legacy generateMHL: ${legacyGenerateMHL}`)
+      this.store.set('generateMHLChecksumFiles', legacyGenerateMHL)
+      this.store.delete('generateMHL')
+    }
+
+    // Migrate legacy preserveOriginalNames to addTimestampToFilename
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const legacyPreserveOriginalNames = (currentConfig as any).preserveOriginalNames as boolean | undefined
+    if (legacyPreserveOriginalNames !== undefined) {
+      console.log(
+        `[ConfigManager] Migrating legacy preserveOriginalNames: ${legacyPreserveOriginalNames}`
+      )
+      // preserveOriginalNames: true means don't add timestamps (addTimestampToFilename: false)
+      this.store.set('addTimestampToFilename', !legacyPreserveOriginalNames)
+      this.store.delete('preserveOriginalNames')
     }
   }
 
@@ -550,21 +602,6 @@ export function validateConfig(config: Partial<AppConfig>): void {
     if (!validModes.includes(config.transferMode)) {
       throw new Error(
         `Invalid transfer mode: ${config.transferMode}. Must be one of: ${validModes.join(', ')}`
-      )
-    }
-  }
-
-  // Validate folderStructure
-  if (config.folderStructure !== undefined) {
-    const validStructures: FolderStructure[] = [
-      'date-based',
-      'device-based',
-      'flat',
-      'preserve-source'
-    ]
-    if (!validStructures.includes(config.folderStructure)) {
-      throw new Error(
-        `Invalid folder structure: ${config.folderStructure}. Must be one of: ${validStructures.join(', ')}`
       )
     }
   }

@@ -23,7 +23,7 @@ export interface ErrorInfo {
 export interface ErrorState {
   errors: ErrorInfo[]
   criticalError: ErrorInfo | null
-  dismissedErrors: Set<string>
+  dismissedErrors: string[]
 }
 
 export interface ErrorSlice extends ErrorState {
@@ -44,7 +44,7 @@ export interface ErrorSlice extends ErrorState {
 export const createErrorSlice: StateCreator<ErrorSlice> = (set, get) => ({
   errors: [],
   criticalError: null,
-  dismissedErrors: new Set(),
+  dismissedErrors: [],
 
   addError: (error) => {
     const id = `${Date.now()}-${Math.random()}`
@@ -70,7 +70,9 @@ export const createErrorSlice: StateCreator<ErrorSlice> = (set, get) => ({
   dismissError: (id) =>
     set((state) => ({
       errors: state.errors.map((e) => (e.id === id ? { ...e, dismissed: true } : e)),
-      dismissedErrors: new Set([...state.dismissedErrors, id])
+      dismissedErrors: state.dismissedErrors.includes(id)
+        ? state.dismissedErrors
+        : [...state.dismissedErrors, id]
     })),
 
   clearError: (id) =>
@@ -81,7 +83,7 @@ export const createErrorSlice: StateCreator<ErrorSlice> = (set, get) => ({
   clearAllErrors: () =>
     set({
       errors: [],
-      dismissedErrors: new Set()
+      dismissedErrors: []
     }),
 
   setCriticalError: (error) => set({ criticalError: error }),

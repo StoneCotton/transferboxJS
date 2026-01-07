@@ -37,7 +37,7 @@ export const createDriveSlice: StateCreator<DriveSlice> = (set, get) => ({
   scannedFiles: [],
   scanInProgress: false,
   scanError: null,
-  existingDrives: new Set<string>(), // Track drives that were present at startup
+  existingDrives: [], // Track drives that were present at startup
   unmountedDrives: [], // Track drives that are unmounted but still connected
 
   // Actions
@@ -54,17 +54,14 @@ export const createDriveSlice: StateCreator<DriveSlice> = (set, get) => ({
 
   removeDrive: (device) =>
     set((state) => {
-      // Remove drive from all tracking when it's physically disconnected
-      const newExistingDrives = new Set(state.existingDrives)
-      newExistingDrives.delete(device)
-
       // Check if there's an active transfer - don't clear scannedFiles during transfer
       // This allows retry logic to work and keeps the queue visible to users
       const isTransferring = (state as DriveSlice & CrossSliceState).isTransferring || false
 
       return {
         detectedDrives: state.detectedDrives.filter((d) => d.device !== device),
-        existingDrives: newExistingDrives,
+        // Remove drive from all tracking when it's physically disconnected
+        existingDrives: state.existingDrives.filter((d) => d !== device),
         unmountedDrives: state.unmountedDrives.filter((d) => d !== device),
         // Clear selected drive if it was removed
         selectedDrive: state.selectedDrive?.device === device ? null : state.selectedDrive,
@@ -92,9 +89,9 @@ export const createDriveSlice: StateCreator<DriveSlice> = (set, get) => ({
     }),
 
   // New actions for existing drive handling
-  setExistingDrives: (drives) => set({ existingDrives: new Set(drives.map((d) => d.device)) }),
+  setExistingDrives: (drives) => set({ existingDrives: drives.map((d) => d.device) }),
 
-  isExistingDrive: (device) => get().existingDrives.has(device),
+  isExistingDrive: (device) => get().existingDrives.includes(device),
 
   // Mount status actions
   markDriveAsUnmounted: (device) =>
