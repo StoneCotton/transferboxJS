@@ -4,7 +4,7 @@
 
 TransferBox is a powerful desktop application designed for seamless, reliable file transfers from removable storage devices. Built with modern web technologies and optimized for professional workflows, it ensures data integrity through checksum verification while providing flexible automation options.
 
-[![Version](https://img.shields.io/badge/version-2.0.1--beta.17-blue.svg)](https://github.com/StoneCotton/transferboxJS)
+[![Version](https://img.shields.io/badge/version-2.0.1--beta.18-blue.svg)](https://github.com/StoneCotton/transferboxJS)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)](https://github.com/StoneCotton/transferboxJS)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
@@ -222,7 +222,7 @@ npm run clean:build    # Clean and rebuild
 ## 📊 Project Information
 
 - **Author**: Tyler Saari
-- **Version**: 2.0.1-beta.17
+- **Version**: 2.0.1-beta.18
 - **Homepage**: [tylersaari.net](https://tylersaari.net)
 - **Repository**: [GitHub](https://github.com/StoneCotton/transferboxJS)
 
