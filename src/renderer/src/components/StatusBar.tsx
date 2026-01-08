@@ -95,7 +95,7 @@ export function StatusBar() {
             />
             {isCondensed ? (
               <span className="max-w-[60px] truncate text-[10px] font-bold text-gray-900 dark:text-white">
-                {selectedDrive.displayName}
+                {selectedDrive.volumeLabel || selectedDrive.displayName}
               </span>
             ) : (
               <div className="flex flex-col">
@@ -103,7 +103,7 @@ export function StatusBar() {
                   Drive
                 </span>
                 <span className="text-xs font-bold text-gray-900 dark:text-white">
-                  {selectedDrive.displayName}
+                  {selectedDrive.volumeLabel || selectedDrive.displayName}
                 </span>
               </div>
             )}

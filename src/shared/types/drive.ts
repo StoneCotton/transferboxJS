@@ -11,6 +11,7 @@ export interface DriveInfo {
   isRemovable: boolean // Whether drive is removable
   isSystem: boolean // Whether this is a system drive
   busType: string // Connection type (USB, SD, etc.)
+  volumeLabel?: string | null // User-assigned volume name (e.g., "MY_SD_CARD")
 }
 
 export interface DriveStats {

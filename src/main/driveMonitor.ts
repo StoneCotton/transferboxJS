@@ -22,7 +22,7 @@ const execFileAsync = promisify(execFile)
 interface DrivelistDrive {
   device: string
   description?: string | null
-  mountpoints?: Array<{ path: string }> | string[]
+  mountpoints?: Array<{ path: string; label?: string | null }> | string[]
   size?: number | null
   isRemovable?: boolean | null
   isSystem?: boolean | null
@@ -449,13 +449,22 @@ export class DriveMonitor {
    * Convert drivelist drive info to our DriveInfo format
    */
   private convertDriveInfo(drive: DrivelistDrive): DriveInfo {
-    // Handle mountpoints that could be either { path: string }[] or string[]
+    // Handle mountpoints that could be either { path: string; label?: string }[] or string[]
     const mountpointPaths = (drive.mountpoints || [])
       .map((mp) => {
         if (typeof mp === 'string') return mp
         return mp.path || ''
       })
       .filter(Boolean)
+
+    // Extract first available volume label from mountpoints
+    const volumeLabel =
+      (drive.mountpoints || [])
+        .filter(
+          (mp): mp is { path: string; label?: string | null } =>
+            typeof mp !== 'string' && !!mp.label
+        )
+        .map((mp) => mp.label)[0] || null
 
     return {
       device: drive.device || '',
@@ -465,7 +474,8 @@ export class DriveMonitor {
       size: drive.size ?? 0,
       isRemovable: drive.isRemovable || false,
       isSystem: drive.isSystem || false,
-      busType: drive.busType || 'Unknown'
+      busType: drive.busType || 'Unknown',
+      volumeLabel
     }
   }
 }
