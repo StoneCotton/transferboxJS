@@ -1,17 +1,26 @@
 /**
  * Main Zustand Store
- * Combines all slices into a single store
+ * Combines all slices into a single store.
+ * Provides convenience selectors for common state access patterns.
  */
 
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
 import { useShallow } from 'zustand/shallow'
+import { useMemo } from 'react'
 import { createDriveSlice, type DriveSlice } from './slices/driveSlice'
 import { createTransferSlice, type TransferSlice } from './slices/transferSlice'
 import { createConfigSlice, type ConfigSlice } from './slices/configSlice'
 import { createLogSlice, type LogSlice } from './slices/logSlice'
 import { createUISlice, type UISlice } from './slices/uiSlice'
 import { createErrorSlice, type ErrorSlice } from './slices/errorSlice'
+import {
+  groupFilesByFolder,
+  getSelectedFilePaths,
+  getSelectionStats,
+  getAllFolderPaths,
+  type FolderGroup
+} from '../utils/fileGrouping'
 
 // Combined store type
 export type AppStore = DriveSlice & TransferSlice & ConfigSlice & LogSlice & UISlice & ErrorSlice
@@ -42,18 +51,27 @@ export const useDriveStore = () =>
       scannedFiles: state.scannedFiles,
       scanInProgress: state.scanInProgress,
       scanError: state.scanError,
+      fileSelection: state.fileSelection,
       setDetectedDrives: state.setDetectedDrives,
       addDrive: state.addDrive,
       removeDrive: state.removeDrive,
       selectDrive: state.selectDrive,
       setScannedFiles: state.setScannedFiles,
+      setScannedFilesWithSelection: state.setScannedFilesWithSelection,
       setScanInProgress: state.setScanInProgress,
       setScanError: state.setScanError,
       clearScan: state.clearScan,
       setExistingDrives: state.setExistingDrives,
       isExistingDrive: state.isExistingDrive,
       markDriveAsUnmounted: state.markDriveAsUnmounted,
-      isDriveUnmounted: state.isDriveUnmounted
+      isDriveUnmounted: state.isDriveUnmounted,
+      // File selection actions
+      toggleFolderSelection: state.toggleFolderSelection,
+      toggleFileSelection: state.toggleFileSelection,
+      toggleFolderExpanded: state.toggleFolderExpanded,
+      selectAllFolders: state.selectAllFolders,
+      deselectAllFolders: state.deselectAllFolders,
+      resetFileSelection: state.resetFileSelection
     }))
   )
 
@@ -123,3 +141,108 @@ export const useUIStore = () =>
       closeAllModals: state.closeAllModals
     }))
   )
+
+// ==========================================
+// File Selection Hooks (for selective transfer feature)
+// ==========================================
+
+/**
+ * Hook to get files grouped by folder for the current selection.
+ * Returns memoized folder groups based on scanned files and drive root.
+ */
+export function useFileGroups(): FolderGroup[] {
+  const { scannedFiles, selectedDrive } = useStore(
+    useShallow((state) => ({
+      scannedFiles: state.scannedFiles,
+      selectedDrive: state.selectedDrive
+    }))
+  )
+
+  return useMemo(() => {
+    if (!selectedDrive || scannedFiles.length === 0) {
+      return []
+    }
+    const driveRoot = selectedDrive.mountpoints[0] || ''
+    return groupFilesByFolder(scannedFiles, driveRoot)
+  }, [scannedFiles, selectedDrive])
+}
+
+/**
+ * Hook to get the list of selected file paths for transfer.
+ * Computes selected paths based on folder and file selection state.
+ */
+export function useSelectedFilePaths(): string[] {
+  const { scannedFiles, selectedDrive, fileSelection } = useStore(
+    useShallow((state) => ({
+      scannedFiles: state.scannedFiles,
+      selectedDrive: state.selectedDrive,
+      fileSelection: state.fileSelection
+    }))
+  )
+
+  return useMemo(() => {
+    if (!selectedDrive || scannedFiles.length === 0) {
+      return []
+    }
+    const driveRoot = selectedDrive.mountpoints[0] || ''
+    const groups = groupFilesByFolder(scannedFiles, driveRoot)
+    return getSelectedFilePaths(groups, fileSelection.selectedFolders, fileSelection.deselectedFiles)
+  }, [scannedFiles, selectedDrive, fileSelection])
+}
+
+/**
+ * Hook to get selection statistics (selected count, total count, sizes).
+ * Useful for displaying selection summary in the UI.
+ */
+export function useSelectionStats(): {
+  selected: number
+  total: number
+  totalSize: number
+  selectedSize: number
+} {
+  const { scannedFiles, selectedDrive, fileSelection } = useStore(
+    useShallow((state) => ({
+      scannedFiles: state.scannedFiles,
+      selectedDrive: state.selectedDrive,
+      fileSelection: state.fileSelection
+    }))
+  )
+
+  return useMemo(() => {
+    if (!selectedDrive || scannedFiles.length === 0) {
+      return { selected: 0, total: 0, totalSize: 0, selectedSize: 0 }
+    }
+    const driveRoot = selectedDrive.mountpoints[0] || ''
+    const groups = groupFilesByFolder(scannedFiles, driveRoot)
+    return getSelectionStats(groups, fileSelection.selectedFolders, fileSelection.deselectedFiles)
+  }, [scannedFiles, selectedDrive, fileSelection])
+}
+
+/**
+ * Hook to initialize file selection with all folders selected.
+ * Call this after a scan completes to select all files by default.
+ */
+export function useInitializeFileSelection(): () => void {
+  const { scannedFiles, selectedDrive, selectAllFolders } = useStore(
+    useShallow((state) => ({
+      scannedFiles: state.scannedFiles,
+      selectedDrive: state.selectedDrive,
+      selectAllFolders: state.selectAllFolders
+    }))
+  )
+
+  return useMemo(() => {
+    return () => {
+      if (!selectedDrive || scannedFiles.length === 0) {
+        return
+      }
+      const driveRoot = selectedDrive.mountpoints[0] || ''
+      const groups = groupFilesByFolder(scannedFiles, driveRoot)
+      const allFolderPaths = getAllFolderPaths(groups)
+      selectAllFolders(allFolderPaths)
+    }
+  }, [scannedFiles, selectedDrive, selectAllFolders])
+}
+
+// Re-export FolderGroup type for convenience
+export type { FolderGroup }

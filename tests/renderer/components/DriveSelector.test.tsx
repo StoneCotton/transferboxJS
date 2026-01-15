@@ -53,6 +53,7 @@ jest.mock('../../../src/renderer/src/store', () => ({
     scanInProgress: false,
     setScanInProgress: jest.fn(),
     setScannedFiles: jest.fn(),
+    setScannedFilesWithSelection: jest.fn(),
     setScanError: jest.fn(),
     isExistingDrive: jest.fn(() => false),
     isDriveUnmounted: jest.fn(() => false)
@@ -70,7 +71,9 @@ jest.mock('../../../src/renderer/src/store', () => ({
 
 jest.mock('../../../src/renderer/src/hooks/useIpc', () => ({
   useIpc: jest.fn(() => ({
-    scanDrive: jest.fn(() => Promise.resolve({ files: mockScannedFiles }))
+    scanDrive: jest.fn(() => Promise.resolve({ files: mockScannedFiles, driveInfo: mockDrive })),
+    revealDrive: jest.fn(() => Promise.resolve()),
+    unmountDrive: jest.fn(() => Promise.resolve(true))
   }))
 }))
 
@@ -115,7 +118,7 @@ describe('DriveSelector Component', () => {
 
     it('should prevent drive scanning when transfer is in progress', async () => {
       const mockSelectDrive = jest.fn()
-      const mockScanDrive = jest.fn(() => Promise.resolve({ files: mockScannedFiles }))
+      const mockScanDrive = jest.fn(() => Promise.resolve({ files: mockScannedFiles, driveInfo: mockDrive }))
       const mockSetScanError = jest.fn()
 
       // Setup: Transfer in progress
@@ -133,6 +136,7 @@ describe('DriveSelector Component', () => {
         scanInProgress: false,
         setScanInProgress: jest.fn(),
         setScannedFiles: jest.fn(),
+        setScannedFilesWithSelection: jest.fn(),
         setScanError: mockSetScanError,
         isExistingDrive: jest.fn(() => false),
         isDriveUnmounted: jest.fn(() => false)
@@ -171,6 +175,7 @@ describe('DriveSelector Component', () => {
         scanInProgress: false,
         setScanInProgress: jest.fn(),
         setScannedFiles: jest.fn(),
+        setScannedFilesWithSelection: jest.fn(),
         setScanError: jest.fn(),
         isExistingDrive: jest.fn(() => false),
         isDriveUnmounted: jest.fn(() => true) // Drive is unmounted
@@ -191,7 +196,7 @@ describe('DriveSelector Component', () => {
 
     it('should allow drive selection when no transfer and drive is mounted', async () => {
       const mockSelectDrive = jest.fn()
-      const mockScanDrive = jest.fn(() => Promise.resolve({ files: mockScannedFiles }))
+      const mockScanDrive = jest.fn(() => Promise.resolve({ files: mockScannedFiles, driveInfo: mockDrive }))
 
       // Setup: No transfer, drive is mounted
       const { useTransferStore, useDriveStore } = require('../../../src/renderer/src/store')
@@ -204,6 +209,7 @@ describe('DriveSelector Component', () => {
         scanInProgress: false,
         setScanInProgress: jest.fn(),
         setScannedFiles: jest.fn(),
+        setScannedFilesWithSelection: jest.fn(),
         setScanError: jest.fn(),
         isExistingDrive: jest.fn(() => false),
         isDriveUnmounted: jest.fn(() => false)

@@ -1,11 +1,13 @@
 /**
  * Drive Store Slice
- * Manages drive detection and scanning state
+ * Manages drive detection, scanning state, and file selection for selective transfers.
+ * Supports folder-grouped file selection with individual file deselection.
  */
 
 import type { StateCreator } from 'zustand'
-import type { DriveState } from '../types'
+import type { DriveState, FileSelectionState } from '../types'
 import type { DriveInfo, ScannedFile } from '../../../../shared/types'
+import { groupFilesByFolder, getAllFolderPaths } from '../../utils/fileGrouping'
 
 // Minimal interface for cross-slice state access
 interface CrossSliceState {
@@ -19,6 +21,8 @@ export interface DriveSlice extends DriveState {
   removeDrive: (device: string) => void
   selectDrive: (drive: DriveInfo | null) => void
   setScannedFiles: (files: ScannedFile[]) => void
+  /** Sets scanned files AND initializes file selection (all files selected by default) */
+  setScannedFilesWithSelection: (files: ScannedFile[], driveRoot: string) => void
   setScanInProgress: (inProgress: boolean) => void
   setScanError: (error: string | null) => void
   clearScan: () => void
@@ -28,7 +32,28 @@ export interface DriveSlice extends DriveState {
   // Mount status actions
   markDriveAsUnmounted: (device: string) => void
   isDriveUnmounted: (device: string) => boolean
+
+  // File selection actions for selective transfer feature
+  /** Toggle selection state for a folder (by relative path) */
+  toggleFolderSelection: (relativePath: string) => void
+  /** Toggle selection state for a single file (by absolute path) */
+  toggleFileSelection: (filePath: string, folderRelativePath: string) => void
+  /** Toggle expanded/collapsed state for a folder */
+  toggleFolderExpanded: (relativePath: string) => void
+  /** Select all folders (used after scan to select all by default) */
+  selectAllFolders: (folderPaths: string[]) => void
+  /** Deselect all folders */
+  deselectAllFolders: () => void
+  /** Reset file selection state (clear all selections) */
+  resetFileSelection: () => void
 }
+
+// Initial file selection state factory
+const createInitialFileSelection = (): FileSelectionState => ({
+  selectedFolders: new Set<string>(),
+  deselectedFiles: new Set<string>(),
+  expandedFolders: new Set<string>()
+})
 
 export const createDriveSlice: StateCreator<DriveSlice> = (set, get) => ({
   // Initial state
@@ -39,6 +64,7 @@ export const createDriveSlice: StateCreator<DriveSlice> = (set, get) => ({
   scanError: null,
   existingDrives: [], // Track drives that were present at startup
   unmountedDrives: [], // Track drives that are unmounted but still connected
+  fileSelection: createInitialFileSelection(),
 
   // Actions
   setDetectedDrives: (drives) => set({ detectedDrives: drives }),
@@ -76,6 +102,22 @@ export const createDriveSlice: StateCreator<DriveSlice> = (set, get) => ({
   selectDrive: (drive) => set({ selectedDrive: drive }),
 
   setScannedFiles: (files) => set({ scannedFiles: files }),
+
+  setScannedFilesWithSelection: (files, driveRoot) =>
+    set(() => {
+      // Group files by folder and select all folders by default
+      const groups = groupFilesByFolder(files, driveRoot)
+      const allFolderPaths = getAllFolderPaths(groups)
+
+      return {
+        scannedFiles: files,
+        fileSelection: {
+          selectedFolders: new Set(allFolderPaths),
+          deselectedFiles: new Set(),
+          expandedFolders: new Set() // Start with all collapsed for cleaner UI
+        }
+      }
+    }),
 
   setScanInProgress: (inProgress) => set({ scanInProgress: inProgress }),
 
@@ -115,5 +157,97 @@ export const createDriveSlice: StateCreator<DriveSlice> = (set, get) => ({
       }
     }),
 
-  isDriveUnmounted: (device) => get().unmountedDrives.includes(device)
+  isDriveUnmounted: (device) => get().unmountedDrives.includes(device),
+
+  // File selection actions for selective transfer feature
+  toggleFolderSelection: (relativePath) =>
+    set((state) => {
+      const newSelectedFolders = new Set(state.fileSelection.selectedFolders)
+      const newDeselectedFiles = new Set(state.fileSelection.deselectedFiles)
+
+      if (newSelectedFolders.has(relativePath)) {
+        // Deselect folder
+        newSelectedFolders.delete(relativePath)
+      } else {
+        // Select folder and clear any individually deselected files in it
+        newSelectedFolders.add(relativePath)
+        // Clear deselected files that belong to this folder
+        // Note: We can't easily filter by folder here without knowing the files
+        // The UI should handle clearing deselected files when folder is selected
+      }
+
+      return {
+        fileSelection: {
+          ...state.fileSelection,
+          selectedFolders: newSelectedFolders,
+          deselectedFiles: newDeselectedFiles
+        }
+      }
+    }),
+
+  toggleFileSelection: (filePath, folderRelativePath) =>
+    set((state) => {
+      // If folder is not selected, do nothing
+      if (!state.fileSelection.selectedFolders.has(folderRelativePath)) {
+        return state
+      }
+
+      const newDeselectedFiles = new Set(state.fileSelection.deselectedFiles)
+
+      if (newDeselectedFiles.has(filePath)) {
+        // Re-select the file (remove from deselected)
+        newDeselectedFiles.delete(filePath)
+      } else {
+        // Deselect the file
+        newDeselectedFiles.add(filePath)
+      }
+
+      return {
+        fileSelection: {
+          ...state.fileSelection,
+          deselectedFiles: newDeselectedFiles
+        }
+      }
+    }),
+
+  toggleFolderExpanded: (relativePath) =>
+    set((state) => {
+      const newExpandedFolders = new Set(state.fileSelection.expandedFolders)
+
+      if (newExpandedFolders.has(relativePath)) {
+        newExpandedFolders.delete(relativePath)
+      } else {
+        newExpandedFolders.add(relativePath)
+      }
+
+      return {
+        fileSelection: {
+          ...state.fileSelection,
+          expandedFolders: newExpandedFolders
+        }
+      }
+    }),
+
+  selectAllFolders: (folderPaths) =>
+    set((state) => ({
+      fileSelection: {
+        selectedFolders: new Set(folderPaths),
+        deselectedFiles: new Set(), // Clear individual deselections
+        expandedFolders: state.fileSelection.expandedFolders // Preserve expand state
+      }
+    })),
+
+  deselectAllFolders: () =>
+    set((state) => ({
+      fileSelection: {
+        selectedFolders: new Set(),
+        deselectedFiles: new Set(),
+        expandedFolders: state.fileSelection.expandedFolders // Preserve expand state
+      }
+    })),
+
+  resetFileSelection: () =>
+    set({
+      fileSelection: createInitialFileSelection()
+    })
 })

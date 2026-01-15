@@ -32,6 +32,7 @@ export function DriveSelector() {
     scanInProgress,
     setScanInProgress,
     setScannedFiles,
+    setScannedFilesWithSelection,
     setScanError,
     isExistingDrive,
     isDriveUnmounted
@@ -105,7 +106,9 @@ export function DriveSelector() {
       setScanInProgress(true)
       setScanError(null)
       const result = await ipc.scanDrive(drive.device)
-      setScannedFiles(result.files)
+      // Initialize scanned files with selection state (all files selected by default)
+      const driveRoot = result.driveInfo?.mountpoints[0] || drive.mountpoints[0] || ''
+      setScannedFilesWithSelection(result.files, driveRoot)
       // Update selectedDrive with fresh drive info from scan (has correct mountpoints)
       if (result.driveInfo) {
         selectDrive(result.driveInfo)

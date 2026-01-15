@@ -1,6 +1,9 @@
 /**
  * Drive Monitor Module
- * Detects and monitors removable storage devices (SD cards, USB drives)
+ * Detects and monitors removable storage devices (SD cards, USB drives).
+ * Scans drives for files based on transferOnlyMediaFiles config:
+ * - When true: Only returns files matching mediaExtensions
+ * - When false: Returns all files on the drive
  */
 
 import * as drivelist from 'drivelist'
@@ -136,21 +139,27 @@ export class DriveMonitor {
   }
 
   /**
-   * Scan a drive/directory for media files
+   * Scan a drive/directory for files
+   * When transferOnlyMediaFiles is enabled, only returns media files.
+   * When disabled, returns all files on the drive.
    */
   async scanForMedia(drivePath: string): Promise<Omit<ScannedMedia, 'driveInfo'>> {
     const startTime = Date.now()
     const config = getConfig()
     const mediaExtensions = config.mediaExtensions.map((ext) => ext.toLowerCase())
+    const filterByMediaExtensions = config.transferOnlyMediaFiles
 
-    getLogger().info('[DriveMonitor] Scanning path', { path: drivePath })
+    getLogger().info('[DriveMonitor] Scanning path', {
+      path: drivePath,
+      filterByMediaExtensions
+    })
     getLogger().debug('[DriveMonitor] Media extensions', { mediaExtensions })
 
     const files: ScannedFile[] = []
     let totalSize = 0
 
     // Recursively scan directory
-    await this.scanDirectory(drivePath, files, mediaExtensions)
+    await this.scanDirectory(drivePath, files, mediaExtensions, filterByMediaExtensions)
 
     // Calculate total size
     for (const file of files) {
@@ -328,13 +337,15 @@ export class DriveMonitor {
   }
 
   /**
-   * Recursively scan directory for media files
+   * Recursively scan directory for files
    * Skips symlinks and special files to prevent loops and errors
+   * @param filterByMediaExtensions When true, only includes files matching mediaExtensions
    */
   private async scanDirectory(
     dirPath: string,
     files: ScannedFile[],
     mediaExtensions: string[],
+    filterByMediaExtensions: boolean,
     visitedInodes = new Set<string>()
   ): Promise<void> {
     try {
@@ -381,12 +392,24 @@ export class DriveMonitor {
           if (stats.isDirectory()) {
             // Recursively scan subdirectory
             getLogger().debug('[DriveMonitor] Scanning subdirectory', { path: fullPath })
-            await this.scanDirectory(fullPath, files, mediaExtensions, visitedInodes)
+            await this.scanDirectory(
+              fullPath,
+              files,
+              mediaExtensions,
+              filterByMediaExtensions,
+              visitedInodes
+            )
           } else if (stats.isFile()) {
-            // Check if file has media extension
+            // Check if file should be included based on filter settings
             const ext = path.extname(entry.name).toLowerCase()
-            if (mediaExtensions.includes(ext)) {
-              getLogger().debug('[DriveMonitor] Found media file', { file: entry.name, ext })
+            const shouldInclude = !filterByMediaExtensions || mediaExtensions.includes(ext)
+
+            if (shouldInclude) {
+              getLogger().debug('[DriveMonitor] Found file', {
+                file: entry.name,
+                ext,
+                filtered: filterByMediaExtensions
+              })
               // Collect file metadata including creation date
               files.push({
                 path: fullPath,

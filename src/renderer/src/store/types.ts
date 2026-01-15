@@ -14,6 +14,19 @@ import type {
   ScannedFile
 } from '../../../shared/types'
 
+/**
+ * State for file selection in the transfer queue.
+ * Uses folder-based selection with individual file deselection for efficiency.
+ */
+export interface FileSelectionState {
+  /** Set of folder relative paths that are selected (all files in folder selected by default) */
+  selectedFolders: Set<string>
+  /** Set of individual file absolute paths that are deselected within selected folders */
+  deselectedFiles: Set<string>
+  /** Set of folder relative paths that are expanded in the UI */
+  expandedFolders: Set<string>
+}
+
 export interface DriveState {
   detectedDrives: DriveInfo[]
   selectedDrive: DriveInfo | null
@@ -22,6 +35,8 @@ export interface DriveState {
   scanError: string | null
   existingDrives: string[] // Track drives that were present at startup
   unmountedDrives: string[] // Track drives that are unmounted but still physically connected
+  /** File selection state for selective transfer feature */
+  fileSelection: FileSelectionState
 }
 
 export interface TransferState {

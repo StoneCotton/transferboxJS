@@ -24,7 +24,9 @@ async function handleAutoScan(
   try {
     store.setScanInProgress(true)
     const result = await ipc.scanDrive(drive.device)
-    store.setScannedFiles(result.files)
+    // Initialize scanned files with selection state (all files selected by default)
+    const driveRoot = result.driveInfo?.mountpoints[0] || drive.mountpoints[0] || ''
+    store.setScannedFilesWithSelection(result.files, driveRoot)
     store.selectDrive(result.driveInfo || drive)
 
     if (result.files.length > 0) {
@@ -76,7 +78,9 @@ async function handleFullyAutonomousTransfer(
   try {
     store.setScanInProgress(true)
     const result = await ipc.scanDrive(drive.device)
-    store.setScannedFiles(result.files)
+    // Initialize scanned files with selection state (all files selected by default)
+    const driveRoot = result.driveInfo?.mountpoints[0] || drive.mountpoints[0] || ''
+    store.setScannedFilesWithSelection(result.files, driveRoot)
 
     if (result.files.length > 0) {
       store.addToast({

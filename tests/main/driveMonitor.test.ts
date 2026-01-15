@@ -15,6 +15,14 @@ import {
 } from '../../src/main/driveMonitor'
 import { DriveInfo } from '../../src/shared/types'
 
+// Mock configManager to control transferOnlyMediaFiles setting
+jest.mock('../../src/main/configManager', () => ({
+  getConfig: jest.fn(() => ({
+    transferOnlyMediaFiles: true, // Filter by media extensions in these tests
+    mediaExtensions: ['.mp4', '.mov', '.avi', '.mkv', '.jpg', '.jpeg', '.png', '.gif', '.raw', '.cr2', '.nef', '.arw', '.dng', '.heic', '.wav', '.mp3', '.aiff']
+  }))
+}))
+
 describe('DriveMonitor', () => {
   let monitor: DriveMonitor
 
