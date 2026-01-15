@@ -171,9 +171,33 @@ export const createDriveSlice: StateCreator<DriveSlice> = (set, get) => ({
       } else {
         // Select folder and clear any individually deselected files in it
         newSelectedFolders.add(relativePath)
+
         // Clear deselected files that belong to this folder
-        // Note: We can't easily filter by folder here without knowing the files
-        // The UI should handle clearing deselected files when folder is selected
+        // We need to find files in this folder by grouping scanned files
+        if (state.selectedDrive && state.scannedFiles.length > 0) {
+          const driveRoot = state.selectedDrive.mountpoints[0] || ''
+          const normalizedRoot = driveRoot.replace(/[/\\]+$/, '')
+
+          // Find and remove deselected files belonging to this folder
+          for (const filePath of newDeselectedFiles) {
+            // Calculate the file's folder relative path (same logic as groupFilesByFolder)
+            const lastSeparator = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'))
+            const absoluteFolderPath = lastSeparator > 0 ? filePath.substring(0, lastSeparator) : normalizedRoot
+            let fileRelativePath = absoluteFolderPath
+            if (absoluteFolderPath.startsWith(normalizedRoot)) {
+              fileRelativePath = absoluteFolderPath.substring(normalizedRoot.length)
+              fileRelativePath = fileRelativePath.replace(/^[/\\]+/, '')
+            }
+            if (!fileRelativePath) {
+              fileRelativePath = '/'
+            }
+
+            // If file belongs to the folder being re-selected, remove it from deselected
+            if (fileRelativePath === relativePath) {
+              newDeselectedFiles.delete(filePath)
+            }
+          }
+        }
       }
 
       return {
