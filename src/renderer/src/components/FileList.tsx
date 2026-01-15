@@ -1,38 +1,44 @@
 /**
- * File List Component - Visual Transfer Queue
+ * FileList Component - Visual Transfer Queue with Folder-Grouped Selection
+ * Displays scanned files grouped by folder with selection support for selective transfers.
+ * Files can be selected/deselected individually or by folder.
  */
 
+import { useMemo } from 'react'
+import { Folder, FileType as FileTypeIcon, CheckSquare, Square } from 'lucide-react'
 import {
-  Folder,
-  CheckCircle2,
-  Clock,
-  AlertCircle,
-  XCircle,
-  Loader2,
-  Copy,
-  FileType as FileTypeIcon
-} from 'lucide-react'
-import { useMemo, useState, type ReactElement } from 'react'
-import { useDriveStore, useTransferStore } from '../store'
+  useDriveStore,
+  useTransferStore,
+  useFileGroups,
+  useSelectionStats
+} from '../store'
 import { useUiDensity } from '../hooks/useUiDensity'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/Card'
-import { Tooltip } from './ui/Tooltip'
 import { StatusBadge } from './ui/StatusBadge'
-import { cn, formatDuration } from '../lib/utils'
-import {
-  getFileIcon,
-  getFileType,
-  getFileTransferStatus,
-  getFileChecksum,
-  getFileElapsedTime,
-  copyToClipboard
-} from '../utils/fileListHelpers'
+import { FolderSection } from './FolderSection'
+import { cn } from '../lib/utils'
+import { getFileTransferStatus } from '../utils/fileListHelpers'
+import { getAllFolderPaths } from '../utils/fileGrouping'
 
 export function FileList() {
-  const { scannedFiles, scanInProgress } = useDriveStore()
-  const { progress } = useTransferStore()
+  const {
+    scannedFiles,
+    scanInProgress,
+    fileSelection,
+    toggleFolderSelection,
+    toggleFileSelection,
+    toggleFolderExpanded,
+    selectAllFolders,
+    deselectAllFolders
+  } = useDriveStore()
+  const { progress, isTransferring } = useTransferStore()
   const { isCondensed } = useUiDensity()
-  const [copiedChecksum, setCopiedChecksum] = useState<string | null>(null)
+
+  // Get files grouped by folder
+  const folderGroups = useFileGroups()
+
+  // Get selection statistics
+  const selectionStats = useSelectionStats()
 
   // Calculate transfer status statistics
   const transferStats = useMemo(() => {
@@ -53,12 +59,20 @@ export function FileList() {
     return stats
   }, [scannedFiles, progress])
 
-  // Handle checksum copy
-  const handleCopyChecksum = (checksum: string): void => {
-    copyToClipboard(checksum)
-    setCopiedChecksum(checksum)
-    setTimeout(() => setCopiedChecksum(null), 2000)
+  // Handle select all
+  const handleSelectAll = () => {
+    const allFolderPaths = getAllFolderPaths(folderGroups)
+    selectAllFolders(allFolderPaths)
   }
+
+  // Handle deselect all
+  const handleDeselectAll = () => {
+    deselectAllFolders()
+  }
+
+  // Check if all are selected
+  const allSelected = selectionStats.selected === selectionStats.total && selectionStats.total > 0
+  const noneSelected = selectionStats.selected === 0
 
   if (scanInProgress) {
     return (
@@ -84,7 +98,7 @@ export function FileList() {
               isCondensed ? 'mt-4 text-base' : 'mt-6 text-lg'
             )}
           >
-            Scanning for Media Files
+            Scanning for Files
           </p>
           {!isCondensed && (
             <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
@@ -135,7 +149,7 @@ export function FileList() {
               isCondensed ? 'mt-1 text-xs' : 'mt-2 text-sm'
             )}
           >
-            Select a drive to scan for media files
+            Select a drive to scan for files
           </p>
         </CardContent>
       </Card>
@@ -158,7 +172,8 @@ export function FileList() {
             <div>
               <CardTitle className={isCondensed ? 'text-sm' : 'text-lg'}>Transfer Queue</CardTitle>
               <CardDescription className="text-xs">
-                {scannedFiles.length} file{scannedFiles.length !== 1 ? 's' : ''} in queue
+                {selectionStats.selected} of {selectionStats.total} file
+                {selectionStats.total !== 1 ? 's' : ''} selected
               </CardDescription>
             </div>
           </div>
@@ -166,196 +181,77 @@ export function FileList() {
           {/* Transfer Status Statistics */}
           <div className={cn('flex', isCondensed ? 'gap-1' : 'gap-2')}>
             <StatusBadge status="complete" count={transferStats.complete} isCondensed={isCondensed} />
-            <StatusBadge status="transferring" count={transferStats.transferring} isCondensed={isCondensed} />
+            <StatusBadge
+              status="transferring"
+              count={transferStats.transferring}
+              isCondensed={isCondensed}
+            />
             <StatusBadge status="verifying" count={transferStats.verifying} isCondensed={isCondensed} />
             <StatusBadge status="error" count={transferStats.error} isCondensed={isCondensed} />
             <StatusBadge status="pending" count={transferStats.pending} isCondensed={isCondensed} />
           </div>
         </div>
+
+        {/* Selection Controls */}
+        <div
+          className={cn('mt-3 flex items-center justify-between', isCondensed ? 'gap-2' : 'gap-3')}
+        >
+          <div className={cn('flex', isCondensed ? 'gap-1' : 'gap-2')}>
+            <button
+              onClick={handleSelectAll}
+              disabled={allSelected || isTransferring}
+              className={cn(
+                'flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition-colors',
+                'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700',
+                'disabled:cursor-not-allowed disabled:opacity-50'
+              )}
+            >
+              <CheckSquare className="h-3 w-3" />
+              {isCondensed ? 'All' : 'Select All'}
+            </button>
+            <button
+              onClick={handleDeselectAll}
+              disabled={noneSelected || isTransferring}
+              className={cn(
+                'flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition-colors',
+                'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700',
+                'disabled:cursor-not-allowed disabled:opacity-50'
+              )}
+            >
+              <Square className="h-3 w-3" />
+              {isCondensed ? 'None' : 'Deselect All'}
+            </button>
+          </div>
+
+          {/* Folder count */}
+          <span className="text-xs text-gray-500 dark:text-gray-400">
+            {folderGroups.length} folder{folderGroups.length !== 1 ? 's' : ''}
+          </span>
+        </div>
       </CardHeader>
+
       <CardContent className={isCondensed ? 'p-3 pt-0' : undefined}>
         <div
           className={cn(
             'overflow-y-auto rounded-lg bg-gradient-to-br from-gray-50 to-white dark:from-gray-800/50 dark:to-gray-900/50',
-            isCondensed ? 'max-h-[300px] space-y-1 p-2' : 'max-h-[500px] space-y-2 p-3'
+            isCondensed ? 'max-h-[300px] space-y-2 p-2' : 'max-h-[500px] space-y-3 p-3'
           )}
         >
-          {scannedFiles.map((file) => {
-            const filePath = file.path
-            const Icon = getFileIcon(filePath)
-            const fileName = filePath.split('/').pop() || filePath
-            const fileType = getFileType(filePath)
-            const status = getFileTransferStatus(filePath, progress)
-            const checksum = getFileChecksum(filePath, progress)
-            const elapsedTime = getFileElapsedTime(filePath, progress)
-
-            // Format creation date and time
-            const creationDate = new Date(file.birthtime)
-            const formattedDate = creationDate.toLocaleDateString('en-US', {
-              year: 'numeric',
-              month: 'short',
-              day: 'numeric'
-            })
-            const formattedTime = creationDate.toLocaleTimeString('en-US', {
-              hour: '2-digit',
-              minute: '2-digit'
-            })
-
-            // Status icon and colors
-            const getStatusIcon = (): ReactElement => {
-              switch (status) {
-                case 'complete':
-                  return <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
-                case 'transferring':
-                  return (
-                    <Loader2 className="h-4 w-4 animate-spin text-blue-600 dark:text-blue-400" />
-                  )
-                case 'verifying':
-                  return <Clock className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
-                case 'error':
-                  return <XCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
-                case 'skipped':
-                  return <AlertCircle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
-                default:
-                  return <Clock className="h-4 w-4 text-gray-400 dark:text-gray-500" />
-              }
-            }
-
-            const getStatusColor = (): string => {
-              switch (status) {
-                case 'complete':
-                  return 'bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-800'
-                case 'transferring':
-                  return 'bg-blue-50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-800'
-                case 'verifying':
-                  return 'bg-yellow-50 border-yellow-200 dark:bg-yellow-950/20 dark:border-yellow-800'
-                case 'error':
-                  return 'bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-800'
-                case 'skipped':
-                  return 'bg-orange-50 border-orange-200 dark:bg-orange-950/20 dark:border-orange-800'
-                default:
-                  return 'bg-white border-gray-200 dark:bg-gray-800/50 dark:border-gray-700'
-              }
-            }
-
-            return (
-              <div
-                key={filePath}
-                className={cn(
-                  'group flex items-center rounded-lg border transition-colors',
-                  isCondensed ? 'gap-2 p-2' : 'gap-3 p-3',
-                  getStatusColor(),
-                  'hover:shadow-sm'
-                )}
-              >
-                {/* File Icon */}
-                <div
-                  className={cn(
-                    'flex flex-shrink-0 items-center justify-center rounded-lg',
-                    isCondensed ? 'h-7 w-7' : 'h-10 w-10',
-                    fileType === 'video' &&
-                      'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
-                    fileType === 'image' &&
-                      'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400',
-                    fileType === 'audio' &&
-                      'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400',
-                    fileType === 'other' &&
-                      'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
-                  )}
-                >
-                  <Icon className={isCondensed ? 'h-3.5 w-3.5' : 'h-5 w-5'} />
-                </div>
-
-                {/* File Info */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={cn(
-                        'truncate font-medium text-gray-900 dark:text-gray-100',
-                        isCondensed ? 'text-xs' : 'text-sm'
-                      )}
-                    >
-                      {fileName}
-                    </span>
-                    {isCondensed ? null : getStatusIcon()}
-                  </div>
-
-                  {/* File creation date and time - hide in condensed mode */}
-                  {!isCondensed && (
-                    <div className="mt-1 flex items-center gap-2">
-                      <Clock className="h-3 w-3 text-gray-500 dark:text-gray-400" />
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
-                        Created: {formattedDate} at {formattedTime}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Elapsed time for completed files - hide in condensed mode */}
-                  {!isCondensed && elapsedTime !== null && status === 'complete' && (
-                    <div className="mt-1 flex items-center gap-2">
-                      <Clock className="h-3 w-3 text-gray-500 dark:text-gray-400" />
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
-                        Completed in: {formatDuration(elapsedTime)}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Checksum for completed files - hide in condensed mode */}
-                  {!isCondensed && status === 'complete' && checksum && (
-                    <div className="mt-1 flex items-center gap-2">
-                      <span className="text-xs text-gray-500 dark:text-gray-400">Checksum:</span>
-                      <Tooltip
-                        content="XXH3 checksum used to verify file integrity after transfer"
-                        position="top"
-                      >
-                        <code className="text-xs bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded font-mono text-gray-700 dark:text-gray-300 cursor-help">
-                          {checksum}
-                        </code>
-                      </Tooltip>
-                      <Tooltip
-                        content="Copy checksum to clipboard for manual verification"
-                        position="top"
-                      >
-                        <button
-                          onClick={() => handleCopyChecksum(checksum)}
-                          className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
-                        >
-                          <Copy className="h-3 w-3" />
-                          {copiedChecksum === checksum ? 'Copied!' : 'Copy'}
-                        </button>
-                      </Tooltip>
-                    </div>
-                  )}
-                </div>
-
-                {/* Status Badge */}
-                <div className="flex-shrink-0">
-                  <span
-                    className={cn(
-                      'inline-flex items-center rounded-full font-medium',
-                      isCondensed ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-1 text-xs',
-                      status === 'complete' &&
-                        'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-                      status === 'transferring' &&
-                        'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-                      status === 'verifying' &&
-                        'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
-                      status === 'error' &&
-                        'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
-                      status === 'skipped' &&
-                        'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
-                      status === 'pending' &&
-                        'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400'
-                    )}
-                  >
-                    {isCondensed
-                      ? status.charAt(0).toUpperCase()
-                      : status.charAt(0).toUpperCase() + status.slice(1)}
-                  </span>
-                </div>
-              </div>
-            )
-          })}
+          {folderGroups.map((group) => (
+            <FolderSection
+              key={group.relativePath}
+              group={group}
+              isExpanded={fileSelection.expandedFolders.has(group.relativePath)}
+              isFolderSelected={fileSelection.selectedFolders.has(group.relativePath)}
+              deselectedFiles={fileSelection.deselectedFiles}
+              progress={progress}
+              isCondensed={isCondensed}
+              onToggleExpand={() => toggleFolderExpanded(group.relativePath)}
+              onToggleFolderSelect={() => toggleFolderSelection(group.relativePath)}
+              onToggleFileSelect={(filePath) => toggleFileSelection(filePath, group.relativePath)}
+              selectionDisabled={isTransferring}
+            />
+          ))}
         </div>
       </CardContent>
     </Card>

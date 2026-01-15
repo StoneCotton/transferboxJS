@@ -76,9 +76,21 @@ jest.mock('../../src/renderer/src/store', () => ({
     selectDrive: jest.fn(),
     setScanInProgress: jest.fn(),
     setScannedFiles: jest.fn(),
+    setScannedFilesWithSelection: jest.fn(),
     setScanError: jest.fn(),
     isExistingDrive: jest.fn(() => false),
-    isDriveUnmounted: jest.fn(() => false)
+    isDriveUnmounted: jest.fn(() => false),
+    fileSelection: {
+      selectedFolders: new Set(),
+      deselectedFiles: new Set(),
+      expandedFolders: new Set()
+    },
+    toggleFolderSelection: jest.fn(),
+    toggleFileSelection: jest.fn(),
+    toggleFolderExpanded: jest.fn(),
+    selectAllFolders: jest.fn(),
+    deselectAllFolders: jest.fn(),
+    resetFileSelection: jest.fn()
   }),
   useUIStore: () => ({
     selectedDestination: null,
@@ -88,7 +100,8 @@ jest.mock('../../src/renderer/src/store', () => ({
   }),
   useTransferStore: () => ({
     isTransferring: false,
-    progress: null
+    progress: null,
+    startTransfer: jest.fn()
   }),
   useConfigStore: () => ({
     config: {
@@ -126,7 +139,17 @@ jest.mock('../../src/renderer/src/store', () => ({
     updateConfig: jest.fn(),
     setConfigLoading: jest.fn(),
     setConfigError: jest.fn()
-  })
+  }),
+  // New hooks for selective file transfer feature
+  useFileGroups: () => [],
+  useSelectedFilePaths: () => [],
+  useSelectionStats: () => ({
+    selected: 0,
+    total: 0,
+    totalSize: 0,
+    selectedSize: 0
+  }),
+  useInitializeFileSelection: () => jest.fn()
 }))
 
 describe('App Component', () => {

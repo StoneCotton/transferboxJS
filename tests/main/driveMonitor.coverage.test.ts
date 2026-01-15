@@ -9,6 +9,14 @@ import * as fs from 'fs/promises'
 import { DriveMonitor, unmountDrive, isRemovableDrive } from '../../src/main/driveMonitor'
 import { DriveInfo } from '../../src/shared/types'
 
+// Mock configManager to control transferOnlyMediaFiles setting
+jest.mock('../../src/main/configManager', () => ({
+  getConfig: jest.fn(() => ({
+    transferOnlyMediaFiles: true, // Filter by media extensions in these tests
+    mediaExtensions: ['.mp4', '.mov', '.avi', '.mkv', '.jpg', '.jpeg', '.png', '.gif', '.raw', '.cr2', '.nef', '.arw', '.dng', '.heic', '.wav', '.mp3', '.aiff']
+  }))
+}))
+
 describe('DriveMonitor - Additional Coverage', () => {
   let monitor: DriveMonitor
   let testDir: string

@@ -118,6 +118,180 @@ describe('Store', () => {
       expect(store.getState().detectedDrives.some((d) => d.device === '/dev/disk6')).toBe(false)
       expect(store.getState().isExistingDrive('/dev/disk6')).toBe(false)
     })
+
+    describe('File Selection', () => {
+      const mockDrive: DriveInfo = {
+        device: '/dev/disk10',
+        displayName: 'Test Drive',
+        description: 'USB Drive',
+        mountpoints: ['/Volumes/TEST'],
+        size: 32000000000,
+        isRemovable: true,
+        isSystem: false,
+        busType: 'USB'
+      }
+
+      const mockScannedFiles = [
+        { path: '/Volumes/TEST/DCIM/100CANON/IMG_001.jpg', size: 1024, modifiedTime: Date.now(), isDirectory: false },
+        { path: '/Volumes/TEST/DCIM/100CANON/IMG_002.jpg', size: 2048, modifiedTime: Date.now(), isDirectory: false },
+        { path: '/Volumes/TEST/DCIM/101CANON/IMG_003.jpg', size: 3072, modifiedTime: Date.now(), isDirectory: false },
+        { path: '/Volumes/TEST/video.mp4', size: 4096, modifiedTime: Date.now(), isDirectory: false }
+      ]
+
+      beforeEach(() => {
+        // Setup: select drive and set scanned files with selection
+        store.getState().selectDrive(mockDrive)
+        store.getState().setScannedFilesWithSelection(mockScannedFiles, '/Volumes/TEST')
+      })
+
+      afterEach(() => {
+        // Cleanup
+        store.getState().resetFileSelection()
+        store.getState().setScannedFiles([])
+        store.getState().selectDrive(null)
+      })
+
+      it('should initialize with all folders selected', () => {
+        const { fileSelection } = store.getState()
+
+        // All folders should be selected
+        expect(fileSelection.selectedFolders.has('DCIM/100CANON')).toBe(true)
+        expect(fileSelection.selectedFolders.has('DCIM/101CANON')).toBe(true)
+        expect(fileSelection.selectedFolders.has('/')).toBe(true)
+
+        // No files should be deselected
+        expect(fileSelection.deselectedFiles.size).toBe(0)
+      })
+
+      it('should toggle folder selection', () => {
+        // Deselect a folder
+        store.getState().toggleFolderSelection('DCIM/100CANON')
+        expect(store.getState().fileSelection.selectedFolders.has('DCIM/100CANON')).toBe(false)
+
+        // Re-select the folder
+        store.getState().toggleFolderSelection('DCIM/100CANON')
+        expect(store.getState().fileSelection.selectedFolders.has('DCIM/100CANON')).toBe(true)
+      })
+
+      it('should toggle individual file selection within a selected folder', () => {
+        const filePath = '/Volumes/TEST/DCIM/100CANON/IMG_001.jpg'
+
+        // Deselect a file
+        store.getState().toggleFileSelection(filePath, 'DCIM/100CANON')
+        expect(store.getState().fileSelection.deselectedFiles.has(filePath)).toBe(true)
+
+        // Re-select the file
+        store.getState().toggleFileSelection(filePath, 'DCIM/100CANON')
+        expect(store.getState().fileSelection.deselectedFiles.has(filePath)).toBe(false)
+      })
+
+      it('should not allow file deselection in a deselected folder', () => {
+        const filePath = '/Volumes/TEST/DCIM/100CANON/IMG_001.jpg'
+
+        // Deselect the folder first
+        store.getState().toggleFolderSelection('DCIM/100CANON')
+
+        // Try to toggle file selection - should have no effect
+        store.getState().toggleFileSelection(filePath, 'DCIM/100CANON')
+        expect(store.getState().fileSelection.deselectedFiles.has(filePath)).toBe(false)
+      })
+
+      it('should clear deselected files when folder is re-selected (bug fix)', () => {
+        const file1 = '/Volumes/TEST/DCIM/100CANON/IMG_001.jpg'
+        const file2 = '/Volumes/TEST/DCIM/100CANON/IMG_002.jpg'
+        const fileInOtherFolder = '/Volumes/TEST/DCIM/101CANON/IMG_003.jpg'
+
+        // Step 1: Deselect individual files in the folder
+        store.getState().toggleFileSelection(file1, 'DCIM/100CANON')
+        store.getState().toggleFileSelection(file2, 'DCIM/100CANON')
+
+        // Also deselect a file in a different folder
+        store.getState().toggleFileSelection(fileInOtherFolder, 'DCIM/101CANON')
+
+        // Verify files are deselected
+        expect(store.getState().fileSelection.deselectedFiles.has(file1)).toBe(true)
+        expect(store.getState().fileSelection.deselectedFiles.has(file2)).toBe(true)
+        expect(store.getState().fileSelection.deselectedFiles.has(fileInOtherFolder)).toBe(true)
+
+        // Step 2: Deselect the folder
+        store.getState().toggleFolderSelection('DCIM/100CANON')
+        expect(store.getState().fileSelection.selectedFolders.has('DCIM/100CANON')).toBe(false)
+
+        // Step 3: Re-select the folder
+        store.getState().toggleFolderSelection('DCIM/100CANON')
+        expect(store.getState().fileSelection.selectedFolders.has('DCIM/100CANON')).toBe(true)
+
+        // BUG FIX VERIFICATION: Deselected files in DCIM/100CANON should be cleared
+        expect(store.getState().fileSelection.deselectedFiles.has(file1)).toBe(false)
+        expect(store.getState().fileSelection.deselectedFiles.has(file2)).toBe(false)
+
+        // Files in OTHER folders should NOT be affected
+        expect(store.getState().fileSelection.deselectedFiles.has(fileInOtherFolder)).toBe(true)
+      })
+
+      it('should select all folders', () => {
+        // First deselect some folders
+        store.getState().toggleFolderSelection('DCIM/100CANON')
+        store.getState().toggleFolderSelection('DCIM/101CANON')
+
+        // Select all
+        store.getState().selectAllFolders(['DCIM/100CANON', 'DCIM/101CANON', '/'])
+
+        // All should be selected and deselected files should be cleared
+        expect(store.getState().fileSelection.selectedFolders.has('DCIM/100CANON')).toBe(true)
+        expect(store.getState().fileSelection.selectedFolders.has('DCIM/101CANON')).toBe(true)
+        expect(store.getState().fileSelection.selectedFolders.has('/')).toBe(true)
+        expect(store.getState().fileSelection.deselectedFiles.size).toBe(0)
+      })
+
+      it('should deselect all folders', () => {
+        store.getState().deselectAllFolders()
+
+        expect(store.getState().fileSelection.selectedFolders.size).toBe(0)
+      })
+
+      it('should reset file selection', () => {
+        // Make some changes
+        store.getState().toggleFolderSelection('DCIM/100CANON')
+        store.getState().toggleFileSelection('/Volumes/TEST/DCIM/101CANON/IMG_003.jpg', 'DCIM/101CANON')
+        store.getState().toggleFolderExpanded('DCIM/100CANON')
+
+        // Reset
+        store.getState().resetFileSelection()
+
+        // All should be cleared
+        expect(store.getState().fileSelection.selectedFolders.size).toBe(0)
+        expect(store.getState().fileSelection.deselectedFiles.size).toBe(0)
+        expect(store.getState().fileSelection.expandedFolders.size).toBe(0)
+      })
+
+      it('should toggle folder expanded state', () => {
+        expect(store.getState().fileSelection.expandedFolders.has('DCIM/100CANON')).toBe(false)
+
+        store.getState().toggleFolderExpanded('DCIM/100CANON')
+        expect(store.getState().fileSelection.expandedFolders.has('DCIM/100CANON')).toBe(true)
+
+        store.getState().toggleFolderExpanded('DCIM/100CANON')
+        expect(store.getState().fileSelection.expandedFolders.has('DCIM/100CANON')).toBe(false)
+      })
+
+      it('should handle root folder re-selection correctly', () => {
+        const rootFile = '/Volumes/TEST/video.mp4'
+
+        // Deselect a file in root folder
+        store.getState().toggleFileSelection(rootFile, '/')
+        expect(store.getState().fileSelection.deselectedFiles.has(rootFile)).toBe(true)
+
+        // Deselect root folder
+        store.getState().toggleFolderSelection('/')
+        expect(store.getState().fileSelection.selectedFolders.has('/')).toBe(false)
+
+        // Re-select root folder - should clear deselected files in root
+        store.getState().toggleFolderSelection('/')
+        expect(store.getState().fileSelection.selectedFolders.has('/')).toBe(true)
+        expect(store.getState().fileSelection.deselectedFiles.has(rootFile)).toBe(false)
+      })
+    })
   })
 
   describe('Transfer Slice', () => {

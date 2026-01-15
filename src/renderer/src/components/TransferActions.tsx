@@ -1,10 +1,19 @@
 /**
  * Transfer Actions Component
+ * Handles transfer initiation with support for selective file transfers.
+ * Only transfers files that are selected in the file selection state.
  */
 
 import { Play, Loader2, Rocket, AlertCircle } from 'lucide-react'
 import { useState } from 'react'
-import { useDriveStore, useTransferStore, useUIStore, useStore } from '../store'
+import {
+  useDriveStore,
+  useTransferStore,
+  useUIStore,
+  useStore,
+  useSelectedFilePaths,
+  useSelectionStats
+} from '../store'
 import { useIpc } from '../hooks/useIpc'
 import { useUiDensity } from '../hooks/useUiDensity'
 import { Button } from './ui/Button'
@@ -18,7 +27,7 @@ import type {
 } from '../../../shared/types'
 
 export function TransferActions() {
-  const { selectedDrive, scannedFiles } = useDriveStore()
+  const { selectedDrive } = useDriveStore()
   const { isTransferring, startTransfer } = useTransferStore()
   const { selectedDestination } = useUIStore()
   const { isCondensed } = useUiDensity()
@@ -28,8 +37,14 @@ export function TransferActions() {
   const [showConflictDialog, setShowConflictDialog] = useState(false)
   const [conflicts, setConflicts] = useState<FileConflictInfo[]>([])
 
+  // Get selected files and stats for selective transfer
+  const selectedFilePaths = useSelectedFilePaths()
+  const selectionStats = useSelectionStats()
+
+  // Require at least one file to be selected
+  const hasSelectedFiles = selectedFilePaths.length > 0
   const canTransfer =
-    selectedDrive && scannedFiles.length > 0 && selectedDestination && !isTransferring
+    selectedDrive && hasSelectedFiles && selectedDestination && !isTransferring
 
   const handleStartTransfer = async (): Promise<void> => {
     if (!canTransfer || !selectedDrive || !selectedDestination) return
@@ -46,8 +61,8 @@ export function TransferActions() {
     try {
       setIsValidating(true)
 
-      // Extract file paths from ScannedFile objects
-      const filePaths = scannedFiles.map((file) => file.path)
+      // Use selected file paths (from file selection state) instead of all scanned files
+      const filePaths = selectedFilePaths
 
       // Run pre-transfer validation
       const validationResult: TransferValidateResponse = await ipc.validateTransfer({
@@ -114,9 +129,8 @@ export function TransferActions() {
     try {
       setIsStarting(true)
 
-      // Create transfer request
-      // Extract file paths from ScannedFile objects
-      let filePaths = scannedFiles.map((file) => file.path)
+      // Start with selected file paths (from file selection state)
+      let filePaths = [...selectedFilePaths]
 
       // If we have conflict resolutions, filter out skipped files
       if (conflictResolutions) {
@@ -127,16 +141,16 @@ export function TransferActions() {
         })
 
         console.log('Filtered files after conflict resolution:', {
-          original: scannedFiles.length,
+          original: selectedFilePaths.length,
           afterFilter: filePaths.length,
-          skipped: scannedFiles.length - filePaths.length
+          skipped: selectedFilePaths.length - filePaths.length
         })
       }
 
       // Debug: Check for empty file paths
       const emptyPaths = filePaths.filter((path, index) => {
         if (!path || path.trim() === '') {
-          console.error(`Empty file path at index ${index}:`, scannedFiles[index])
+          console.error(`Empty file path at index ${index}`)
           return true
         }
         return false
@@ -144,7 +158,7 @@ export function TransferActions() {
 
       if (emptyPaths.length > 0) {
         console.error(`Found ${emptyPaths.length} empty file paths!`)
-        console.error('All scanned files:', scannedFiles)
+        console.error('Selected file paths:', selectedFilePaths)
       }
 
       const request = {
@@ -170,7 +184,7 @@ export function TransferActions() {
       const store = useStore.getState()
       store.addToast({
         type: 'info',
-        message: `Transfer started: ${scannedFiles.length} file${scannedFiles.length === 1 ? '' : 's'}`,
+        message: `Transfer started: ${filePaths.length} file${filePaths.length === 1 ? '' : 's'}`,
         duration: 3000
       })
 
@@ -184,7 +198,7 @@ export function TransferActions() {
         startTime: Date.now(),
         endTime: null,
         status: 'transferring',
-        fileCount: scannedFiles.length,
+        fileCount: filePaths.length,
         totalBytes: 0,
         files: []
       })
@@ -290,8 +304,14 @@ export function TransferActions() {
                       isCondensed ? 'text-xs' : 'text-sm'
                     )}
                   >
-                    Ready to Transfer {scannedFiles.length} File
-                    {scannedFiles.length !== 1 ? 's' : ''}
+                    Ready to Transfer {selectionStats.selected} File
+                    {selectionStats.selected !== 1 ? 's' : ''}
+                    {selectionStats.selected !== selectionStats.total && (
+                      <span className="font-normal text-green-700 dark:text-green-300">
+                        {' '}
+                        (of {selectionStats.total})
+                      </span>
+                    )}
                   </p>
                 </div>
               ) : isTransferring ? (
@@ -342,12 +362,12 @@ export function TransferActions() {
                       className={cn(
                         'rounded-full',
                         isCondensed ? 'px-2 py-0.5' : 'px-3 py-1',
-                        scannedFiles.length > 0
+                        hasSelectedFiles
                           ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
                           : 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
                       )}
                     >
-                      {scannedFiles.length > 0 ? '✓ Files' : '○ Files'}
+                      {hasSelectedFiles ? '✓ Files' : '○ Files'}
                     </span>
                   </div>
                 </div>
