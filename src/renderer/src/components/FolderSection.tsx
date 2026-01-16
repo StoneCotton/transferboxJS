@@ -21,16 +21,20 @@ interface FolderSectionProps {
   isFolderSelected: boolean
   /** Set of deselected file paths within this folder */
   deselectedFiles: Set<string>
+  /** Set of individually selected file paths (when folder not selected) */
+  individuallySelectedFiles: Set<string>
   /** Current transfer progress */
   progress: TransferProgress | null
   /** Whether to use condensed UI mode */
   isCondensed: boolean
+  /** Starting index for files in this folder (for shift-click calculation) */
+  startFileIndex: number
   /** Callback when folder expand/collapse is toggled */
   onToggleExpand: () => void
-  /** Callback when folder selection is toggled */
-  onToggleFolderSelect: () => void
-  /** Callback when a file's selection is toggled */
-  onToggleFileSelect: (filePath: string) => void
+  /** Callback when folder selection is toggled (with shift key state) */
+  onToggleFolderSelect: (shiftKey: boolean) => void
+  /** Callback when a file's selection is toggled (with index and shift key state) */
+  onToggleFileSelect: (filePath: string, index: number, shiftKey: boolean) => void
   /** Whether selection is disabled (e.g., during transfer) */
   selectionDisabled?: boolean
 }
@@ -51,8 +55,10 @@ export function FolderSection({
   isExpanded,
   isFolderSelected,
   deselectedFiles,
+  individuallySelectedFiles,
   progress,
   isCondensed,
+  startFileIndex,
   onToggleExpand,
   onToggleFolderSelect,
   onToggleFileSelect,
@@ -60,8 +66,8 @@ export function FolderSection({
 }: FolderSectionProps) {
   // Calculate selection state for this folder
   const selectionState = useMemo(() => {
-    return getFolderSelectionState(group, isFolderSelected, deselectedFiles)
-  }, [group, isFolderSelected, deselectedFiles])
+    return getFolderSelectionState(group, isFolderSelected, deselectedFiles, individuallySelectedFiles)
+  }, [group, isFolderSelected, deselectedFiles, individuallySelectedFiles])
 
   const { isFullySelected, isPartiallySelected, selectedCount, totalCount } = selectionState
 
@@ -111,7 +117,8 @@ export function FolderSection({
           }}
           onChange={(e) => {
             e.stopPropagation()
-            onToggleFolderSelect()
+            const shiftKey = (e.nativeEvent as MouseEvent).shiftKey
+            onToggleFolderSelect(shiftKey)
           }}
           onClick={(e) => e.stopPropagation()}
           disabled={selectionDisabled}
@@ -163,8 +170,16 @@ export function FolderSection({
             isCondensed ? 'space-y-1 p-2' : 'space-y-2 p-3'
           )}
         >
-          {group.files.map((file) => {
-            const isFileSelected = isFolderSelected && !deselectedFiles.has(file.path)
+          {group.files.map((file, fileIndex) => {
+            // File is selected if:
+            // - Folder is selected AND file is not deselected, OR
+            // - Folder is not selected AND file is individually selected
+            const isFileSelected = isFolderSelected
+              ? !deselectedFiles.has(file.path)
+              : individuallySelectedFiles.has(file.path)
+
+            const globalIndex = startFileIndex + fileIndex
+
             return (
               <FileItem
                 key={file.path}
@@ -172,7 +187,7 @@ export function FolderSection({
                 progress={progress}
                 isSelected={isFileSelected}
                 isCondensed={isCondensed}
-                onToggleSelect={() => onToggleFileSelect(file.path)}
+                onToggleSelect={(shiftKey) => onToggleFileSelect(file.path, globalIndex, shiftKey)}
                 selectionDisabled={selectionDisabled}
               />
             )

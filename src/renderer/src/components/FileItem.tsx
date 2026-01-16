@@ -42,8 +42,8 @@ interface FileItemProps {
   isSelected: boolean
   /** Whether to use condensed UI mode */
   isCondensed: boolean
-  /** Callback when selection changes */
-  onToggleSelect: () => void
+  /** Callback when selection changes (receives shift key state for range selection) */
+  onToggleSelect: (shiftKey: boolean) => void
   /** Whether selection is disabled (e.g., during transfer) */
   selectionDisabled?: boolean
 }
@@ -138,7 +138,11 @@ export function FileItem({
         <input
           type="checkbox"
           checked={isSelected}
-          onChange={onToggleSelect}
+          onChange={(e) => {
+            e.stopPropagation()
+            const shiftKey = (e.nativeEvent as MouseEvent).shiftKey
+            onToggleSelect(shiftKey)
+          }}
           disabled={selectionDisabled}
           className={cn(
             'rounded border-gray-300 text-brand-600 focus:ring-brand-500',

@@ -10,7 +10,8 @@ import {
   useDriveStore,
   useTransferStore,
   useFileGroups,
-  useSelectionStats
+  useSelectionStats,
+  useFlatFileList
 } from '../store'
 import { useUiDensity } from '../hooks/useUiDensity'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/Card'
@@ -29,7 +30,9 @@ export function FileList() {
     toggleFileSelection,
     toggleFolderExpanded,
     selectAllFolders,
-    deselectAllFolders
+    deselectAllFolders,
+    setLastClickedFile,
+    selectFileRange
   } = useDriveStore()
   const { progress, isTransferring } = useTransferStore()
   const { isCondensed } = useUiDensity()
@@ -37,8 +40,59 @@ export function FileList() {
   // Get files grouped by folder
   const folderGroups = useFileGroups()
 
+  // Get flat file list for shift-click range selection
+  const flatFileList = useFlatFileList()
+
   // Get selection statistics
   const selectionStats = useSelectionStats()
+
+  // Handle file toggle with shift-click support
+  const handleFileToggle = (
+    filePath: string,
+    folderPath: string,
+    index: number,
+    shiftKey: boolean
+  ) => {
+    if (shiftKey && fileSelection.lastClickedFile) {
+      selectFileRange(index, flatFileList)
+    } else {
+      toggleFileSelection(filePath, folderPath)
+      setLastClickedFile(filePath, folderPath, index)
+    }
+  }
+
+  // Handle folder toggle with shift-click support
+  const handleFolderToggle = (folderPath: string, shiftKey: boolean) => {
+    if (shiftKey && fileSelection.lastClickedFile) {
+      // Find the range of files in this folder and all folders between
+      const folderIndex = folderGroups.findIndex((g) => g.relativePath === folderPath)
+      if (folderIndex >= 0) {
+        // Find the last file in this folder
+        let endIndex = 0
+        for (let i = 0; i <= folderIndex; i++) {
+          endIndex += folderGroups[i].files.length
+        }
+        endIndex-- // Last file index in or before this folder
+
+        // Select range from last clicked to end of this folder
+        selectFileRange(endIndex, flatFileList)
+      }
+    } else {
+      toggleFolderSelection(folderPath)
+      // Set last clicked to first file in this folder for shift-click continuity
+      const folderIndex = folderGroups.findIndex((g) => g.relativePath === folderPath)
+      if (folderIndex >= 0) {
+        let startIndex = 0
+        for (let i = 0; i < folderIndex; i++) {
+          startIndex += folderGroups[i].files.length
+        }
+        const firstFile = folderGroups[folderIndex].files[0]
+        if (firstFile) {
+          setLastClickedFile(firstFile.path, folderPath, startIndex)
+        }
+      }
+    }
+  }
 
   // Calculate transfer status statistics
   const transferStats = useMemo(() => {
@@ -237,21 +291,35 @@ export function FileList() {
             isCondensed ? 'max-h-[300px] space-y-2 p-2' : 'max-h-[500px] space-y-3 p-3'
           )}
         >
-          {folderGroups.map((group) => (
-            <FolderSection
-              key={group.relativePath}
-              group={group}
-              isExpanded={fileSelection.expandedFolders.has(group.relativePath)}
-              isFolderSelected={fileSelection.selectedFolders.has(group.relativePath)}
-              deselectedFiles={fileSelection.deselectedFiles}
-              progress={progress}
-              isCondensed={isCondensed}
-              onToggleExpand={() => toggleFolderExpanded(group.relativePath)}
-              onToggleFolderSelect={() => toggleFolderSelection(group.relativePath)}
-              onToggleFileSelect={(filePath) => toggleFileSelection(filePath, group.relativePath)}
-              selectionDisabled={isTransferring}
-            />
-          ))}
+          {folderGroups.map((group, groupIndex) => {
+            // Calculate starting index for files in this group
+            let startFileIndex = 0
+            for (let i = 0; i < groupIndex; i++) {
+              startFileIndex += folderGroups[i].files.length
+            }
+
+            return (
+              <FolderSection
+                key={group.relativePath}
+                group={group}
+                isExpanded={fileSelection.expandedFolders.has(group.relativePath)}
+                isFolderSelected={fileSelection.selectedFolders.has(group.relativePath)}
+                deselectedFiles={fileSelection.deselectedFiles}
+                individuallySelectedFiles={fileSelection.individuallySelectedFiles}
+                progress={progress}
+                isCondensed={isCondensed}
+                startFileIndex={startFileIndex}
+                onToggleExpand={() => toggleFolderExpanded(group.relativePath)}
+                onToggleFolderSelect={(shiftKey) =>
+                  handleFolderToggle(group.relativePath, shiftKey)
+                }
+                onToggleFileSelect={(filePath, index, shiftKey) =>
+                  handleFileToggle(filePath, group.relativePath, index, shiftKey)
+                }
+                selectionDisabled={isTransferring}
+              />
+            )
+          })}
         </div>
       </CardContent>
     </Card>

@@ -71,7 +71,11 @@ export const useDriveStore = () =>
       toggleFolderExpanded: state.toggleFolderExpanded,
       selectAllFolders: state.selectAllFolders,
       deselectAllFolders: state.deselectAllFolders,
-      resetFileSelection: state.resetFileSelection
+      resetFileSelection: state.resetFileSelection,
+      // Shift-click range selection actions
+      setLastClickedFile: state.setLastClickedFile,
+      selectFileRange: state.selectFileRange,
+      clearLastClickedFile: state.clearLastClickedFile
     }))
   )
 
@@ -186,7 +190,12 @@ export function useSelectedFilePaths(): string[] {
     }
     const driveRoot = selectedDrive.mountpoints[0] || ''
     const groups = groupFilesByFolder(scannedFiles, driveRoot)
-    return getSelectedFilePaths(groups, fileSelection.selectedFolders, fileSelection.deselectedFiles)
+    return getSelectedFilePaths(
+      groups,
+      fileSelection.selectedFolders,
+      fileSelection.deselectedFiles,
+      fileSelection.individuallySelectedFiles
+    )
   }, [scannedFiles, selectedDrive, fileSelection])
 }
 
@@ -214,8 +223,32 @@ export function useSelectionStats(): {
     }
     const driveRoot = selectedDrive.mountpoints[0] || ''
     const groups = groupFilesByFolder(scannedFiles, driveRoot)
-    return getSelectionStats(groups, fileSelection.selectedFolders, fileSelection.deselectedFiles)
+    return getSelectionStats(
+      groups,
+      fileSelection.selectedFolders,
+      fileSelection.deselectedFiles,
+      fileSelection.individuallySelectedFiles
+    )
   }, [scannedFiles, selectedDrive, fileSelection])
+}
+
+/**
+ * Hook to get a flat list of all files with their folder paths and indices.
+ * Used for shift-click range selection.
+ */
+export function useFlatFileList(): Array<{ path: string; folderPath: string; index: number }> {
+  const folderGroups = useFileGroups()
+
+  return useMemo(() => {
+    const list: Array<{ path: string; folderPath: string; index: number }> = []
+    let index = 0
+    for (const group of folderGroups) {
+      for (const file of group.files) {
+        list.push({ path: file.path, folderPath: group.relativePath, index: index++ })
+      }
+    }
+    return list
+  }, [folderGroups])
 }
 
 /**

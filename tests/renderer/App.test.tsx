@@ -83,14 +83,19 @@ jest.mock('../../src/renderer/src/store', () => ({
     fileSelection: {
       selectedFolders: new Set(),
       deselectedFiles: new Set(),
-      expandedFolders: new Set()
+      individuallySelectedFiles: new Set(),
+      expandedFolders: new Set(),
+      lastClickedFile: null
     },
     toggleFolderSelection: jest.fn(),
     toggleFileSelection: jest.fn(),
     toggleFolderExpanded: jest.fn(),
     selectAllFolders: jest.fn(),
     deselectAllFolders: jest.fn(),
-    resetFileSelection: jest.fn()
+    resetFileSelection: jest.fn(),
+    setLastClickedFile: jest.fn(),
+    selectFileRange: jest.fn(),
+    clearLastClickedFile: jest.fn()
   }),
   useUIStore: () => ({
     selectedDestination: null,
@@ -149,6 +154,7 @@ jest.mock('../../src/renderer/src/store', () => ({
     totalSize: 0,
     selectedSize: 0
   }),
+  useFlatFileList: () => [],
   useInitializeFileSelection: () => jest.fn()
 }))
 

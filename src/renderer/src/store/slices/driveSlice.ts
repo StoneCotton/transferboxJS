@@ -46,13 +46,24 @@ export interface DriveSlice extends DriveState {
   deselectAllFolders: () => void
   /** Reset file selection state (clear all selections) */
   resetFileSelection: () => void
+  /** Set the last clicked file for shift-click range selection */
+  setLastClickedFile: (filePath: string, folderRelativePath: string, index: number) => void
+  /** Select a range of files from last clicked to target index (for shift-click) */
+  selectFileRange: (
+    toIndex: number,
+    fileList: Array<{ path: string; folderPath: string }>
+  ) => void
+  /** Clear last clicked file state */
+  clearLastClickedFile: () => void
 }
 
 // Initial file selection state factory
 const createInitialFileSelection = (): FileSelectionState => ({
   selectedFolders: new Set<string>(),
   deselectedFiles: new Set<string>(),
-  expandedFolders: new Set<string>()
+  individuallySelectedFiles: new Set<string>(),
+  expandedFolders: new Set<string>(),
+  lastClickedFile: null
 })
 
 export const createDriveSlice: StateCreator<DriveSlice> = (set, get) => ({
@@ -114,7 +125,9 @@ export const createDriveSlice: StateCreator<DriveSlice> = (set, get) => ({
         fileSelection: {
           selectedFolders: new Set(allFolderPaths),
           deselectedFiles: new Set(),
-          expandedFolders: new Set() // Start with all collapsed for cleaner UI
+          individuallySelectedFiles: new Set(),
+          expandedFolders: new Set(), // Start with all collapsed for cleaner UI
+          lastClickedFile: null
         }
       }
     }),
@@ -164,37 +177,46 @@ export const createDriveSlice: StateCreator<DriveSlice> = (set, get) => ({
     set((state) => {
       const newSelectedFolders = new Set(state.fileSelection.selectedFolders)
       const newDeselectedFiles = new Set(state.fileSelection.deselectedFiles)
+      const newIndividuallySelectedFiles = new Set(state.fileSelection.individuallySelectedFiles)
 
       if (newSelectedFolders.has(relativePath)) {
         // Deselect folder
         newSelectedFolders.delete(relativePath)
       } else {
-        // Select folder and clear any individually deselected files in it
+        // Select folder and clear any individually deselected/selected files in it
         newSelectedFolders.add(relativePath)
 
-        // Clear deselected files that belong to this folder
+        // Clear deselected and individually selected files that belong to this folder
         // We need to find files in this folder by grouping scanned files
         if (state.selectedDrive && state.scannedFiles.length > 0) {
           const driveRoot = state.selectedDrive.mountpoints[0] || ''
           const normalizedRoot = driveRoot.replace(/[/\\]+$/, '')
 
-          // Find and remove deselected files belonging to this folder
-          for (const filePath of newDeselectedFiles) {
-            // Calculate the file's folder relative path (same logic as groupFilesByFolder)
+          // Helper to get file's folder relative path
+          const getFileRelativePath = (filePath: string): string => {
             const lastSeparator = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'))
-            const absoluteFolderPath = lastSeparator > 0 ? filePath.substring(0, lastSeparator) : normalizedRoot
+            const absoluteFolderPath =
+              lastSeparator > 0 ? filePath.substring(0, lastSeparator) : normalizedRoot
             let fileRelativePath = absoluteFolderPath
             if (absoluteFolderPath.startsWith(normalizedRoot)) {
               fileRelativePath = absoluteFolderPath.substring(normalizedRoot.length)
               fileRelativePath = fileRelativePath.replace(/^[/\\]+/, '')
             }
-            if (!fileRelativePath) {
-              fileRelativePath = '/'
-            }
+            return fileRelativePath || '/'
+          }
 
-            // If file belongs to the folder being re-selected, remove it from deselected
-            if (fileRelativePath === relativePath) {
+          // Clear deselected files belonging to this folder
+          for (const filePath of newDeselectedFiles) {
+            if (getFileRelativePath(filePath) === relativePath) {
               newDeselectedFiles.delete(filePath)
+            }
+          }
+
+          // Clear individually selected files belonging to this folder
+          // (they're now included via folder selection)
+          for (const filePath of newIndividuallySelectedFiles) {
+            if (getFileRelativePath(filePath) === relativePath) {
+              newIndividuallySelectedFiles.delete(filePath)
             }
           }
         }
@@ -204,32 +226,43 @@ export const createDriveSlice: StateCreator<DriveSlice> = (set, get) => ({
         fileSelection: {
           ...state.fileSelection,
           selectedFolders: newSelectedFolders,
-          deselectedFiles: newDeselectedFiles
+          deselectedFiles: newDeselectedFiles,
+          individuallySelectedFiles: newIndividuallySelectedFiles
         }
       }
     }),
 
   toggleFileSelection: (filePath, folderRelativePath) =>
     set((state) => {
-      // If folder is not selected, do nothing
-      if (!state.fileSelection.selectedFolders.has(folderRelativePath)) {
-        return state
-      }
-
+      const folderIsSelected = state.fileSelection.selectedFolders.has(folderRelativePath)
       const newDeselectedFiles = new Set(state.fileSelection.deselectedFiles)
+      const newIndividuallySelectedFiles = new Set(state.fileSelection.individuallySelectedFiles)
 
-      if (newDeselectedFiles.has(filePath)) {
-        // Re-select the file (remove from deselected)
-        newDeselectedFiles.delete(filePath)
+      if (folderIsSelected) {
+        // Folder is selected: toggle in deselectedFiles
+        if (newDeselectedFiles.has(filePath)) {
+          // Re-select the file (remove from deselected)
+          newDeselectedFiles.delete(filePath)
+        } else {
+          // Deselect the file
+          newDeselectedFiles.add(filePath)
+        }
       } else {
-        // Deselect the file
-        newDeselectedFiles.add(filePath)
+        // Folder is NOT selected: toggle in individuallySelectedFiles
+        if (newIndividuallySelectedFiles.has(filePath)) {
+          // Deselect the file (remove from individually selected)
+          newIndividuallySelectedFiles.delete(filePath)
+        } else {
+          // Select the file individually
+          newIndividuallySelectedFiles.add(filePath)
+        }
       }
 
       return {
         fileSelection: {
           ...state.fileSelection,
-          deselectedFiles: newDeselectedFiles
+          deselectedFiles: newDeselectedFiles,
+          individuallySelectedFiles: newIndividuallySelectedFiles
         }
       }
     }),
@@ -257,7 +290,9 @@ export const createDriveSlice: StateCreator<DriveSlice> = (set, get) => ({
       fileSelection: {
         selectedFolders: new Set(folderPaths),
         deselectedFiles: new Set(), // Clear individual deselections
-        expandedFolders: state.fileSelection.expandedFolders // Preserve expand state
+        individuallySelectedFiles: new Set(), // Clear individual selections (now included via folders)
+        expandedFolders: state.fileSelection.expandedFolders, // Preserve expand state
+        lastClickedFile: null // Reset shift-click tracking
       }
     })),
 
@@ -266,12 +301,88 @@ export const createDriveSlice: StateCreator<DriveSlice> = (set, get) => ({
       fileSelection: {
         selectedFolders: new Set(),
         deselectedFiles: new Set(),
-        expandedFolders: state.fileSelection.expandedFolders // Preserve expand state
+        individuallySelectedFiles: new Set(),
+        expandedFolders: state.fileSelection.expandedFolders, // Preserve expand state
+        lastClickedFile: null // Reset shift-click tracking
       }
     })),
 
   resetFileSelection: () =>
     set({
       fileSelection: createInitialFileSelection()
-    })
+    }),
+
+  setLastClickedFile: (filePath, folderRelativePath, index) =>
+    set((state) => ({
+      fileSelection: {
+        ...state.fileSelection,
+        lastClickedFile: { filePath, folderRelativePath, index }
+      }
+    })),
+
+  selectFileRange: (toIndex, fileList) =>
+    set((state) => {
+      const { lastClickedFile, selectedFolders, deselectedFiles, individuallySelectedFiles } =
+        state.fileSelection
+
+      // If no prior click or invalid index, do nothing
+      if (!lastClickedFile || toIndex < 0 || toIndex >= fileList.length) {
+        return state
+      }
+
+      const fromIndex = lastClickedFile.index
+      const [start, end] = fromIndex <= toIndex ? [fromIndex, toIndex] : [toIndex, fromIndex]
+
+      // Determine action based on first clicked file's current state
+      const firstFolderIsSelected = selectedFolders.has(lastClickedFile.folderRelativePath)
+      const firstWasSelected = firstFolderIsSelected
+        ? !deselectedFiles.has(lastClickedFile.filePath)
+        : individuallySelectedFiles.has(lastClickedFile.filePath)
+
+      const newDeselectedFiles = new Set(deselectedFiles)
+      const newIndividuallySelectedFiles = new Set(individuallySelectedFiles)
+
+      // Apply selection/deselection to range
+      for (let i = start; i <= end; i++) {
+        const { path, folderPath } = fileList[i]
+        const folderIsSelected = selectedFolders.has(folderPath)
+
+        if (firstWasSelected) {
+          // Select the range
+          if (folderIsSelected) {
+            newDeselectedFiles.delete(path)
+          } else {
+            newIndividuallySelectedFiles.add(path)
+          }
+        } else {
+          // Deselect the range
+          if (folderIsSelected) {
+            newDeselectedFiles.add(path)
+          } else {
+            newIndividuallySelectedFiles.delete(path)
+          }
+        }
+      }
+
+      return {
+        fileSelection: {
+          ...state.fileSelection,
+          deselectedFiles: newDeselectedFiles,
+          individuallySelectedFiles: newIndividuallySelectedFiles,
+          lastClickedFile: {
+            filePath: fileList[toIndex].path,
+            folderRelativePath: fileList[toIndex].folderPath,
+            index: toIndex
+          }
+        }
+      }
+    }),
+
+  clearLastClickedFile: () =>
+    set((state) => ({
+      fileSelection: {
+        ...state.fileSelection,
+        lastClickedFile: null
+      }
+    }))
 })

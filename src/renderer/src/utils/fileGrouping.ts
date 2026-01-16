@@ -88,25 +88,35 @@ export function groupFilesByFolder(files: ScannedFile[], driveRoot: string): Fol
 /**
  * Computes which file paths are selected based on folder and file selections.
  * A file is selected if:
- * - Its folder is in selectedFolders AND
- * - It is not in deselectedFiles
+ * - Its folder is in selectedFolders AND it is not in deselectedFiles, OR
+ * - Its folder is NOT in selectedFolders AND it is in individuallySelectedFiles
  *
  * @param groups - All folder groups from groupFilesByFolder
  * @param selectedFolders - Set of relative folder paths that are selected
  * @param deselectedFiles - Set of absolute file paths that are individually deselected
+ * @param individuallySelectedFiles - Set of absolute file paths selected when folder is not selected
  * @returns Array of selected file absolute paths
  */
 export function getSelectedFilePaths(
   groups: FolderGroup[],
   selectedFolders: Set<string>,
-  deselectedFiles: Set<string>
+  deselectedFiles: Set<string>,
+  individuallySelectedFiles: Set<string>
 ): string[] {
   const selectedPaths: string[] = []
 
   for (const group of groups) {
     if (selectedFolders.has(group.relativePath)) {
+      // Folder is selected: include all except deselected
       for (const file of group.files) {
         if (!deselectedFiles.has(file.path)) {
+          selectedPaths.push(file.path)
+        }
+      }
+    } else {
+      // Folder is NOT selected: include only individually selected
+      for (const file of group.files) {
+        if (individuallySelectedFiles.has(file.path)) {
           selectedPaths.push(file.path)
         }
       }
@@ -122,12 +132,14 @@ export function getSelectedFilePaths(
  * @param groups - All folder groups
  * @param selectedFolders - Set of selected folder relative paths
  * @param deselectedFiles - Set of deselected file absolute paths
+ * @param individuallySelectedFiles - Set of individually selected file absolute paths
  * @returns Object with selected and total file counts
  */
 export function getSelectionStats(
   groups: FolderGroup[],
   selectedFolders: Set<string>,
-  deselectedFiles: Set<string>
+  deselectedFiles: Set<string>,
+  individuallySelectedFiles: Set<string>
 ): { selected: number; total: number; totalSize: number; selectedSize: number } {
   let total = 0
   let selected = 0
@@ -135,11 +147,20 @@ export function getSelectionStats(
   let selectedSize = 0
 
   for (const group of groups) {
+    const folderIsSelected = selectedFolders.has(group.relativePath)
+
     for (const file of group.files) {
       total++
       totalSize += file.size
 
-      if (selectedFolders.has(group.relativePath) && !deselectedFiles.has(file.path)) {
+      // File is selected if:
+      // - Folder is selected AND file is not deselected, OR
+      // - Folder is not selected AND file is individually selected
+      const isSelected = folderIsSelected
+        ? !deselectedFiles.has(file.path)
+        : individuallySelectedFiles.has(file.path)
+
+      if (isSelected) {
         selected++
         selectedSize += file.size
       }
@@ -155,12 +176,14 @@ export function getSelectionStats(
  * @param group - The folder group to check
  * @param isSelected - Whether the folder is in selectedFolders
  * @param deselectedFiles - Set of deselected file paths
+ * @param individuallySelectedFiles - Set of individually selected file paths
  * @returns Object with selection state info
  */
 export function getFolderSelectionState(
   group: FolderGroup,
   isSelected: boolean,
-  deselectedFiles: Set<string>
+  deselectedFiles: Set<string>,
+  individuallySelectedFiles: Set<string>
 ): {
   isFullySelected: boolean
   isPartiallySelected: boolean
@@ -168,14 +191,20 @@ export function getFolderSelectionState(
   totalCount: number
 } {
   if (!isSelected) {
+    // Folder not selected: check for individually selected files
+    const individuallySelectedInFolder = group.files.filter((f) =>
+      individuallySelectedFiles.has(f.path)
+    ).length
+
     return {
       isFullySelected: false,
-      isPartiallySelected: false,
-      selectedCount: 0,
+      isPartiallySelected: individuallySelectedInFolder > 0, // Show indeterminate if some files selected
+      selectedCount: individuallySelectedInFolder,
       totalCount: group.fileCount
     }
   }
 
+  // Folder is selected: check for deselected files
   const deselectedInFolder = group.files.filter((f) => deselectedFiles.has(f.path)).length
   const selectedCount = group.fileCount - deselectedInFolder
 

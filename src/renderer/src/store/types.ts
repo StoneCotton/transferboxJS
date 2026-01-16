@@ -17,14 +17,23 @@ import type {
 /**
  * State for file selection in the transfer queue.
  * Uses folder-based selection with individual file deselection for efficiency.
+ * Also supports individual file selection when folder is not selected.
  */
 export interface FileSelectionState {
   /** Set of folder relative paths that are selected (all files in folder selected by default) */
   selectedFolders: Set<string>
   /** Set of individual file absolute paths that are deselected within selected folders */
   deselectedFiles: Set<string>
+  /** Set of individual file absolute paths that are selected when their folder is NOT selected */
+  individuallySelectedFiles: Set<string>
   /** Set of folder relative paths that are expanded in the UI */
   expandedFolders: Set<string>
+  /** Last clicked file for shift-click range selection (null if none) */
+  lastClickedFile: {
+    filePath: string
+    folderRelativePath: string
+    index: number
+  } | null
 }
 
 export interface DriveState {
