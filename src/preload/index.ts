@@ -10,6 +10,14 @@ import {
   UpdateCheckResult,
   TransferErrorInfo
 } from '../shared/types'
+import type {
+  BenchmarkConfig,
+  BenchmarkResult,
+  BenchmarkProgressEvent,
+  BenchmarkErrorEvent,
+  SpeedSample,
+  BenchmarkExportFormat
+} from '../shared/types'
 import type { AppConfig } from '../shared/types/config'
 import type { DriveInfo } from '../shared/types/drive'
 import type { TransferProgress, TransferSession } from '../shared/types/transfer'
@@ -161,6 +169,41 @@ const api = {
     const listener = (_event: IpcRendererEvent, result: UpdateCheckResult) => callback(result)
     ipcRenderer.on(IPC_CHANNELS.UPDATE_AVAILABLE, listener)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.UPDATE_AVAILABLE, listener)
+  },
+
+  // Benchmark operations
+  startBenchmark: (config: BenchmarkConfig) =>
+    ipcRenderer.invoke(IPC_CHANNELS.BENCHMARK_START, config),
+  cancelBenchmark: () => ipcRenderer.invoke(IPC_CHANNELS.BENCHMARK_CANCEL),
+  getBenchmarkHistory: (limit?: number) =>
+    ipcRenderer.invoke(IPC_CHANNELS.BENCHMARK_GET_HISTORY, limit),
+  getBenchmarkResult: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.BENCHMARK_GET_RESULT, id),
+  deleteBenchmark: (id: string) => ipcRenderer.invoke(IPC_CHANNELS.BENCHMARK_DELETE, id),
+  exportBenchmarks: (ids: string[], format: BenchmarkExportFormat) =>
+    ipcRenderer.invoke(IPC_CHANNELS.BENCHMARK_EXPORT, { ids, format }),
+  cleanupBenchmarkOrphans: () => ipcRenderer.invoke(IPC_CHANNELS.BENCHMARK_CLEANUP_ORPHANS),
+
+  // Benchmark event listeners
+  onBenchmarkProgress: (callback: (progress: BenchmarkProgressEvent) => void) => {
+    const listener = (_event: IpcRendererEvent, progress: BenchmarkProgressEvent) =>
+      callback(progress)
+    ipcRenderer.on(IPC_CHANNELS.BENCHMARK_PROGRESS, listener)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.BENCHMARK_PROGRESS, listener)
+  },
+  onBenchmarkSpeedSample: (callback: (sample: SpeedSample) => void) => {
+    const listener = (_event: IpcRendererEvent, sample: SpeedSample) => callback(sample)
+    ipcRenderer.on(IPC_CHANNELS.BENCHMARK_SPEED_SAMPLE, listener)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.BENCHMARK_SPEED_SAMPLE, listener)
+  },
+  onBenchmarkComplete: (callback: (result: BenchmarkResult) => void) => {
+    const listener = (_event: IpcRendererEvent, result: BenchmarkResult) => callback(result)
+    ipcRenderer.on(IPC_CHANNELS.BENCHMARK_COMPLETE, listener)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.BENCHMARK_COMPLETE, listener)
+  },
+  onBenchmarkError: (callback: (error: BenchmarkErrorEvent) => void) => {
+    const listener = (_event: IpcRendererEvent, error: BenchmarkErrorEvent) => callback(error)
+    ipcRenderer.on(IPC_CHANNELS.BENCHMARK_ERROR, listener)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.BENCHMARK_ERROR, listener)
   }
 }
 

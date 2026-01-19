@@ -31,6 +31,7 @@ import { useConfigStore, useUIStore, useTransferStore, useStore } from '../store
 import { useIpc } from '../hooks/useIpc'
 import { cn } from '../lib/utils'
 import { SettingToggle, SettingInput, SettingNumberInput, AboutLink } from './settings/controls'
+import { BenchmarkTab } from './benchmark'
 
 type SettingsCategory =
   | 'general'
@@ -40,6 +41,7 @@ type SettingsCategory =
   | 'performance'
   | 'interface'
   | 'logging'
+  | 'benchmark'
   | 'about'
 
 interface CategoryConfig {
@@ -91,6 +93,12 @@ const categories: CategoryConfig[] = [
     label: 'Logging',
     icon: <ScrollText className="h-5 w-5" />,
     description: 'Log level and cleanup'
+  },
+  {
+    id: 'benchmark',
+    label: 'Benchmark',
+    icon: <Zap className="h-5 w-5" />,
+    description: 'Test transfer performance'
   },
   {
     id: 'about',
@@ -1035,6 +1043,8 @@ export function SettingsModal() {
         return renderInterfaceSettings()
       case 'logging':
         return renderLoggingSettings()
+      case 'benchmark':
+        return <BenchmarkTab />
       case 'about':
         return renderAboutSettings()
       default:

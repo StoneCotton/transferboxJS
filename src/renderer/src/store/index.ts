@@ -14,6 +14,7 @@ import { createConfigSlice, type ConfigSlice } from './slices/configSlice'
 import { createLogSlice, type LogSlice } from './slices/logSlice'
 import { createUISlice, type UISlice } from './slices/uiSlice'
 import { createErrorSlice, type ErrorSlice } from './slices/errorSlice'
+import { createBenchmarkSlice, type BenchmarkSlice } from './slices/benchmarkSlice'
 import {
   groupFilesByFolder,
   getSelectedFilePaths,
@@ -23,7 +24,13 @@ import {
 } from '../utils/fileGrouping'
 
 // Combined store type
-export type AppStore = DriveSlice & TransferSlice & ConfigSlice & LogSlice & UISlice & ErrorSlice
+export type AppStore = DriveSlice &
+  TransferSlice &
+  ConfigSlice &
+  LogSlice &
+  UISlice &
+  ErrorSlice &
+  BenchmarkSlice
 
 // Create the store
 export const useStore = create<AppStore>()(
@@ -34,7 +41,8 @@ export const useStore = create<AppStore>()(
       ...createConfigSlice(...args),
       ...createLogSlice(...args),
       ...createUISlice(...args),
-      ...createErrorSlice(...args)
+      ...createErrorSlice(...args),
+      ...createBenchmarkSlice(...args)
     }),
     {
       name: 'TransferBox Store'
@@ -143,6 +151,43 @@ export const useUIStore = () =>
       toggleLogs: state.toggleLogs,
       toggleHistory: state.toggleHistory,
       closeAllModals: state.closeAllModals
+    }))
+  )
+
+export const useBenchmarkStore = () =>
+  useStore(
+    useShallow((state) => ({
+      // State
+      isRunning: state.benchmarkIsRunning,
+      currentPhase: state.benchmarkPhase,
+      progress: state.benchmarkProgress,
+      currentFile: state.benchmarkCurrentFile,
+      currentFileIndex: state.benchmarkFileIndex,
+      totalFiles: state.benchmarkTotalFiles,
+      bytesProcessed: state.benchmarkBytesProcessed,
+      totalBytes: state.benchmarkTotalBytes,
+      currentSpeedMbps: state.benchmarkSpeedMbps,
+      elapsedMs: state.benchmarkElapsedMs,
+      estimatedRemainingMs: state.benchmarkRemainingMs,
+      speedSamples: state.benchmarkSamples,
+      currentResult: state.benchmarkResult,
+      history: state.benchmarkHistory,
+      error: state.benchmarkError,
+      comparisonIds: state.benchmarkComparisonIds,
+      // Actions
+      startBenchmark: state.startBenchmark,
+      updateProgress: state.updateBenchmarkProgress,
+      addSpeedSample: state.addBenchmarkSample,
+      completeBenchmark: state.completeBenchmark,
+      failBenchmark: state.failBenchmark,
+      cancelBenchmark: state.cancelBenchmark,
+      resetBenchmark: state.resetBenchmark,
+      setHistory: state.setBenchmarkHistory,
+      addToHistory: state.addToBenchmarkHistory,
+      removeFromHistory: state.removeFromBenchmarkHistory,
+      setCurrentResult: state.setBenchmarkResult,
+      toggleComparison: state.toggleBenchmarkComparison,
+      clearComparison: state.clearBenchmarkComparison
     }))
   )
 
