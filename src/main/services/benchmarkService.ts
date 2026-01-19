@@ -70,6 +70,7 @@ export class BenchmarkService {
   private transferStartTime = 0 // When actual transfer begins (after generation)
   private sampleInterval: ReturnType<typeof setInterval> | null = null
   private currentSpeedMbps = 0
+  private currentFileName = '' // Track current file for graph markers
   private lastCpuUsage: NodeJS.CpuUsage | null = null
   private lastCpuTime = 0
 
@@ -221,6 +222,7 @@ export class BenchmarkService {
     this.samples = []
     this.startTime = Date.now()
     this.currentSpeedMbps = 0
+    this.currentFileName = ''
 
     const sourceBenchmarkDir = path.join(config.sourceDeviceId, '.tbench')
     const destBenchmarkDir = path.join(config.destinationPath, '.tbench')
@@ -390,6 +392,9 @@ export class BenchmarkService {
       const file = files[i]
       const fileSpec = BENCHMARK_TEST_FILES[i]
 
+      // Update current file name for speed sampling
+      this.currentFileName = fileSpec.name
+
       try {
         const result = await this.transferEngine.transferFile(file.source, file.dest, {
           bufferSize: config.bufferSize,
@@ -488,6 +493,7 @@ export class BenchmarkService {
           timestampMs: Date.now() - this.transferStartTime,
           speedMbps: this.currentSpeedMbps,
           phase: this.currentPhase === 'verifying' ? 'verify' : 'transfer',
+          currentFile: this.currentFileName || undefined,
           cpuPercent: this.getCpuPercent(),
           memoryUsedMB: this.getMemoryUsedMB()
         }
