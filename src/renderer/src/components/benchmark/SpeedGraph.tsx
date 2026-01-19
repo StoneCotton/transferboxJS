@@ -1,9 +1,10 @@
 /**
  * SpeedGraph Component
  * Canvas-based speed graph for benchmark visualization
+ * With CPU/Memory overlay support
  */
 
-import { useRef, useEffect, useCallback } from 'react'
+import { useRef, useEffect, useCallback, useState } from 'react'
 import type { SpeedSample, BenchmarkResult } from '../../../../shared/types'
 import { cn } from '../../lib/utils'
 
@@ -22,6 +23,10 @@ interface SpeedGraphProps {
   comparisonRuns?: BenchmarkResult[]
   /** Whether the graph is live (animating) */
   isLive?: boolean
+  /** Whether to show CPU overlay */
+  showCpu?: boolean
+  /** Whether to show Memory overlay */
+  showMemory?: boolean
   /** Additional CSS classes */
   className?: string
 }
@@ -30,6 +35,8 @@ interface SpeedGraphProps {
 const COMPARISON_COLORS = ['#22c55e', '#a855f7', '#3b82f6'] // green, purple, blue
 const PRIMARY_COLOR = '#f97316' // brand orange
 const VERIFY_COLOR = 'rgba(59, 130, 246, 0.3)' // blue with transparency
+const CPU_COLOR = '#ef4444' // red
+const MEMORY_COLOR = '#8b5cf6' // purple
 
 export function SpeedGraph({
   samples,
@@ -39,11 +46,32 @@ export function SpeedGraph({
   showFileMarkers = false,
   comparisonRuns = [],
   isLive = false,
+  showCpu = true,
+  showMemory = true,
   className
 }: SpeedGraphProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const animationRef = useRef<number | null>(null)
+  const [isDarkMode, setIsDarkMode] = useState(false)
+
+  // Detect dark mode
+  useEffect(() => {
+    const checkDarkMode = () => {
+      setIsDarkMode(document.documentElement.classList.contains('dark'))
+    }
+    checkDarkMode()
+
+    // Watch for class changes on document
+    const observer = new MutationObserver(checkDarkMode)
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
+
+    return () => observer.disconnect()
+  }, [])
+
+  // Check if we have CPU/Memory data
+  const hasCpuData = samples.some((s) => s.cpuPercent !== undefined)
+  const hasMemoryData = samples.some((s) => s.memoryUsedMB !== undefined)
 
   // Calculate auto-max Y value with padding
   const calculateMaxY = useCallback(() => {
@@ -66,6 +94,17 @@ export function SpeedGraph({
     return Math.ceil(max / 100) * 100
   }, [samples, comparisonRuns, maxY])
 
+  // Calculate max memory for scaling
+  const calculateMaxMemory = useCallback(() => {
+    let max = 0
+    samples.forEach((s) => {
+      if (s.memoryUsedMB && s.memoryUsedMB > max) max = s.memoryUsedMB
+    })
+    // Round to nice number with padding
+    max = max * 1.2
+    return Math.ceil(max / 100) * 100 || 1000
+  }, [samples])
+
   // Draw the graph
   const draw = useCallback(() => {
     const canvas = canvasRef.current
@@ -74,6 +113,11 @@ export function SpeedGraph({
 
     const ctx = canvas.getContext('2d')
     if (!ctx) return
+
+    // Theme-aware colors
+    const textColor = isDarkMode ? 'rgb(156, 163, 175)' : 'rgb(107, 114, 128)' // gray-400 / gray-500
+    const gridColor = isDarkMode ? 'rgba(75, 85, 99, 0.3)' : 'rgba(156, 163, 175, 0.2)' // gray-600 / gray-400
+    const axisColor = isDarkMode ? 'rgb(107, 114, 128)' : 'rgb(156, 163, 175)' // gray-500 / gray-400
 
     // Get device pixel ratio for crisp rendering
     const dpr = window.devicePixelRatio || 1
@@ -90,13 +134,15 @@ export function SpeedGraph({
     // Clear canvas
     ctx.clearRect(0, 0, width, height)
 
-    // Padding for labels
-    const padding = { top: 20, right: 20, bottom: 30, left: 50 }
+    // Padding for labels (add right padding for secondary axis if showing CPU/Memory)
+    const hasSecondaryAxis = (showCpu && hasCpuData) || (showMemory && hasMemoryData)
+    const padding = { top: 20, right: hasSecondaryAxis ? 50 : 20, bottom: 30, left: 50 }
     const graphWidth = width - padding.left - padding.right
     const graphHeight = height - padding.top - padding.bottom
 
     // Calculate scales
     const yMax = calculateMaxY()
+    const memoryMax = calculateMaxMemory()
     const xMax = Math.max(
       samples.length > 0 ? samples[samples.length - 1].timestampMs : 1000,
       ...comparisonRuns.map((r) =>
@@ -106,13 +152,15 @@ export function SpeedGraph({
 
     const xScale = (ms: number) => padding.left + (ms / xMax) * graphWidth
     const yScale = (speed: number) => padding.top + graphHeight - (speed / yMax) * graphHeight
+    const cpuScale = (percent: number) => padding.top + graphHeight - (percent / 100) * graphHeight
+    const memoryScale = (mb: number) => padding.top + graphHeight - (mb / memoryMax) * graphHeight
 
     // Draw background
     ctx.fillStyle = 'transparent'
     ctx.fillRect(0, 0, width, height)
 
     // Draw grid lines
-    ctx.strokeStyle = 'rgba(156, 163, 175, 0.2)' // gray-400 with low opacity
+    ctx.strokeStyle = gridColor
     ctx.lineWidth = 1
 
     // Horizontal grid lines
@@ -135,8 +183,8 @@ export function SpeedGraph({
       ctx.stroke()
     }
 
-    // Draw Y-axis labels
-    ctx.fillStyle = 'rgb(107, 114, 128)' // gray-500
+    // Draw Y-axis labels (left - speed)
+    ctx.fillStyle = textColor
     ctx.font = '11px system-ui, sans-serif'
     ctx.textAlign = 'right'
     ctx.textBaseline = 'middle'
@@ -146,7 +194,19 @@ export function SpeedGraph({
       ctx.fillText(`${value}`, padding.left - 8, y)
     }
 
+    // Draw secondary Y-axis labels (right - CPU %)
+    if (hasSecondaryAxis && showCpu && hasCpuData) {
+      ctx.textAlign = 'left'
+      ctx.fillStyle = CPU_COLOR
+      for (let i = 0; i <= yTicks; i++) {
+        const value = Math.round((100 * (yTicks - i)) / yTicks)
+        const y = padding.top + (i / yTicks) * graphHeight
+        ctx.fillText(`${value}%`, width - padding.right + 8, y)
+      }
+    }
+
     // Draw X-axis labels
+    ctx.fillStyle = textColor
     ctx.textAlign = 'center'
     ctx.textBaseline = 'top'
     for (let i = 0; i <= xTicks; i++) {
@@ -209,6 +269,54 @@ export function SpeedGraph({
       ctx.globalAlpha = 1
     })
 
+    // Draw memory line (behind speed line)
+    if (showMemory && hasMemoryData && samples.length >= 2) {
+      ctx.strokeStyle = MEMORY_COLOR
+      ctx.lineWidth = 1.5
+      ctx.globalAlpha = 0.5
+      ctx.setLineDash([4, 2])
+      ctx.beginPath()
+      let started = false
+      samples.forEach((sample) => {
+        if (sample.memoryUsedMB !== undefined) {
+          const x = xScale(sample.timestampMs)
+          const y = memoryScale(sample.memoryUsedMB)
+          if (!started) {
+            ctx.moveTo(x, y)
+            started = true
+          } else {
+            ctx.lineTo(x, y)
+          }
+        }
+      })
+      ctx.stroke()
+      ctx.setLineDash([])
+      ctx.globalAlpha = 1
+    }
+
+    // Draw CPU line (behind speed line)
+    if (showCpu && hasCpuData && samples.length >= 2) {
+      ctx.strokeStyle = CPU_COLOR
+      ctx.lineWidth = 1.5
+      ctx.globalAlpha = 0.6
+      ctx.beginPath()
+      let started = false
+      samples.forEach((sample) => {
+        if (sample.cpuPercent !== undefined) {
+          const x = xScale(sample.timestampMs)
+          const y = cpuScale(sample.cpuPercent)
+          if (!started) {
+            ctx.moveTo(x, y)
+            started = true
+          } else {
+            ctx.lineTo(x, y)
+          }
+        }
+      })
+      ctx.stroke()
+      ctx.globalAlpha = 1
+    }
+
     // Draw primary speed line
     if (samples.length >= 2) {
       ctx.strokeStyle = PRIMARY_COLOR
@@ -255,7 +363,7 @@ export function SpeedGraph({
       )
 
       ctx.setLineDash([4, 4])
-      ctx.strokeStyle = 'rgba(156, 163, 175, 0.5)'
+      ctx.strokeStyle = isDarkMode ? 'rgba(107, 114, 128, 0.5)' : 'rgba(156, 163, 175, 0.5)'
       ctx.lineWidth = 1
 
       fileChanges.forEach((sample) => {
@@ -269,24 +377,40 @@ export function SpeedGraph({
     }
 
     // Draw axis lines
-    ctx.strokeStyle = 'rgb(156, 163, 175)' // gray-400
+    ctx.strokeStyle = axisColor
     ctx.lineWidth = 1
     ctx.beginPath()
     ctx.moveTo(padding.left, padding.top)
     ctx.lineTo(padding.left, height - padding.bottom)
     ctx.lineTo(width - padding.right, height - padding.bottom)
+    if (hasSecondaryAxis) {
+      ctx.moveTo(width - padding.right, padding.top)
+      ctx.lineTo(width - padding.right, height - padding.bottom)
+    }
     ctx.stroke()
 
-    // Y-axis label
+    // Y-axis label (left - speed)
     ctx.save()
     ctx.translate(12, height / 2)
     ctx.rotate(-Math.PI / 2)
     ctx.textAlign = 'center'
-    ctx.fillStyle = 'rgb(107, 114, 128)'
+    ctx.fillStyle = textColor
     ctx.font = '11px system-ui, sans-serif'
     ctx.fillText('MB/s', 0, 0)
     ctx.restore()
-  }, [samples, comparisonRuns, height, calculateMaxY, isLive, showFileMarkers])
+
+    // Y-axis label (right - CPU/Memory)
+    if (hasSecondaryAxis && showCpu && hasCpuData) {
+      ctx.save()
+      ctx.translate(width - 12, height / 2)
+      ctx.rotate(Math.PI / 2)
+      ctx.textAlign = 'center'
+      ctx.fillStyle = CPU_COLOR
+      ctx.font = '11px system-ui, sans-serif'
+      ctx.fillText('CPU %', 0, 0)
+      ctx.restore()
+    }
+  }, [samples, comparisonRuns, height, calculateMaxY, calculateMaxMemory, isLive, showFileMarkers, showCpu, showMemory, hasCpuData, hasMemoryData, isDarkMode])
 
   // Set up animation loop for live mode
   useEffect(() => {
@@ -328,8 +452,20 @@ export function SpeedGraph({
         <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
           <div className="flex items-center gap-1.5">
             <div className="h-0.5 w-4 rounded" style={{ backgroundColor: PRIMARY_COLOR }} />
-            <span>Transfer</span>
+            <span>Transfer Speed</span>
           </div>
+          {showCpu && hasCpuData && (
+            <div className="flex items-center gap-1.5">
+              <div className="h-0.5 w-4 rounded" style={{ backgroundColor: CPU_COLOR }} />
+              <span>CPU %</span>
+            </div>
+          )}
+          {showMemory && hasMemoryData && (
+            <div className="flex items-center gap-1.5">
+              <div className="h-0.5 w-4 rounded border-t border-dashed" style={{ borderColor: MEMORY_COLOR }} />
+              <span>Memory</span>
+            </div>
+          )}
           {samples.some((s) => s.phase === 'verify') && (
             <div className="flex items-center gap-1.5">
               <div

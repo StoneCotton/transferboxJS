@@ -67,8 +67,11 @@ export class BenchmarkService {
   private currentPhase: BenchmarkPhase = 'idle'
   private samples: SpeedSample[] = []
   private startTime = 0
+  private transferStartTime = 0 // When actual transfer begins (after generation)
   private sampleInterval: ReturnType<typeof setInterval> | null = null
   private currentSpeedMbps = 0
+  private lastCpuUsage: NodeJS.CpuUsage | null = null
+  private lastCpuTime = 0
 
   private constructor() {}
 
@@ -237,6 +240,7 @@ export class BenchmarkService {
 
       // Phase 2: Transfer files
       this.currentPhase = 'transferring'
+      this.transferStartTime = Date.now() // Track when transfer actually begins
       this.sendProgress({ phase: 'transferring', progress: 0 })
 
       // Start speed sampling
@@ -435,15 +439,57 @@ export class BenchmarkService {
   }
 
   /**
+   * Get current CPU usage percentage
+   */
+  private getCpuPercent(): number {
+    const currentUsage = process.cpuUsage(this.lastCpuUsage || undefined)
+    const currentTime = Date.now()
+
+    if (this.lastCpuUsage && this.lastCpuTime > 0) {
+      const elapsedMs = currentTime - this.lastCpuTime
+      if (elapsedMs > 0) {
+        // CPU usage is in microseconds, convert to percentage
+        const totalCpuMs = (currentUsage.user + currentUsage.system) / 1000
+        const cpuPercent = (totalCpuMs / elapsedMs) * 100
+
+        this.lastCpuUsage = process.cpuUsage()
+        this.lastCpuTime = currentTime
+
+        // Clamp to 0-100 (can exceed 100% on multi-core)
+        return Math.min(100, Math.max(0, cpuPercent))
+      }
+    }
+
+    this.lastCpuUsage = process.cpuUsage()
+    this.lastCpuTime = currentTime
+    return 0
+  }
+
+  /**
+   * Get current memory usage in MB
+   */
+  private getMemoryUsedMB(): number {
+    const memUsage = process.memoryUsage()
+    // Use RSS (Resident Set Size) for total memory footprint
+    return memUsage.rss / (1024 * 1024)
+  }
+
+  /**
    * Start speed sampling for graph
    */
   private startSpeedSampling(): void {
+    // Initialize CPU tracking
+    this.lastCpuUsage = process.cpuUsage()
+    this.lastCpuTime = Date.now()
+
     this.sampleInterval = setInterval(() => {
       if (this.currentPhase === 'transferring' || this.currentPhase === 'verifying') {
         const sample: SpeedSample = {
-          timestampMs: Date.now() - this.startTime,
+          timestampMs: Date.now() - this.transferStartTime,
           speedMbps: this.currentSpeedMbps,
-          phase: this.currentPhase === 'verifying' ? 'verify' : 'transfer'
+          phase: this.currentPhase === 'verifying' ? 'verify' : 'transfer',
+          cpuPercent: this.getCpuPercent(),
+          memoryUsedMB: this.getMemoryUsedMB()
         }
         this.samples.push(sample)
         this.sendSpeedSample(sample)
@@ -470,14 +516,15 @@ export class BenchmarkService {
   ): BenchmarkResult {
     const endTime = Date.now()
     const totalDurationMs = endTime - this.startTime
+    const transferDurationMs = endTime - this.transferStartTime
 
     const successfulTransfers = transferResults.filter((r) => r.success)
     const totalBytes = successfulTransfers.reduce((sum, r) => sum + r.bytesTransferred, 0)
     const totalFiles = successfulTransfers.length
 
-    // Calculate speeds
-    const totalDurationSec = totalDurationMs / 1000
-    const avgSpeedMbps = totalDurationSec > 0 ? (totalBytes / totalDurationSec) / (1024 * 1024) : 0
+    // Calculate speeds based on TRANSFER duration only (excludes file generation)
+    const transferDurationSec = transferDurationMs / 1000
+    const avgSpeedMbps = transferDurationSec > 0 ? (totalBytes / transferDurationSec) / (1024 * 1024) : 0
 
     // Calculate peak from samples (99th percentile to avoid outliers)
     const sortedSpeeds = [...this.samples.map((s) => s.speedMbps)].sort((a, b) => b - a)
@@ -488,6 +535,23 @@ export class BenchmarkService {
     const readSpeedMbps = avgSpeedMbps * 1.1 // Typically read is slightly faster
     const writeSpeedMbps = avgSpeedMbps
     const checksumSpeedMbps = avgSpeedMbps * 5 // XXHash is much faster than I/O
+
+    // Calculate CPU/Memory metrics from samples
+    const cpuSamples = this.samples.filter((s) => s.cpuPercent !== undefined).map((s) => s.cpuPercent!)
+    const memorySamples = this.samples.filter((s) => s.memoryUsedMB !== undefined).map((s) => s.memoryUsedMB!)
+
+    const avgCpuPercent = cpuSamples.length > 0
+      ? cpuSamples.reduce((a, b) => a + b, 0) / cpuSamples.length
+      : undefined
+    const peakCpuPercent = cpuSamples.length > 0
+      ? Math.max(...cpuSamples)
+      : undefined
+    const avgMemoryMB = memorySamples.length > 0
+      ? memorySamples.reduce((a, b) => a + b, 0) / memorySamples.length
+      : undefined
+    const peakMemoryMB = memorySamples.length > 0
+      ? Math.max(...memorySamples)
+      : undefined
 
     return {
       id: `benchmark_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
@@ -505,11 +569,16 @@ export class BenchmarkService {
         totalBytes,
         totalFiles,
         totalDurationMs,
+        transferDurationMs,
         avgSpeedMbps,
         peakSpeedMbps,
         readSpeedMbps,
         writeSpeedMbps,
-        checksumSpeedMbps
+        checksumSpeedMbps,
+        avgCpuPercent,
+        peakCpuPercent,
+        avgMemoryMB,
+        peakMemoryMB
       },
       samples: this.samples,
       os: `${os.type()} ${os.release()}`,

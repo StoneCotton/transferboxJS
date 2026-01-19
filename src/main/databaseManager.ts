@@ -201,11 +201,16 @@ export class DatabaseManager {
         total_bytes INTEGER NOT NULL,
         total_files INTEGER NOT NULL,
         total_duration_ms INTEGER NOT NULL,
+        transfer_duration_ms INTEGER NOT NULL DEFAULT 0,
         avg_speed_mbps REAL NOT NULL,
         peak_speed_mbps REAL NOT NULL,
         read_speed_mbps REAL NOT NULL,
         write_speed_mbps REAL NOT NULL,
         checksum_speed_mbps REAL NOT NULL,
+        avg_cpu_percent REAL,
+        peak_cpu_percent REAL,
+        avg_memory_mb REAL,
+        peak_memory_mb REAL,
         os TEXT NOT NULL,
         platform TEXT NOT NULL
       );
@@ -222,6 +227,8 @@ export class DatabaseManager {
         speed_mbps REAL NOT NULL,
         phase TEXT NOT NULL,
         current_file TEXT,
+        cpu_percent REAL,
+        memory_used_mb REAL,
         FOREIGN KEY (run_id) REFERENCES benchmark_runs(id) ON DELETE CASCADE
       );
 
@@ -285,6 +292,53 @@ export class DatabaseManager {
         } catch {
           console.error('Migration failed:', error)
         }
+      }
+    }
+
+    // Migration: Add CPU/memory columns to benchmark tables
+    this.migrateBenchmarkTables()
+  }
+
+  /**
+   * Migrate benchmark tables to add CPU/memory columns
+   */
+  private migrateBenchmarkTables(): void {
+    // Check if benchmark_runs table has the new columns
+    const runColumns = this.db
+      .prepare(`PRAGMA table_info(benchmark_runs)`)
+      .all() as Array<{ name: string }>
+
+    const hasTransferDuration = runColumns.some((col) => col.name === 'transfer_duration_ms')
+
+    if (!hasTransferDuration) {
+      try {
+        this.db.exec(`
+          ALTER TABLE benchmark_runs ADD COLUMN transfer_duration_ms INTEGER NOT NULL DEFAULT 0;
+          ALTER TABLE benchmark_runs ADD COLUMN avg_cpu_percent REAL;
+          ALTER TABLE benchmark_runs ADD COLUMN peak_cpu_percent REAL;
+          ALTER TABLE benchmark_runs ADD COLUMN avg_memory_mb REAL;
+          ALTER TABLE benchmark_runs ADD COLUMN peak_memory_mb REAL;
+        `)
+      } catch {
+        // Columns may already exist, ignore errors
+      }
+    }
+
+    // Check if benchmark_samples table has the new columns
+    const sampleColumns = this.db
+      .prepare(`PRAGMA table_info(benchmark_samples)`)
+      .all() as Array<{ name: string }>
+
+    const hasCpuPercent = sampleColumns.some((col) => col.name === 'cpu_percent')
+
+    if (!hasCpuPercent) {
+      try {
+        this.db.exec(`
+          ALTER TABLE benchmark_samples ADD COLUMN cpu_percent REAL;
+          ALTER TABLE benchmark_samples ADD COLUMN memory_used_mb REAL;
+        `)
+      } catch {
+        // Columns may already exist, ignore errors
       }
     }
   }
@@ -914,9 +968,11 @@ export class DatabaseManager {
         INSERT INTO benchmark_runs (
           id, timestamp, app_version, source_drive_name, source_drive_type,
           destination_path, destination_drive_type, total_bytes, total_files,
-          total_duration_ms, avg_speed_mbps, peak_speed_mbps, read_speed_mbps,
-          write_speed_mbps, checksum_speed_mbps, os, platform
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          total_duration_ms, transfer_duration_ms, avg_speed_mbps, peak_speed_mbps,
+          read_speed_mbps, write_speed_mbps, checksum_speed_mbps,
+          avg_cpu_percent, peak_cpu_percent, avg_memory_mb, peak_memory_mb,
+          os, platform
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
 
       runStmt.run(
@@ -930,11 +986,16 @@ export class DatabaseManager {
         result.metrics.totalBytes,
         result.metrics.totalFiles,
         result.metrics.totalDurationMs,
+        result.metrics.transferDurationMs,
         result.metrics.avgSpeedMbps,
         result.metrics.peakSpeedMbps,
         result.metrics.readSpeedMbps,
         result.metrics.writeSpeedMbps,
         result.metrics.checksumSpeedMbps,
+        result.metrics.avgCpuPercent ?? null,
+        result.metrics.peakCpuPercent ?? null,
+        result.metrics.avgMemoryMB ?? null,
+        result.metrics.peakMemoryMB ?? null,
         result.os,
         result.platform
       )
@@ -942,8 +1003,8 @@ export class DatabaseManager {
       // Insert samples
       if (result.samples && result.samples.length > 0) {
         const sampleStmt = this.db.prepare(`
-          INSERT INTO benchmark_samples (run_id, timestamp_ms, speed_mbps, phase, current_file)
-          VALUES (?, ?, ?, ?, ?)
+          INSERT INTO benchmark_samples (run_id, timestamp_ms, speed_mbps, phase, current_file, cpu_percent, memory_used_mb)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
         `)
 
         for (const sample of result.samples) {
@@ -952,7 +1013,9 @@ export class DatabaseManager {
             sample.timestampMs,
             sample.speedMbps,
             sample.phase,
-            sample.currentFile || null
+            sample.currentFile || null,
+            sample.cpuPercent ?? null,
+            sample.memoryUsedMB ?? null
           )
         }
       }
@@ -1017,7 +1080,7 @@ export class DatabaseManager {
 
     // Get samples
     const samplesStmt = this.db.prepare(`
-      SELECT timestamp_ms, speed_mbps, phase, current_file
+      SELECT timestamp_ms, speed_mbps, phase, current_file, cpu_percent, memory_used_mb
       FROM benchmark_samples
       WHERE run_id = ?
       ORDER BY timestamp_ms ASC
@@ -1029,7 +1092,9 @@ export class DatabaseManager {
       timestampMs: s.timestamp_ms,
       speedMbps: s.speed_mbps,
       phase: s.phase as 'transfer' | 'verify',
-      currentFile: s.current_file || undefined
+      currentFile: s.current_file || undefined,
+      cpuPercent: s.cpu_percent ?? undefined,
+      memoryUsedMB: s.memory_used_mb ?? undefined
     }))
 
     return {
@@ -1048,11 +1113,16 @@ export class DatabaseManager {
         totalBytes: row.total_bytes,
         totalFiles: row.total_files,
         totalDurationMs: row.total_duration_ms,
+        transferDurationMs: row.transfer_duration_ms,
         avgSpeedMbps: row.avg_speed_mbps,
         peakSpeedMbps: row.peak_speed_mbps,
         readSpeedMbps: row.read_speed_mbps,
         writeSpeedMbps: row.write_speed_mbps,
-        checksumSpeedMbps: row.checksum_speed_mbps
+        checksumSpeedMbps: row.checksum_speed_mbps,
+        avgCpuPercent: row.avg_cpu_percent ?? undefined,
+        peakCpuPercent: row.peak_cpu_percent ?? undefined,
+        avgMemoryMB: row.avg_memory_mb ?? undefined,
+        peakMemoryMB: row.peak_memory_mb ?? undefined
       },
       samples,
       os: row.os,

@@ -30,6 +30,10 @@ export interface SpeedSample {
   phase: 'transfer' | 'verify'
   /** Name of the file being processed (optional) */
   currentFile?: string
+  /** CPU usage percentage (0-100) */
+  cpuPercent?: number
+  /** Memory usage in MB */
+  memoryUsedMB?: number
 }
 
 /**
@@ -40,9 +44,11 @@ export interface BenchmarkMetrics {
   totalBytes: number
   /** Total number of files */
   totalFiles: number
-  /** Total duration in milliseconds */
+  /** Total duration in milliseconds (includes generation) */
   totalDurationMs: number
-  /** Average transfer speed in MB/s */
+  /** Transfer-only duration in milliseconds (excludes file generation) */
+  transferDurationMs: number
+  /** Average transfer speed in MB/s (calculated from transfer phase only) */
   avgSpeedMbps: number
   /** Peak sustained speed in MB/s */
   peakSpeedMbps: number
@@ -52,6 +58,14 @@ export interface BenchmarkMetrics {
   writeSpeedMbps: number
   /** Checksum calculation speed in MB/s */
   checksumSpeedMbps: number
+  /** Average CPU usage during transfer (0-100) */
+  avgCpuPercent?: number
+  /** Peak CPU usage during transfer (0-100) */
+  peakCpuPercent?: number
+  /** Average memory usage during transfer in MB */
+  avgMemoryMB?: number
+  /** Peak memory usage during transfer in MB */
+  peakMemoryMB?: number
 }
 
 /**
@@ -147,11 +161,16 @@ export interface BenchmarkRunRow {
   total_bytes: number
   total_files: number
   total_duration_ms: number
+  transfer_duration_ms: number
   avg_speed_mbps: number
   peak_speed_mbps: number
   read_speed_mbps: number
   write_speed_mbps: number
   checksum_speed_mbps: number
+  avg_cpu_percent: number | null
+  peak_cpu_percent: number | null
+  avg_memory_mb: number | null
+  peak_memory_mb: number | null
   os: string
   platform: string
 }
@@ -166,6 +185,8 @@ export interface BenchmarkSampleRow {
   speed_mbps: number
   phase: string
   current_file: string | null
+  cpu_percent: number | null
+  memory_used_mb: number | null
 }
 
 /**
