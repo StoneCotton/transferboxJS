@@ -225,7 +225,7 @@ export function BenchmarkTab() {
               }}
               disabled={isRunning || isTransferring}
               className={cn(
-                'w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm',
+                'w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900',
                 'focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20',
                 'disabled:cursor-not-allowed disabled:opacity-50',
                 'dark:border-gray-600 dark:bg-gray-800 dark:text-white'
@@ -257,7 +257,7 @@ export function BenchmarkTab() {
                 readOnly
                 placeholder="Select destination folder..."
                 className={cn(
-                  'flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm',
+                  'flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-500',
                   'focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20',
                   'disabled:cursor-not-allowed disabled:opacity-50',
                   'dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder-gray-500'
