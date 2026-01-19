@@ -66,7 +66,12 @@ export function FolderSection({
 }: FolderSectionProps) {
   // Calculate selection state for this folder
   const selectionState = useMemo(() => {
-    return getFolderSelectionState(group, isFolderSelected, deselectedFiles, individuallySelectedFiles)
+    return getFolderSelectionState(
+      group,
+      isFolderSelected,
+      deselectedFiles,
+      individuallySelectedFiles
+    )
   }, [group, isFolderSelected, deselectedFiles, individuallySelectedFiles])
 
   const { isFullySelected, isPartiallySelected, selectedCount, totalCount } = selectionState
@@ -156,7 +161,9 @@ export function FolderSection({
 
         {/* Progress indicator */}
         {folderProgress && folderProgress.completed > 0 && (
-          <span className={cn('flex-shrink-0 text-green-600', isCondensed ? 'text-[10px]' : 'text-xs')}>
+          <span
+            className={cn('flex-shrink-0 text-green-600', isCondensed ? 'text-[10px]' : 'text-xs')}
+          >
             {folderProgress.completed}/{folderProgress.total} done
           </span>
         )}

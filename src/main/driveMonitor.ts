@@ -281,7 +281,13 @@ export class DriveMonitor {
     let totalSize = 0
 
     // Recursively scan directory
-    await this.scanDirectory(drivePath, files, mediaExtensions, filterByMediaExtensions, excludeSystemFiles)
+    await this.scanDirectory(
+      drivePath,
+      files,
+      mediaExtensions,
+      filterByMediaExtensions,
+      excludeSystemFiles
+    )
 
     // Calculate total size
     for (const file of files) {

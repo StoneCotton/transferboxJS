@@ -49,10 +49,7 @@ export interface DriveSlice extends DriveState {
   /** Set the last clicked file for shift-click range selection */
   setLastClickedFile: (filePath: string, folderRelativePath: string, index: number) => void
   /** Select a range of files from last clicked to target index (for shift-click) */
-  selectFileRange: (
-    toIndex: number,
-    fileList: Array<{ path: string; folderPath: string }>
-  ) => void
+  selectFileRange: (toIndex: number, fileList: Array<{ path: string; folderPath: string }>) => void
   /** Clear last clicked file state */
   clearLastClickedFile: () => void
 }

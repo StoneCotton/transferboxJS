@@ -118,7 +118,9 @@ describe('DriveSelector Component', () => {
 
     it('should prevent drive scanning when transfer is in progress', async () => {
       const mockSelectDrive = jest.fn()
-      const mockScanDrive = jest.fn(() => Promise.resolve({ files: mockScannedFiles, driveInfo: mockDrive }))
+      const mockScanDrive = jest.fn(() =>
+        Promise.resolve({ files: mockScannedFiles, driveInfo: mockDrive })
+      )
       const mockSetScanError = jest.fn()
 
       // Setup: Transfer in progress
@@ -196,7 +198,9 @@ describe('DriveSelector Component', () => {
 
     it('should allow drive selection when no transfer and drive is mounted', async () => {
       const mockSelectDrive = jest.fn()
-      const mockScanDrive = jest.fn(() => Promise.resolve({ files: mockScannedFiles, driveInfo: mockDrive }))
+      const mockScanDrive = jest.fn(() =>
+        Promise.resolve({ files: mockScannedFiles, driveInfo: mockDrive })
+      )
 
       // Setup: No transfer, drive is mounted
       const { useTransferStore, useDriveStore } = require('../../../src/renderer/src/store')

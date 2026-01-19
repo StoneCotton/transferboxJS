@@ -10,10 +10,7 @@ import { getDriveMonitor, getMainWindow } from '../ipc/state'
 /**
  * Auto-unmount drive after successful transfer
  */
-export async function autoUnmountDrive(
-  driveDevice: string,
-  sessionId: string
-): Promise<void> {
+export async function autoUnmountDrive(driveDevice: string, sessionId: string): Promise<void> {
   const logger = getLogger()
   const driveMonitor = getDriveMonitor()
   const mainWindow = getMainWindow()

@@ -234,13 +234,21 @@ export function FileList() {
 
           {/* Transfer Status Statistics */}
           <div className={cn('flex', isCondensed ? 'gap-1' : 'gap-2')}>
-            <StatusBadge status="complete" count={transferStats.complete} isCondensed={isCondensed} />
+            <StatusBadge
+              status="complete"
+              count={transferStats.complete}
+              isCondensed={isCondensed}
+            />
             <StatusBadge
               status="transferring"
               count={transferStats.transferring}
               isCondensed={isCondensed}
             />
-            <StatusBadge status="verifying" count={transferStats.verifying} isCondensed={isCondensed} />
+            <StatusBadge
+              status="verifying"
+              count={transferStats.verifying}
+              isCondensed={isCondensed}
+            />
             <StatusBadge status="error" count={transferStats.error} isCondensed={isCondensed} />
             <StatusBadge status="pending" count={transferStats.pending} isCondensed={isCondensed} />
           </div>

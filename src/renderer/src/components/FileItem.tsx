@@ -5,14 +5,7 @@
  */
 
 import { useState, type ReactElement } from 'react'
-import {
-  CheckCircle2,
-  Clock,
-  AlertCircle,
-  XCircle,
-  Loader2,
-  Copy
-} from 'lucide-react'
+import { CheckCircle2, Clock, AlertCircle, XCircle, Loader2, Copy } from 'lucide-react'
 import { cn, formatDuration, formatBytes } from '../lib/utils'
 import { Tooltip } from './ui/Tooltip'
 import {
@@ -164,8 +157,7 @@ export function FileItem({
             'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400',
           fileType === 'audio' &&
             'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400',
-          fileType === 'other' &&
-            'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+          fileType === 'other' && 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
         )}
       >
         <Icon className={isCondensed ? 'h-3.5 w-3.5' : 'h-5 w-5'} />
@@ -217,10 +209,7 @@ export function FileItem({
                 {checksum}
               </code>
             </Tooltip>
-            <Tooltip
-              content="Copy checksum to clipboard for manual verification"
-              position="top"
-            >
+            <Tooltip content="Copy checksum to clipboard for manual verification" position="top">
               <button
                 onClick={() => handleCopyChecksum(checksum)}
                 className="flex items-center gap-1 text-xs text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
@@ -245,12 +234,10 @@ export function FileItem({
               'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
             status === 'verifying' &&
               'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
-            status === 'error' &&
-              'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+            status === 'error' && 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
             status === 'skipped' &&
               'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
-            status === 'pending' &&
-              'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400'
+            status === 'pending' && 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400'
           )}
         >
           {isCondensed

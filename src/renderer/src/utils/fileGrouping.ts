@@ -40,7 +40,8 @@ export function groupFilesByFolder(files: ScannedFile[], driveRoot: string): Fol
   for (const file of files) {
     // Extract the directory portion of the file path
     const lastSeparator = Math.max(file.path.lastIndexOf('/'), file.path.lastIndexOf('\\'))
-    const absoluteFolderPath = lastSeparator > 0 ? file.path.substring(0, lastSeparator) : normalizedRoot
+    const absoluteFolderPath =
+      lastSeparator > 0 ? file.path.substring(0, lastSeparator) : normalizedRoot
 
     // Calculate relative path from drive root
     let relativePath = absoluteFolderPath

@@ -132,10 +132,30 @@ describe('Store', () => {
       }
 
       const mockScannedFiles = [
-        { path: '/Volumes/TEST/DCIM/100CANON/IMG_001.jpg', size: 1024, modifiedTime: Date.now(), isDirectory: false },
-        { path: '/Volumes/TEST/DCIM/100CANON/IMG_002.jpg', size: 2048, modifiedTime: Date.now(), isDirectory: false },
-        { path: '/Volumes/TEST/DCIM/101CANON/IMG_003.jpg', size: 3072, modifiedTime: Date.now(), isDirectory: false },
-        { path: '/Volumes/TEST/video.mp4', size: 4096, modifiedTime: Date.now(), isDirectory: false }
+        {
+          path: '/Volumes/TEST/DCIM/100CANON/IMG_001.jpg',
+          size: 1024,
+          modifiedTime: Date.now(),
+          isDirectory: false
+        },
+        {
+          path: '/Volumes/TEST/DCIM/100CANON/IMG_002.jpg',
+          size: 2048,
+          modifiedTime: Date.now(),
+          isDirectory: false
+        },
+        {
+          path: '/Volumes/TEST/DCIM/101CANON/IMG_003.jpg',
+          size: 3072,
+          modifiedTime: Date.now(),
+          isDirectory: false
+        },
+        {
+          path: '/Volumes/TEST/video.mp4',
+          size: 4096,
+          modifiedTime: Date.now(),
+          isDirectory: false
+        }
       ]
 
       beforeEach(() => {
@@ -253,7 +273,9 @@ describe('Store', () => {
       it('should reset file selection', () => {
         // Make some changes
         store.getState().toggleFolderSelection('DCIM/100CANON')
-        store.getState().toggleFileSelection('/Volumes/TEST/DCIM/101CANON/IMG_003.jpg', 'DCIM/101CANON')
+        store
+          .getState()
+          .toggleFileSelection('/Volumes/TEST/DCIM/101CANON/IMG_003.jpg', 'DCIM/101CANON')
         store.getState().toggleFolderExpanded('DCIM/100CANON')
 
         // Reset

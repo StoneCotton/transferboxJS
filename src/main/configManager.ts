@@ -7,12 +7,7 @@ import Store from 'electron-store'
 import { app } from 'electron'
 import { writeFileSync, existsSync, mkdirSync } from 'fs'
 import { join } from 'path'
-import {
-  AppConfig,
-  DEFAULT_CONFIG,
-  TransferMode,
-  ChecksumAlgorithm
-} from '../shared/types'
+import { AppConfig, DEFAULT_CONFIG, TransferMode, ChecksumAlgorithm } from '../shared/types'
 import { CONFIG_VERSION, isCompatible, VersionUtils } from './constants/version'
 import { getLogger } from './logger'
 
@@ -209,9 +204,7 @@ export class ConfigManager {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const legacyFolderStructure = (currentConfig as any).folderStructure as string | undefined
     if (legacyFolderStructure) {
-      console.log(
-        `[ConfigManager] Migrating legacy folderStructure: ${legacyFolderStructure}`
-      )
+      console.log(`[ConfigManager] Migrating legacy folderStructure: ${legacyFolderStructure}`)
       switch (legacyFolderStructure) {
         case 'date-based':
           this.store.set('createDateBasedFolders', true)
@@ -250,7 +243,9 @@ export class ConfigManager {
 
     // Migrate legacy preserveOriginalNames to addTimestampToFilename
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const legacyPreserveOriginalNames = (currentConfig as any).preserveOriginalNames as boolean | undefined
+    const legacyPreserveOriginalNames = (currentConfig as any).preserveOriginalNames as
+      | boolean
+      | undefined
     if (legacyPreserveOriginalNames !== undefined) {
       console.log(
         `[ConfigManager] Migrating legacy preserveOriginalNames: ${legacyPreserveOriginalNames}`

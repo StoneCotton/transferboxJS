@@ -10,10 +10,7 @@ import { getConfig } from '../configManager'
 import { getLogger } from '../logger'
 import { validateDeviceId } from '../utils/ipcValidator'
 import { getDriveMonitor, setDriveMonitor, getMainWindow } from './state'
-import {
-  DRIVE_SCAN_MAX_RETRIES,
-  DRIVE_SCAN_RETRY_DELAY_MS
-} from '../constants/driveConstants'
+import { DRIVE_SCAN_MAX_RETRIES, DRIVE_SCAN_RETRY_DELAY_MS } from '../constants/driveConstants'
 
 /**
  * Ensure drive monitor instance exists

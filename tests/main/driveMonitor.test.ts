@@ -21,7 +21,25 @@ let mockConfigValues = {
   transferOnlyMediaFiles: true, // Filter by media extensions in these tests
   excludeSystemFiles: true, // Exclude system files by default
   showAllDrives: false, // Only show removable drives by default
-  mediaExtensions: ['.mp4', '.mov', '.avi', '.mkv', '.jpg', '.jpeg', '.png', '.gif', '.raw', '.cr2', '.nef', '.arw', '.dng', '.heic', '.wav', '.mp3', '.aiff']
+  mediaExtensions: [
+    '.mp4',
+    '.mov',
+    '.avi',
+    '.mkv',
+    '.jpg',
+    '.jpeg',
+    '.png',
+    '.gif',
+    '.raw',
+    '.cr2',
+    '.nef',
+    '.arw',
+    '.dng',
+    '.heic',
+    '.wav',
+    '.mp3',
+    '.aiff'
+  ]
 }
 
 // Mock configManager to control settings
@@ -399,12 +417,12 @@ describe('DriveMonitor', () => {
       await fs.mkdir(testDir, { recursive: true })
 
       // Reset mock to default (excludeSystemFiles: true)
-      mockConfigValues =({
+      mockConfigValues = {
         transferOnlyMediaFiles: false, // Include all files to test system file filtering
         excludeSystemFiles: true,
         showAllDrives: false,
         mediaExtensions: ['.mp4', '.jpg']
-      })
+      }
     })
 
     afterEach(async () => {
@@ -493,12 +511,12 @@ describe('DriveMonitor', () => {
     })
 
     it('should include system files when excludeSystemFiles is false', async () => {
-      mockConfigValues =({
+      mockConfigValues = {
         transferOnlyMediaFiles: false,
         excludeSystemFiles: false, // Disable system file filtering
         showAllDrives: false,
         mediaExtensions: ['.mp4', '.jpg']
-      })
+      }
 
       await fs.writeFile(path.join(testDir, '.DS_Store'), 'macOS metadata')
       await fs.writeFile(path.join(testDir, 'photo.jpg'), 'image')
@@ -539,12 +557,12 @@ describe('DriveMonitor', () => {
   describe('listSourceDrives', () => {
     beforeEach(() => {
       // Reset mock to default
-      mockConfigValues =({
+      mockConfigValues = {
         transferOnlyMediaFiles: true,
         excludeSystemFiles: true,
         showAllDrives: false,
         mediaExtensions: ['.mp4', '.jpg']
-      })
+      }
     })
 
     it('should list source drives using standalone function', async () => {
@@ -554,12 +572,12 @@ describe('DriveMonitor', () => {
     })
 
     it('should return only removable drives when showAllDrives is false', async () => {
-      mockConfigValues =({
+      mockConfigValues = {
         transferOnlyMediaFiles: true,
         excludeSystemFiles: true,
         showAllDrives: false,
         mediaExtensions: ['.mp4', '.jpg']
-      })
+      }
 
       const drives = await monitor.listSourceDrives()
 
@@ -570,12 +588,12 @@ describe('DriveMonitor', () => {
     })
 
     it('should include local physical drives when showAllDrives is true', async () => {
-      mockConfigValues =({
+      mockConfigValues = {
         transferOnlyMediaFiles: true,
         excludeSystemFiles: true,
         showAllDrives: true,
         mediaExtensions: ['.mp4', '.jpg']
-      })
+      }
 
       const drives = await monitor.listSourceDrives()
 
@@ -586,21 +604,21 @@ describe('DriveMonitor', () => {
 
     it('should list more drives with showAllDrives true than false', async () => {
       // Get removable drives only
-      mockConfigValues =({
+      mockConfigValues = {
         transferOnlyMediaFiles: true,
         excludeSystemFiles: true,
         showAllDrives: false,
         mediaExtensions: ['.mp4', '.jpg']
-      })
+      }
       const removableDrives = await monitor.listSourceDrives()
 
       // Get all local physical drives
-      mockConfigValues =({
+      mockConfigValues = {
         transferOnlyMediaFiles: true,
         excludeSystemFiles: true,
         showAllDrives: true,
         mediaExtensions: ['.mp4', '.jpg']
-      })
+      }
       const allDrives = await monitor.listSourceDrives()
 
       // All drives should include at least as many as removable drives
@@ -610,12 +628,12 @@ describe('DriveMonitor', () => {
 
   describe('Drive Filtering Logic', () => {
     it('should not include drives without mountpoints in source drives', async () => {
-      mockConfigValues =({
+      mockConfigValues = {
         transferOnlyMediaFiles: true,
         excludeSystemFiles: true,
         showAllDrives: true,
         mediaExtensions: ['.mp4', '.jpg']
-      })
+      }
 
       const drives = await monitor.listSourceDrives()
 

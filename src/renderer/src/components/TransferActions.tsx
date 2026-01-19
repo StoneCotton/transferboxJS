@@ -43,8 +43,7 @@ export function TransferActions() {
 
   // Require at least one file to be selected
   const hasSelectedFiles = selectedFilePaths.length > 0
-  const canTransfer =
-    selectedDrive && hasSelectedFiles && selectedDestination && !isTransferring
+  const canTransfer = selectedDrive && hasSelectedFiles && selectedDestination && !isTransferring
 
   const handleStartTransfer = async (): Promise<void> => {
     if (!canTransfer || !selectedDrive || !selectedDestination) return
