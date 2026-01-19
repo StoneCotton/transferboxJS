@@ -112,6 +112,7 @@ export function SettingsModal() {
   const [defaultDestination, setDefaultDestination] = useState<string | null>(
     config.defaultDestination
   )
+  const [showAllDrives, setShowAllDrives] = useState(config.showAllDrives ?? false)
   const [verifyChecksums, setVerifyChecksums] = useState(config.verifyChecksums)
 
   // File naming settings
@@ -137,6 +138,7 @@ export function SettingsModal() {
   const [transferOnlyMediaFiles, setTransferOnlyMediaFiles] = useState(
     config.transferOnlyMediaFiles
   )
+  const [excludeSystemFiles, setExcludeSystemFiles] = useState(config.excludeSystemFiles ?? true)
   const [mediaExtensions, setMediaExtensions] = useState<string[]>(config.mediaExtensions)
   const [newExtension, setNewExtension] = useState('')
 
@@ -178,6 +180,7 @@ export function SettingsModal() {
   useEffect(() => {
     setTransferMode(config.transferMode)
     setDefaultDestination(config.defaultDestination)
+    setShowAllDrives(config.showAllDrives ?? false)
     setVerifyChecksums(config.verifyChecksums)
     setAddTimestampToFilename(config.addTimestampToFilename)
     setKeepOriginalFilename(config.keepOriginalFilename)
@@ -189,6 +192,7 @@ export function SettingsModal() {
     setDeviceFolderTemplate(config.deviceFolderTemplate)
     setKeepFolderStructure(config.keepFolderStructure)
     setTransferOnlyMediaFiles(config.transferOnlyMediaFiles)
+    setExcludeSystemFiles(config.excludeSystemFiles ?? true)
     setMediaExtensions(config.mediaExtensions)
     setGenerateMHLChecksumFiles(config.generateMHLChecksumFiles)
     setBufferSize(config.bufferSize)
@@ -242,6 +246,7 @@ export function SettingsModal() {
       const updates: Partial<AppConfig> = {
         transferMode,
         defaultDestination,
+        showAllDrives,
         verifyChecksums,
 
         // File naming settings
@@ -259,6 +264,7 @@ export function SettingsModal() {
 
         // Media file filtering
         transferOnlyMediaFiles,
+        excludeSystemFiles,
         mediaExtensions,
 
         // Checksum settings
@@ -418,6 +424,22 @@ export function SettingsModal() {
           </div>
         </div>
       )}
+
+      {/* Source Drives */}
+      <div>
+        <h4 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+          Source Drives
+        </h4>
+        <div className="space-y-4">
+          <SettingToggle
+            checked={showAllDrives}
+            onChange={setShowAllDrives}
+            disabled={isFormDisabled}
+            title="Show All Drives"
+            description="Display all local physical drives as potential sources, not just removable drives"
+          />
+        </div>
+      </div>
     </div>
   )
 
@@ -531,6 +553,24 @@ export function SettingsModal() {
 
   const renderFilteringSettings = (): React.ReactNode => (
     <div className="space-y-6">
+      {/* System File Filtering */}
+      <div>
+        <h4 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+          System File Filtering
+        </h4>
+        <div className="space-y-4">
+          <SettingToggle
+            checked={excludeSystemFiles}
+            onChange={setExcludeSystemFiles}
+            disabled={isFormDisabled}
+            title="Exclude System Files"
+            description="Hide common OS files like .DS_Store, Thumbs.db, and System Volume Information"
+            badge="Recommended"
+          />
+        </div>
+      </div>
+
+      {/* Media File Filtering */}
       <div>
         <h4 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
           Media File Filtering

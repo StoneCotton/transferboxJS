@@ -1,5 +1,17 @@
 /**
  * Configuration types for TransferBox
+ *
+ * This module defines the application configuration schema including:
+ * - Transfer modes (manual, auto-transfer, confirm-transfer, fully-autonomous)
+ * - Drive detection settings (showAllDrives for including non-removable drives)
+ * - File naming and directory structure options
+ * - Media file filtering and system file exclusion
+ * - Checksum verification and MHL generation
+ * - Performance tuning (buffer size, chunk size)
+ * - UI preferences (density, unit system, tooltips)
+ *
+ * The DEFAULT_CONFIG provides sensible defaults for all settings.
+ * Configuration is persisted via electron-store and migrated between versions.
  */
 
 export type TransferMode = 'auto-transfer' | 'confirm-transfer' | 'fully-autonomous' | 'manual'
@@ -27,6 +39,9 @@ export interface AppConfig {
   // Destination settings
   defaultDestination: string | null // Used in autonomous mode
 
+  // Drive detection settings
+  showAllDrives: boolean // Show all local physical drives as sources (default: only removable drives)
+
   // File naming settings
   addTimestampToFilename: boolean // Add timestamp to file names to prevent duplicates
   keepOriginalFilename: boolean // Preserve original filename when adding timestamps (requires addTimestampToFilename)
@@ -43,6 +58,7 @@ export interface AppConfig {
   // Media file filtering
   transferOnlyMediaFiles: boolean // Only transfer files with media extensions, ignoring other file types
   mediaExtensions: string[] // List of file extensions considered as media files (e.g., .mp4, .mov, .wav)
+  excludeSystemFiles: boolean // Exclude common OS/system files from scans (e.g., .DS_Store, Thumbs.db)
 
   // Checksum settings
   checksumAlgorithm: ChecksumAlgorithm
@@ -85,6 +101,9 @@ export const DEFAULT_CONFIG: AppConfig = {
   transferMode: 'manual', // Default to Mode 4
   defaultDestination: null,
 
+  // Drive detection settings
+  showAllDrives: false, // Only show removable drives by default
+
   // File naming settings
   addTimestampToFilename: false,
   keepOriginalFilename: false,
@@ -100,6 +119,7 @@ export const DEFAULT_CONFIG: AppConfig = {
 
   // Media file filtering
   transferOnlyMediaFiles: false,
+  excludeSystemFiles: true, // Exclude system files by default
   mediaExtensions: [
     // Video formats
     '.mp4',

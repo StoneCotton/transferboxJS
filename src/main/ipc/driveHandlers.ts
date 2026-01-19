@@ -33,7 +33,7 @@ function ensureDriveMonitor(): DriveMonitor {
 export function setupDriveHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.DRIVE_LIST, async () => {
     const monitor = ensureDriveMonitor()
-    return monitor.listRemovableDrives()
+    return monitor.listSourceDrives()
   })
 
   ipcMain.handle(IPC_CHANNELS.DRIVE_SCAN, async (_, device: unknown) => {
@@ -45,7 +45,7 @@ export function setupDriveHandlers(): void {
 
     for (let attempt = 0; attempt < DRIVE_SCAN_MAX_RETRIES; attempt++) {
       try {
-        const drives = await monitor.listRemovableDrives()
+        const drives = await monitor.listSourceDrives()
         const drive = drives.find((d) => d.device === validatedDevice)
 
         if (!drive) {
@@ -148,7 +148,7 @@ export function setupDriveHandlers(): void {
 
     try {
       const monitor = ensureDriveMonitor()
-      const drives = await monitor.listRemovableDrives()
+      const drives = await monitor.listSourceDrives()
       const drive = drives.find((d) => d.device === validatedDevice)
 
       if (!drive) {

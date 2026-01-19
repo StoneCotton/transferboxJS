@@ -13,7 +13,7 @@ import {
   Loader2,
   Copy
 } from 'lucide-react'
-import { cn, formatDuration } from '../lib/utils'
+import { cn, formatDuration, formatBytes } from '../lib/utils'
 import { Tooltip } from './ui/Tooltip'
 import {
   getFileIcon,
@@ -185,12 +185,12 @@ export function FileItem({
           {isCondensed ? null : getStatusIcon()}
         </div>
 
-        {/* File creation date and time - hide in condensed mode */}
+        {/* File creation date, time, and size - hide in condensed mode */}
         {!isCondensed && (
           <div className="mt-1 flex items-center gap-2">
             <Clock className="h-3 w-3 text-gray-500 dark:text-gray-400" />
             <span className="text-xs text-gray-500 dark:text-gray-400">
-              Created: {formattedDate} at {formattedTime}
+              Created: {formattedDate} at {formattedTime} · {formatBytes(file.size)}
             </span>
           </div>
         )}

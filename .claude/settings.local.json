@@ -11,7 +11,9 @@
       "Bash(ls:*)",
       "Bash(gh release view:*)",
       "Bash(gh release:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(npm run test:*)",
+      "Skill(superpowers:brainstorming)"
     ]
   }
 }

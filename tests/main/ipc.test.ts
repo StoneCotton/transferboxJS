@@ -96,6 +96,7 @@ const mockClearNewerConfigWarning = clearNewerConfigWarning as jest.MockedFuncti
 // Mock DriveMonitor
 const mockDriveMonitor = {
   listRemovableDrives: jest.fn(),
+  listSourceDrives: jest.fn(),
   scanForMedia: jest.fn(),
   unmountDrive: jest.fn(),
   start: jest.fn(),
@@ -388,7 +389,7 @@ describe('IPC Handlers', () => {
       expect(handler).toBeDefined()
 
       const drives = [{ device: '/dev/disk1', displayName: 'USB Drive' }]
-      mockDriveMonitor.listRemovableDrives.mockResolvedValue(drives)
+      mockDriveMonitor.listSourceDrives.mockResolvedValue(drives)
 
       const result = await handler!(mockEvent)
       expect(result).toEqual(drives)
@@ -399,7 +400,7 @@ describe('IPC Handlers', () => {
       expect(handler).toBeDefined()
 
       const drives = [{ device: '/dev/disk1', displayName: 'USB', mountpoints: ['/Volumes/USB'] }]
-      mockDriveMonitor.listRemovableDrives.mockResolvedValue(drives)
+      mockDriveMonitor.listSourceDrives.mockResolvedValue(drives)
       mockDriveMonitor.scanForMedia.mockResolvedValue({
         files: ['/Volumes/USB/video.mp4'],
         fileCount: 1
@@ -413,7 +414,7 @@ describe('IPC Handlers', () => {
     it('should handle DRIVE_SCAN when drive not found', async () => {
       const handler = handlers.get(IPC_CHANNELS.DRIVE_SCAN)
 
-      mockDriveMonitor.listRemovableDrives.mockResolvedValue([])
+      mockDriveMonitor.listSourceDrives.mockResolvedValue([])
 
       await expect(handler!(mockEvent, '/dev/disk99')).rejects.toThrow('Drive not found')
     })
@@ -429,7 +430,7 @@ describe('IPC Handlers', () => {
         mountpoints: ['/Volumes/USB']
       }
 
-      mockDriveMonitor.listRemovableDrives
+      mockDriveMonitor.listSourceDrives
         .mockResolvedValueOnce([unmountedDrive])
         .mockResolvedValueOnce([mountedDrive])
 

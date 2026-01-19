@@ -23,23 +23,25 @@ export const createConfigSlice: StateCreator<ConfigSlice> = (set) => ({
     transferMode: 'manual',
     defaultDestination: null,
 
+    // Drive detection settings
+    showAllDrives: false,
+
     // File naming settings
     addTimestampToFilename: false,
     keepOriginalFilename: false,
     filenameTemplate: '{original}_{timestamp}',
     timestampFormat: '%Y%m%d_%H%M%S',
-    preserveOriginalNames: true, // Legacy setting
 
     // Directory structure settings
     createDateBasedFolders: false,
     dateFolderFormat: '%Y/%m/%d',
     createDeviceBasedFolders: false,
     deviceFolderTemplate: '{device_name}',
-    folderStructure: 'preserve-source', // Legacy setting
     keepFolderStructure: false,
 
     // Media file filtering
     transferOnlyMediaFiles: false,
+    excludeSystemFiles: true,
     mediaExtensions: [
       // Video formats
       '.mp4',
@@ -89,7 +91,6 @@ export const createConfigSlice: StateCreator<ConfigSlice> = (set) => ({
 
     // Logging
     enableLogging: true,
-    generateMHL: false, // Legacy setting
 
     // UI preferences
     showDetailedProgress: true,

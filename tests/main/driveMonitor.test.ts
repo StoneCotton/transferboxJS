@@ -9,18 +9,24 @@ import * as fs from 'fs/promises'
 import {
   DriveMonitor,
   listRemovableDrives,
+  listSourceDrives,
   scanDriveForMedia,
   getDriveStats,
   isRemovableDrive
 } from '../../src/main/driveMonitor'
 import { DriveInfo } from '../../src/shared/types'
 
-// Mock configManager to control transferOnlyMediaFiles setting
+// Mock config values that can be changed per test
+let mockConfigValues = {
+  transferOnlyMediaFiles: true, // Filter by media extensions in these tests
+  excludeSystemFiles: true, // Exclude system files by default
+  showAllDrives: false, // Only show removable drives by default
+  mediaExtensions: ['.mp4', '.mov', '.avi', '.mkv', '.jpg', '.jpeg', '.png', '.gif', '.raw', '.cr2', '.nef', '.arw', '.dng', '.heic', '.wav', '.mp3', '.aiff']
+}
+
+// Mock configManager to control settings
 jest.mock('../../src/main/configManager', () => ({
-  getConfig: jest.fn(() => ({
-    transferOnlyMediaFiles: true, // Filter by media extensions in these tests
-    mediaExtensions: ['.mp4', '.mov', '.avi', '.mkv', '.jpg', '.jpeg', '.png', '.gif', '.raw', '.cr2', '.nef', '.arw', '.dng', '.heic', '.wav', '.mp3', '.aiff']
-  }))
+  getConfig: jest.fn(() => mockConfigValues)
 }))
 
 describe('DriveMonitor', () => {
@@ -382,6 +388,241 @@ describe('DriveMonitor', () => {
       } finally {
         await fs.rm(testDir, { recursive: true, force: true })
       }
+    })
+  })
+
+  describe('System File Filtering', () => {
+    let testDir: string
+
+    beforeEach(async () => {
+      testDir = path.join(os.tmpdir(), `transferbox-sysfile-test-${Date.now()}`)
+      await fs.mkdir(testDir, { recursive: true })
+
+      // Reset mock to default (excludeSystemFiles: true)
+      mockConfigValues =({
+        transferOnlyMediaFiles: false, // Include all files to test system file filtering
+        excludeSystemFiles: true,
+        showAllDrives: false,
+        mediaExtensions: ['.mp4', '.jpg']
+      })
+    })
+
+    afterEach(async () => {
+      try {
+        await fs.rm(testDir, { recursive: true, force: true })
+      } catch {
+        // Ignore cleanup errors
+      }
+    })
+
+    it('should exclude .DS_Store files when excludeSystemFiles is true', async () => {
+      await fs.writeFile(path.join(testDir, '.DS_Store'), 'macOS metadata')
+      await fs.writeFile(path.join(testDir, 'photo.jpg'), 'image')
+
+      const result = await monitor.scanForMedia(testDir)
+
+      expect(result.files.length).toBe(1)
+      expect(result.files[0].path).toContain('photo.jpg')
+    })
+
+    it('should exclude Thumbs.db files when excludeSystemFiles is true', async () => {
+      await fs.writeFile(path.join(testDir, 'Thumbs.db'), 'Windows thumbnail cache')
+      await fs.writeFile(path.join(testDir, 'photo.jpg'), 'image')
+
+      const result = await monitor.scanForMedia(testDir)
+
+      expect(result.files.length).toBe(1)
+      expect(result.files[0].path).toContain('photo.jpg')
+    })
+
+    it('should exclude desktop.ini files when excludeSystemFiles is true', async () => {
+      await fs.writeFile(path.join(testDir, 'desktop.ini'), 'Windows folder settings')
+      await fs.writeFile(path.join(testDir, 'video.mp4'), 'video')
+
+      const result = await monitor.scanForMedia(testDir)
+
+      expect(result.files.length).toBe(1)
+      expect(result.files[0].path).toContain('video.mp4')
+    })
+
+    it('should exclude AppleDouble resource fork files (._*)', async () => {
+      await fs.writeFile(path.join(testDir, '._photo.jpg'), 'AppleDouble metadata')
+      await fs.writeFile(path.join(testDir, 'photo.jpg'), 'image')
+
+      const result = await monitor.scanForMedia(testDir)
+
+      expect(result.files.length).toBe(1)
+      expect(result.files[0].path).toContain('photo.jpg')
+      expect(result.files[0].path).not.toContain('._photo')
+    })
+
+    it('should exclude .git directories', async () => {
+      const gitDir = path.join(testDir, '.git')
+      await fs.mkdir(gitDir, { recursive: true })
+      await fs.writeFile(path.join(gitDir, 'config'), 'git config')
+      await fs.writeFile(path.join(testDir, 'photo.jpg'), 'image')
+
+      const result = await monitor.scanForMedia(testDir)
+
+      expect(result.files.length).toBe(1)
+      expect(result.files[0].path).toContain('photo.jpg')
+    })
+
+    it('should exclude .Spotlight-V100 directories', async () => {
+      const spotlightDir = path.join(testDir, '.Spotlight-V100')
+      await fs.mkdir(spotlightDir, { recursive: true })
+      await fs.writeFile(path.join(spotlightDir, 'index'), 'spotlight index')
+      await fs.writeFile(path.join(testDir, 'video.mp4'), 'video')
+
+      const result = await monitor.scanForMedia(testDir)
+
+      expect(result.files.length).toBe(1)
+      expect(result.files[0].path).toContain('video.mp4')
+    })
+
+    it('should exclude .Trashes directories', async () => {
+      const trashDir = path.join(testDir, '.Trashes')
+      await fs.mkdir(trashDir, { recursive: true })
+      await fs.writeFile(path.join(trashDir, 'deleted.jpg'), 'deleted file')
+      await fs.writeFile(path.join(testDir, 'photo.jpg'), 'image')
+
+      const result = await monitor.scanForMedia(testDir)
+
+      expect(result.files.length).toBe(1)
+      expect(result.files[0].path).toContain('photo.jpg')
+    })
+
+    it('should include system files when excludeSystemFiles is false', async () => {
+      mockConfigValues =({
+        transferOnlyMediaFiles: false,
+        excludeSystemFiles: false, // Disable system file filtering
+        showAllDrives: false,
+        mediaExtensions: ['.mp4', '.jpg']
+      })
+
+      await fs.writeFile(path.join(testDir, '.DS_Store'), 'macOS metadata')
+      await fs.writeFile(path.join(testDir, 'photo.jpg'), 'image')
+
+      const result = await monitor.scanForMedia(testDir)
+
+      expect(result.files.length).toBe(2)
+    })
+
+    it('should exclude multiple system files in same scan', async () => {
+      await fs.writeFile(path.join(testDir, '.DS_Store'), 'macOS metadata')
+      await fs.writeFile(path.join(testDir, 'Thumbs.db'), 'Windows thumbnails')
+      await fs.writeFile(path.join(testDir, 'desktop.ini'), 'Windows settings')
+      await fs.writeFile(path.join(testDir, '._hidden'), 'AppleDouble')
+      await fs.writeFile(path.join(testDir, 'photo.jpg'), 'image')
+      await fs.writeFile(path.join(testDir, 'video.mp4'), 'video')
+
+      const result = await monitor.scanForMedia(testDir)
+
+      expect(result.files.length).toBe(2)
+      const filenames = result.files.map((f) => path.basename(f.path))
+      expect(filenames).toContain('photo.jpg')
+      expect(filenames).toContain('video.mp4')
+    })
+
+    it('should handle case-insensitive system file matching', async () => {
+      await fs.writeFile(path.join(testDir, 'THUMBS.DB'), 'Windows thumbnails')
+      await fs.writeFile(path.join(testDir, 'Desktop.INI'), 'Windows settings')
+      await fs.writeFile(path.join(testDir, 'photo.jpg'), 'image')
+
+      const result = await monitor.scanForMedia(testDir)
+
+      expect(result.files.length).toBe(1)
+      expect(result.files[0].path).toContain('photo.jpg')
+    })
+  })
+
+  describe('listSourceDrives', () => {
+    beforeEach(() => {
+      // Reset mock to default
+      mockConfigValues =({
+        transferOnlyMediaFiles: true,
+        excludeSystemFiles: true,
+        showAllDrives: false,
+        mediaExtensions: ['.mp4', '.jpg']
+      })
+    })
+
+    it('should list source drives using standalone function', async () => {
+      const drives = await listSourceDrives()
+
+      expect(Array.isArray(drives)).toBe(true)
+    })
+
+    it('should return only removable drives when showAllDrives is false', async () => {
+      mockConfigValues =({
+        transferOnlyMediaFiles: true,
+        excludeSystemFiles: true,
+        showAllDrives: false,
+        mediaExtensions: ['.mp4', '.jpg']
+      })
+
+      const drives = await monitor.listSourceDrives()
+
+      // All returned drives should be removable
+      drives.forEach((drive) => {
+        expect(drive.isRemovable).toBe(true)
+      })
+    })
+
+    it('should include local physical drives when showAllDrives is true', async () => {
+      mockConfigValues =({
+        transferOnlyMediaFiles: true,
+        excludeSystemFiles: true,
+        showAllDrives: true,
+        mediaExtensions: ['.mp4', '.jpg']
+      })
+
+      const drives = await monitor.listSourceDrives()
+
+      expect(Array.isArray(drives)).toBe(true)
+      // Should have at least the system drive when showAllDrives is true
+      expect(drives.length).toBeGreaterThanOrEqual(1)
+    })
+
+    it('should list more drives with showAllDrives true than false', async () => {
+      // Get removable drives only
+      mockConfigValues =({
+        transferOnlyMediaFiles: true,
+        excludeSystemFiles: true,
+        showAllDrives: false,
+        mediaExtensions: ['.mp4', '.jpg']
+      })
+      const removableDrives = await monitor.listSourceDrives()
+
+      // Get all local physical drives
+      mockConfigValues =({
+        transferOnlyMediaFiles: true,
+        excludeSystemFiles: true,
+        showAllDrives: true,
+        mediaExtensions: ['.mp4', '.jpg']
+      })
+      const allDrives = await monitor.listSourceDrives()
+
+      // All drives should include at least as many as removable drives
+      expect(allDrives.length).toBeGreaterThanOrEqual(removableDrives.length)
+    })
+  })
+
+  describe('Drive Filtering Logic', () => {
+    it('should not include drives without mountpoints in source drives', async () => {
+      mockConfigValues =({
+        transferOnlyMediaFiles: true,
+        excludeSystemFiles: true,
+        showAllDrives: true,
+        mediaExtensions: ['.mp4', '.jpg']
+      })
+
+      const drives = await monitor.listSourceDrives()
+
+      // All returned drives should have at least one mountpoint
+      drives.forEach((drive) => {
+        expect(drive.mountpoints.length).toBeGreaterThan(0)
+      })
     })
   })
 })
