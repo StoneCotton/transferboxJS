@@ -219,9 +219,9 @@ export function SpeedGraph({
 
     ctx.clearRect(0, 0, width, height)
 
-    // Increased padding for labels - more space on right for secondary axis
+    // Increased padding for labels - more space on right for secondary axis, bottom for Time label
     const hasSecondaryAxis = (showCpu && hasCpuData) || (showMemory && hasMemoryData)
-    const padding = { top: 25, right: hasSecondaryAxis ? 60 : 25, bottom: 35, left: 55 }
+    const padding = { top: 25, right: hasSecondaryAxis ? 60 : 25, bottom: 45, left: 55 }
     const graphWidth = width - padding.left - padding.right
     const graphHeight = height - padding.top - padding.bottom
 
@@ -323,11 +323,11 @@ export function SpeedGraph({
       ctx.fillText(`${seconds}s`, x, height - padding.bottom + 10)
     }
 
-    // Draw X-axis title
+    // Draw X-axis title - positioned above the very bottom to prevent clipping
     ctx.fillStyle = textColor
     ctx.font = '11px system-ui, sans-serif'
     ctx.textAlign = 'center'
-    ctx.fillText('Time', padding.left + graphWidth / 2, height - 5)
+    ctx.fillText('Time', padding.left + graphWidth / 2, height - padding.bottom + 25)
 
     // Draw verify regions
     if (samples.some((s) => s.phase === 'verify')) {

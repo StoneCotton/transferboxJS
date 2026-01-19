@@ -452,6 +452,7 @@ export function BenchmarkTab() {
               height={180}
               isLive={true}
               showLegend={true}
+              showFileMarkers={true}
             />
           </div>
 
