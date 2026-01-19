@@ -590,6 +590,38 @@ export function BenchmarkTab() {
                     {currentResult.metrics.totalFiles}
                   </span>
                 </div>
+                {currentResult.metrics.avgCpuPercent !== undefined && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500 dark:text-gray-400">Avg CPU (App)</span>
+                    <span className="font-medium text-gray-900 dark:text-white">
+                      {currentResult.metrics.avgCpuPercent.toFixed(1)}%
+                    </span>
+                  </div>
+                )}
+                {currentResult.metrics.peakCpuPercent !== undefined && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500 dark:text-gray-400">Peak CPU (App)</span>
+                    <span className="font-medium text-gray-900 dark:text-white">
+                      {currentResult.metrics.peakCpuPercent.toFixed(1)}%
+                    </span>
+                  </div>
+                )}
+                {currentResult.metrics.avgMemoryMB !== undefined && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500 dark:text-gray-400">Avg Memory (App)</span>
+                    <span className="font-medium text-gray-900 dark:text-white">
+                      {currentResult.metrics.avgMemoryMB.toFixed(0)} MB
+                    </span>
+                  </div>
+                )}
+                {currentResult.metrics.peakMemoryMB !== undefined && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500 dark:text-gray-400">Peak Memory (App)</span>
+                    <span className="font-medium text-gray-900 dark:text-white">
+                      {currentResult.metrics.peakMemoryMB.toFixed(0)} MB
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 
