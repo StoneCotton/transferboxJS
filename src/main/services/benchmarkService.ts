@@ -17,6 +17,7 @@ import { getLogger } from '../logger'
 import { APP_VERSION } from '../constants/version'
 import { getConfig } from '../configManager'
 import { checkDiskSpace } from '../pathValidator'
+import { validateFilePath } from '../utils/ipcValidator'
 import {
   BenchmarkConfig,
   BenchmarkResult,
@@ -157,23 +158,45 @@ export class BenchmarkService {
       return { valid: false, error: 'A benchmark is already running' }
     }
 
+    // Validate and sanitize paths
+    let validatedSourcePath: string
+    let validatedDestPath: string
+
+    try {
+      validatedSourcePath = validateFilePath(config.sourceDeviceId, false)
+    } catch (error) {
+      return {
+        valid: false,
+        error: `Invalid source path: ${error instanceof Error ? error.message : 'validation failed'}`
+      }
+    }
+
+    try {
+      validatedDestPath = validateFilePath(config.destinationPath, false)
+    } catch (error) {
+      return {
+        valid: false,
+        error: `Invalid destination path: ${error instanceof Error ? error.message : 'validation failed'}`
+      }
+    }
+
     // Check source exists and is accessible
     try {
-      await access(config.sourceDeviceId, constants.R_OK | constants.W_OK)
+      await access(validatedSourcePath, constants.R_OK | constants.W_OK)
     } catch {
-      return { valid: false, error: `Source drive is not accessible: ${config.sourceDeviceId}` }
+      return { valid: false, error: `Source drive is not accessible: ${validatedSourcePath}` }
     }
 
     // Check destination exists and is writable
     try {
-      await access(config.destinationPath, constants.R_OK | constants.W_OK)
+      await access(validatedDestPath, constants.R_OK | constants.W_OK)
     } catch {
-      return { valid: false, error: `Destination is not accessible: ${config.destinationPath}` }
+      return { valid: false, error: `Destination is not accessible: ${validatedDestPath}` }
     }
 
     // Check space on source
     try {
-      const sourceSpace = await checkDiskSpace(config.sourceDeviceId)
+      const sourceSpace = await checkDiskSpace(validatedSourcePath)
       if (sourceSpace.freeSpace < BENCHMARK_REQUIRED_SPACE) {
         const requiredGB = (BENCHMARK_REQUIRED_SPACE / (1024 * 1024 * 1024)).toFixed(1)
         const availableGB = (sourceSpace.freeSpace / (1024 * 1024 * 1024)).toFixed(1)
@@ -188,7 +211,7 @@ export class BenchmarkService {
 
     // Check space on destination
     try {
-      const destSpace = await checkDiskSpace(config.destinationPath)
+      const destSpace = await checkDiskSpace(validatedDestPath)
       if (destSpace.freeSpace < BENCHMARK_REQUIRED_SPACE) {
         const requiredGB = (BENCHMARK_REQUIRED_SPACE / (1024 * 1024 * 1024)).toFixed(1)
         const availableGB = (destSpace.freeSpace / (1024 * 1024 * 1024)).toFixed(1)
