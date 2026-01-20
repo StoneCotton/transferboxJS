@@ -14,16 +14,25 @@ import { createConfigSlice, type ConfigSlice } from './slices/configSlice'
 import { createLogSlice, type LogSlice } from './slices/logSlice'
 import { createUISlice, type UISlice } from './slices/uiSlice'
 import { createErrorSlice, type ErrorSlice } from './slices/errorSlice'
+import { createBenchmarkSlice, type BenchmarkSlice } from './slices/benchmarkSlice'
 import {
   groupFilesByFolder,
+  buildFolderTree,
   getSelectedFilePaths,
   getSelectionStats,
   getAllFolderPaths,
-  type FolderGroup
+  type FolderGroup,
+  type FolderTreeNode
 } from '../utils/fileGrouping'
 
 // Combined store type
-export type AppStore = DriveSlice & TransferSlice & ConfigSlice & LogSlice & UISlice & ErrorSlice
+export type AppStore = DriveSlice &
+  TransferSlice &
+  ConfigSlice &
+  LogSlice &
+  UISlice &
+  ErrorSlice &
+  BenchmarkSlice
 
 // Create the store
 export const useStore = create<AppStore>()(
@@ -34,7 +43,8 @@ export const useStore = create<AppStore>()(
       ...createConfigSlice(...args),
       ...createLogSlice(...args),
       ...createUISlice(...args),
-      ...createErrorSlice(...args)
+      ...createErrorSlice(...args),
+      ...createBenchmarkSlice(...args)
     }),
     {
       name: 'TransferBox Store'
@@ -71,7 +81,11 @@ export const useDriveStore = () =>
       toggleFolderExpanded: state.toggleFolderExpanded,
       selectAllFolders: state.selectAllFolders,
       deselectAllFolders: state.deselectAllFolders,
-      resetFileSelection: state.resetFileSelection
+      resetFileSelection: state.resetFileSelection,
+      // Shift-click range selection actions
+      setLastClickedFile: state.setLastClickedFile,
+      selectFileRange: state.selectFileRange,
+      clearLastClickedFile: state.clearLastClickedFile
     }))
   )
 
@@ -142,6 +156,43 @@ export const useUIStore = () =>
     }))
   )
 
+export const useBenchmarkStore = () =>
+  useStore(
+    useShallow((state) => ({
+      // State
+      isRunning: state.benchmarkIsRunning,
+      currentPhase: state.benchmarkPhase,
+      progress: state.benchmarkProgress,
+      currentFile: state.benchmarkCurrentFile,
+      currentFileIndex: state.benchmarkFileIndex,
+      totalFiles: state.benchmarkTotalFiles,
+      bytesProcessed: state.benchmarkBytesProcessed,
+      totalBytes: state.benchmarkTotalBytes,
+      currentSpeedMbps: state.benchmarkSpeedMbps,
+      elapsedMs: state.benchmarkElapsedMs,
+      estimatedRemainingMs: state.benchmarkRemainingMs,
+      speedSamples: state.benchmarkSamples,
+      currentResult: state.benchmarkResult,
+      history: state.benchmarkHistory,
+      error: state.benchmarkError,
+      comparisonIds: state.benchmarkComparisonIds,
+      // Actions
+      startBenchmark: state.startBenchmark,
+      updateProgress: state.updateBenchmarkProgress,
+      addSpeedSample: state.addBenchmarkSample,
+      completeBenchmark: state.completeBenchmark,
+      failBenchmark: state.failBenchmark,
+      cancelBenchmark: state.cancelBenchmark,
+      resetBenchmark: state.resetBenchmark,
+      setHistory: state.setBenchmarkHistory,
+      addToHistory: state.addToBenchmarkHistory,
+      removeFromHistory: state.removeFromBenchmarkHistory,
+      setCurrentResult: state.setBenchmarkResult,
+      toggleComparison: state.toggleBenchmarkComparison,
+      clearComparison: state.clearBenchmarkComparison
+    }))
+  )
+
 // ==========================================
 // File Selection Hooks (for selective transfer feature)
 // ==========================================
@@ -168,6 +219,64 @@ export function useFileGroups(): FolderGroup[] {
 }
 
 /**
+ * Hook to get folder tree structure for hierarchical display.
+ * Memoized based on scanned files and drive root.
+ */
+export function useFolderTree(): FolderTreeNode[] {
+  const { scannedFiles, selectedDrive } = useStore(
+    useShallow((state) => ({
+      scannedFiles: state.scannedFiles,
+      selectedDrive: state.selectedDrive
+    }))
+  )
+
+  return useMemo(() => {
+    if (!selectedDrive || scannedFiles.length === 0) {
+      return []
+    }
+    const driveRoot = selectedDrive.mountpoints[0] || ''
+    return buildFolderTree(scannedFiles, driveRoot)
+  }, [scannedFiles, selectedDrive])
+}
+
+/**
+ * Hook to get flat file list in DFS tree traversal order.
+ * Used for shift-click range selection across nested structure.
+ */
+export function useFlatFileListFromTree(): Array<{
+  path: string
+  folderPath: string
+  index: number
+}> {
+  const folderTree = useFolderTree()
+
+  return useMemo(() => {
+    const list: Array<{ path: string; folderPath: string; index: number }> = []
+
+    function traverse(node: FolderTreeNode): void {
+      // Add files in this node first
+      for (const file of node.files) {
+        list.push({
+          path: file.path,
+          folderPath: node.relativePath,
+          index: list.length
+        })
+      }
+      // Then traverse children in order
+      for (const child of node.children) {
+        traverse(child)
+      }
+    }
+
+    for (const root of folderTree) {
+      traverse(root)
+    }
+
+    return list
+  }, [folderTree])
+}
+
+/**
  * Hook to get the list of selected file paths for transfer.
  * Computes selected paths based on folder and file selection state.
  */
@@ -186,7 +295,12 @@ export function useSelectedFilePaths(): string[] {
     }
     const driveRoot = selectedDrive.mountpoints[0] || ''
     const groups = groupFilesByFolder(scannedFiles, driveRoot)
-    return getSelectedFilePaths(groups, fileSelection.selectedFolders, fileSelection.deselectedFiles)
+    return getSelectedFilePaths(
+      groups,
+      fileSelection.selectedFolders,
+      fileSelection.deselectedFiles,
+      fileSelection.individuallySelectedFiles
+    )
   }, [scannedFiles, selectedDrive, fileSelection])
 }
 
@@ -214,8 +328,32 @@ export function useSelectionStats(): {
     }
     const driveRoot = selectedDrive.mountpoints[0] || ''
     const groups = groupFilesByFolder(scannedFiles, driveRoot)
-    return getSelectionStats(groups, fileSelection.selectedFolders, fileSelection.deselectedFiles)
+    return getSelectionStats(
+      groups,
+      fileSelection.selectedFolders,
+      fileSelection.deselectedFiles,
+      fileSelection.individuallySelectedFiles
+    )
   }, [scannedFiles, selectedDrive, fileSelection])
+}
+
+/**
+ * Hook to get a flat list of all files with their folder paths and indices.
+ * Used for shift-click range selection.
+ */
+export function useFlatFileList(): Array<{ path: string; folderPath: string; index: number }> {
+  const folderGroups = useFileGroups()
+
+  return useMemo(() => {
+    const list: Array<{ path: string; folderPath: string; index: number }> = []
+    let index = 0
+    for (const group of folderGroups) {
+      for (const file of group.files) {
+        list.push({ path: file.path, folderPath: group.relativePath, index: index++ })
+      }
+    }
+    return list
+  }, [folderGroups])
 }
 
 /**
@@ -244,5 +382,5 @@ export function useInitializeFileSelection(): () => void {
   }, [scannedFiles, selectedDrive, selectAllFolders])
 }
 
-// Re-export FolderGroup type for convenience
-export type { FolderGroup }
+// Re-export FolderGroup and FolderTreeNode types for convenience
+export type { FolderGroup, FolderTreeNode }

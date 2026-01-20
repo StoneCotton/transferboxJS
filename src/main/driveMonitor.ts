@@ -1,9 +1,23 @@
 /**
  * Drive Monitor Module
- * Detects and monitors removable storage devices (SD cards, USB drives).
- * Scans drives for files based on transferOnlyMediaFiles config:
- * - When true: Only returns files matching mediaExtensions
- * - When false: Returns all files on the drive
+ *
+ * Detects and monitors storage devices for file transfers.
+ *
+ * Key features:
+ * - Polls for drive changes every 2 seconds (configurable)
+ * - Filters drives based on showAllDrives config:
+ *   - When false: Only removable drives (SD cards, USB sticks)
+ *   - When true: All local physical drives (excludes network/virtual)
+ * - Scans drives for files based on transferOnlyMediaFiles config:
+ *   - When true: Only returns files matching mediaExtensions
+ *   - When false: Returns all files on the drive
+ * - Excludes system files when excludeSystemFiles config is enabled:
+ *   - macOS: .DS_Store, .Spotlight-V100, .Trashes, ._* files, etc.
+ *   - Windows: Thumbs.db, desktop.ini, $RECYCLE.BIN, etc.
+ *   - Linux: .Trash-* directories
+ *   - General: .git, .svn directories
+ * - Provides drive statistics (total/free/used space)
+ * - Supports safe drive unmounting across platforms
  */
 
 import * as drivelist from 'drivelist'
@@ -18,6 +32,54 @@ import { getLogger } from './logger'
 import { validatePathForShellExecution } from './utils/securityValidation'
 
 const execFileAsync = promisify(execFile)
+
+/**
+ * System files and directories to exclude when excludeSystemFiles is enabled
+ * These are common OS-generated files that are typically not wanted in transfers
+ */
+const SYSTEM_FILE_PATTERNS = {
+  // Exact filename matches (case-insensitive for cross-platform consistency)
+  exactNames: new Set([
+    '.ds_store', // macOS folder metadata
+    '.fseventsd', // macOS file system events
+    '.spotlight-v100', // macOS Spotlight index
+    '.trashes', // macOS trash
+    '.temporaryitems', // macOS temporary files
+    '.volumeicon.icns', // macOS volume icon
+    'thumbs.db', // Windows thumbnail cache
+    'desktop.ini', // Windows folder settings
+    '$recycle.bin', // Windows recycle bin
+    'system volume information', // Windows system folder
+    '.git', // Git repository
+    '.svn' // Subversion repository
+  ]),
+  // Prefix patterns (files/folders starting with these)
+  prefixes: [
+    '._', // macOS AppleDouble resource fork files
+    '.trash-' // Linux trash directories
+  ]
+}
+
+/**
+ * Check if a file or directory name is a system file that should be excluded
+ */
+function isSystemFile(name: string): boolean {
+  const lowerName = name.toLowerCase()
+
+  // Check exact name matches
+  if (SYSTEM_FILE_PATTERNS.exactNames.has(lowerName)) {
+    return true
+  }
+
+  // Check prefix patterns
+  for (const prefix of SYSTEM_FILE_PATTERNS.prefixes) {
+    if (lowerName.startsWith(prefix)) {
+      return true
+    }
+  }
+
+  return false
+}
 
 /**
  * Type for drivelist drive objects - compatible with both drivelist.Drive and DriveInfo
@@ -92,6 +154,64 @@ export class DriveMonitor {
   }
 
   /**
+   * List source drives based on showAllDrives config setting
+   * When showAllDrives is false: Only removable drives (SD cards, USB sticks)
+   * When showAllDrives is true: All local physical drives (excluding network/virtual)
+   */
+  async listSourceDrives(): Promise<DriveInfo[]> {
+    const config = getConfig()
+    const showAllDrives = config.showAllDrives ?? false
+
+    if (!showAllDrives) {
+      return this.listRemovableDrives()
+    }
+
+    // Show all local physical drives (excluding network/virtual)
+    const allDrives = await this.listDrives()
+    return allDrives.filter((drive) => this.isLocalPhysicalDrive(drive))
+  }
+
+  /**
+   * Check if a drive is a local physical drive (not network or virtual)
+   * Excludes network drives, virtual drives, and RAM disks
+   */
+  private isLocalPhysicalDrive(drive: DrivelistDrive): boolean {
+    // Must have at least one mountpoint
+    const mountpoints = drive.mountpoints || []
+    if (mountpoints.length === 0) {
+      return false
+    }
+
+    // Exclude network drives based on bus type
+    const busType = (drive.busType || '').toLowerCase()
+    if (busType === 'network' || busType === 'virtual' || busType === 'ram') {
+      return false
+    }
+
+    // On Windows, exclude network paths (UNC paths starting with \\)
+    const firstMountpoint = mountpoints[0]
+    const mountPath = typeof firstMountpoint === 'string' ? firstMountpoint : firstMountpoint?.path
+    if (mountPath && mountPath.startsWith('\\\\')) {
+      return false
+    }
+
+    // On Unix, exclude common network/virtual mount points
+    if (mountPath) {
+      const lowerPath = mountPath.toLowerCase()
+      // Exclude network mounts
+      if (
+        lowerPath.startsWith('/net/') ||
+        lowerPath.startsWith('/network/') ||
+        lowerPath.startsWith('/mnt/network')
+      ) {
+        return false
+      }
+    }
+
+    return true
+  }
+
+  /**
    * Start monitoring for drive changes
    */
   async start(options?: DriveMonitorOptions): Promise<void> {
@@ -103,8 +223,8 @@ export class DriveMonitor {
     this.onDriveAdded = options?.onDriveAdded
     this.onDriveRemoved = options?.onDriveRemoved
 
-    // Get initial drive list
-    const initialDrives = await this.listRemovableDrives()
+    // Get initial drive list (respects showAllDrives config)
+    const initialDrives = await this.listSourceDrives()
     initialDrives.forEach((drive) => {
       this.lastDrives.set(drive.device, drive)
     })
@@ -148,10 +268,12 @@ export class DriveMonitor {
     const config = getConfig()
     const mediaExtensions = config.mediaExtensions.map((ext) => ext.toLowerCase())
     const filterByMediaExtensions = config.transferOnlyMediaFiles
+    const excludeSystemFiles = config.excludeSystemFiles ?? true
 
     getLogger().info('[DriveMonitor] Scanning path', {
       path: drivePath,
-      filterByMediaExtensions
+      filterByMediaExtensions,
+      excludeSystemFiles
     })
     getLogger().debug('[DriveMonitor] Media extensions', { mediaExtensions })
 
@@ -159,7 +281,13 @@ export class DriveMonitor {
     let totalSize = 0
 
     // Recursively scan directory
-    await this.scanDirectory(drivePath, files, mediaExtensions, filterByMediaExtensions)
+    await this.scanDirectory(
+      drivePath,
+      files,
+      mediaExtensions,
+      filterByMediaExtensions,
+      excludeSystemFiles
+    )
 
     // Calculate total size
     for (const file of files) {
@@ -200,8 +328,8 @@ export class DriveMonitor {
    */
   async unmountDrive(device: string): Promise<boolean> {
     try {
-      // Find the drive to get its mount points
-      const drives = await this.listRemovableDrives()
+      // Find the drive to get its mount points (respects showAllDrives config)
+      const drives = await this.listSourceDrives()
       const drive = drives.find((d) => d.device === device)
 
       if (!drive || drive.mountpoints.length === 0) {
@@ -270,7 +398,7 @@ export class DriveMonitor {
     }
 
     try {
-      const currentDrives = await this.listRemovableDrives()
+      const currentDrives = await this.listSourceDrives()
 
       // Check monitoring flag again after async operation
       if (!this.monitoring) {
@@ -340,12 +468,14 @@ export class DriveMonitor {
    * Recursively scan directory for files
    * Skips symlinks and special files to prevent loops and errors
    * @param filterByMediaExtensions When true, only includes files matching mediaExtensions
+   * @param excludeSystemFiles When true, excludes common OS/system files
    */
   private async scanDirectory(
     dirPath: string,
     files: ScannedFile[],
     mediaExtensions: string[],
     filterByMediaExtensions: boolean,
+    excludeSystemFiles: boolean,
     visitedInodes = new Set<string>()
   ): Promise<void> {
     try {
@@ -353,6 +483,12 @@ export class DriveMonitor {
 
       for (const entry of entries) {
         const fullPath = path.join(dirPath, entry.name)
+
+        // Skip system files if enabled
+        if (excludeSystemFiles && isSystemFile(entry.name)) {
+          getLogger().debug('[DriveMonitor] Skipping system file', { path: fullPath })
+          continue
+        }
 
         try {
           // Use lstat to not follow symlinks
@@ -397,6 +533,7 @@ export class DriveMonitor {
               files,
               mediaExtensions,
               filterByMediaExtensions,
+              excludeSystemFiles,
               visitedInodes
             )
           } else if (stats.isFile()) {
@@ -519,6 +656,15 @@ export function isRemovableDrive(drive: DriveInfo): boolean {
 export async function listRemovableDrives(): Promise<DriveInfo[]> {
   const monitor = new DriveMonitor()
   return monitor.listRemovableDrives()
+}
+
+/**
+ * List source drives based on config (convenience function)
+ * Respects the showAllDrives config setting
+ */
+export async function listSourceDrives(): Promise<DriveInfo[]> {
+  const monitor = new DriveMonitor()
+  return monitor.listSourceDrives()
 }
 
 /**

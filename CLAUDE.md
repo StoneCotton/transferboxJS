@@ -206,28 +206,33 @@ Combined in `src/renderer/src/store/index.ts` with convenience hooks:
 Files can be selectively transferred by toggling folder and file selection in the UI. The selection state is managed in `driveSlice.ts`:
 
 **State Structure** (`FileSelectionState`):
+
 - `selectedFolders: Set<string>` - Folder relative paths that are selected (all files included by default)
 - `deselectedFiles: Set<string>` - Individual file paths deselected within selected folders
 - `expandedFolders: Set<string>` - UI state tracking which folders are expanded
 
 **Selection Actions**:
+
 - `toggleFolderSelection(relativePath)` - Toggle entire folder selection
 - `toggleFileSelection(filePath, folderRelativePath)` - Deselect/reselect individual files
 - `selectAllFolders(folderPaths)` / `deselectAllFolders()` - Bulk selection
 - `setScannedFilesWithSelection(files, driveRoot)` - Initialize with all files selected
 
 **Key Utilities** (`src/renderer/src/utils/fileGrouping.ts`):
+
 - `groupFilesByFolder(files, driveRoot)` - Groups flat file list into `FolderGroup[]` for hierarchical display
 - `getSelectedFilePaths(groups, selectedFolders, deselectedFiles)` - Computes final list of files to transfer
 - `getSelectionStats()` - Calculates selected/total counts and sizes
 - `getFolderSelectionState()` - Determines if folder is fully/partially selected (for checkbox state)
 
 **UI Components**:
+
 - `FolderSection.tsx` - Collapsible folder with checkbox (supports indeterminate state)
 - `FileItem.tsx` - Individual file row with checkbox
 - `FileList.tsx` - Orchestrates folder sections with Select All/Deselect All controls
 
 **Config Integration**:
+
 - `transferOnlyMediaFiles` config controls scan filtering:
   - When `true`: Scan only returns files matching `mediaExtensions`
   - When `false`: Scan returns ALL files on the drive

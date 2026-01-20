@@ -291,3 +291,93 @@ export function validateLimit(limit: unknown, max: number = 10000): number {
 
   return limit
 }
+
+/**
+ * Validates BenchmarkConfig from IPC
+ */
+export function validateBenchmarkConfig(config: unknown): {
+  sourceDeviceId: string
+  destinationPath: string
+} {
+  if (!config || typeof config !== 'object') {
+    throw new Error('Benchmark config must be an object')
+  }
+
+  const cfg = config as Record<string, unknown>
+
+  // Validate sourceDeviceId (must be a valid path)
+  if (typeof cfg.sourceDeviceId !== 'string') {
+    throw new Error('sourceDeviceId must be a string')
+  }
+  const sourceDeviceId = validateFilePath(cfg.sourceDeviceId, false)
+
+  // Validate destinationPath
+  if (typeof cfg.destinationPath !== 'string') {
+    throw new Error('destinationPath must be a string')
+  }
+  const destinationPath = validateFilePath(cfg.destinationPath, false)
+
+  return { sourceDeviceId, destinationPath }
+}
+
+/**
+ * Validates a benchmark ID
+ */
+export function validateBenchmarkId(id: unknown): string {
+  if (typeof id !== 'string' || id.trim() === '') {
+    throw new Error('Benchmark ID must be a non-empty string')
+  }
+
+  // Check format (should be like "benchmark_1234567890_abc123")
+  if (!/^benchmark_\d+_[a-z0-9]+$/i.test(id)) {
+    throw new Error('Invalid benchmark ID format')
+  }
+
+  // Limit length
+  if (id.length > 128) {
+    throw new Error('Benchmark ID exceeds maximum length')
+  }
+
+  return id.trim()
+}
+
+/**
+ * Validates benchmark export request
+ */
+export function validateBenchmarkExportRequest(request: unknown): {
+  ids: string[]
+  format: 'json' | 'csv'
+} {
+  if (!request || typeof request !== 'object') {
+    throw new Error('Export request must be an object')
+  }
+
+  const req = request as Record<string, unknown>
+
+  // Validate ids array
+  if (!Array.isArray(req.ids)) {
+    throw new Error('ids must be an array')
+  }
+  if (req.ids.length === 0) {
+    throw new Error('ids array cannot be empty')
+  }
+  if (req.ids.length > 100) {
+    throw new Error('Too many benchmark IDs (max 100)')
+  }
+  const ids = req.ids.map((id, index) => {
+    if (typeof id !== 'string') {
+      throw new Error(`ID at index ${index} must be a string`)
+    }
+    return validateBenchmarkId(id)
+  })
+
+  // Validate format
+  if (typeof req.format !== 'string') {
+    throw new Error('format must be a string')
+  }
+  if (req.format !== 'json' && req.format !== 'csv') {
+    throw new Error('format must be "json" or "csv"')
+  }
+
+  return { ids, format: req.format }
+}

@@ -8,11 +8,7 @@ import * as path from 'path'
 import { stat, access } from 'fs/promises'
 import { hasEnoughSpace, checkDiskSpace } from './pathValidator'
 import { getLogger } from './logger'
-import type {
-  FileConflict,
-  ValidationWarningType,
-  ValidationWarning
-} from '../shared/types/ipc'
+import type { FileConflict, ValidationWarningType, ValidationWarning } from '../shared/types/ipc'
 import type { ConflictResolution } from '../shared/types/config'
 
 // Re-export types for backward compatibility

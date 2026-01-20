@@ -5,15 +5,8 @@
  */
 
 import { useState, type ReactElement } from 'react'
-import {
-  CheckCircle2,
-  Clock,
-  AlertCircle,
-  XCircle,
-  Loader2,
-  Copy
-} from 'lucide-react'
-import { cn, formatDuration } from '../lib/utils'
+import { CheckCircle2, Clock, AlertCircle, XCircle, Loader2, Copy } from 'lucide-react'
+import { cn, formatDuration, formatBytes } from '../lib/utils'
 import { Tooltip } from './ui/Tooltip'
 import {
   getFileIcon,
@@ -42,8 +35,8 @@ interface FileItemProps {
   isSelected: boolean
   /** Whether to use condensed UI mode */
   isCondensed: boolean
-  /** Callback when selection changes */
-  onToggleSelect: () => void
+  /** Callback when selection changes (receives shift key state for range selection) */
+  onToggleSelect: (shiftKey: boolean) => void
   /** Whether selection is disabled (e.g., during transfer) */
   selectionDisabled?: boolean
 }
@@ -138,7 +131,11 @@ export function FileItem({
         <input
           type="checkbox"
           checked={isSelected}
-          onChange={onToggleSelect}
+          onChange={(e) => {
+            e.stopPropagation()
+            const shiftKey = (e.nativeEvent as MouseEvent).shiftKey
+            onToggleSelect(shiftKey)
+          }}
           disabled={selectionDisabled}
           className={cn(
             'rounded border-gray-300 text-brand-600 focus:ring-brand-500',
@@ -160,8 +157,7 @@ export function FileItem({
             'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400',
           fileType === 'audio' &&
             'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400',
-          fileType === 'other' &&
-            'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+          fileType === 'other' && 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
         )}
       >
         <Icon className={isCondensed ? 'h-3.5 w-3.5' : 'h-5 w-5'} />
@@ -181,12 +177,12 @@ export function FileItem({
           {isCondensed ? null : getStatusIcon()}
         </div>
 
-        {/* File creation date and time - hide in condensed mode */}
+        {/* File creation date, time, and size - hide in condensed mode */}
         {!isCondensed && (
           <div className="mt-1 flex items-center gap-2">
             <Clock className="h-3 w-3 text-gray-500 dark:text-gray-400" />
             <span className="text-xs text-gray-500 dark:text-gray-400">
-              Created: {formattedDate} at {formattedTime}
+              Created: {formattedDate} at {formattedTime} · {formatBytes(file.size)}
             </span>
           </div>
         )}
@@ -213,10 +209,7 @@ export function FileItem({
                 {checksum}
               </code>
             </Tooltip>
-            <Tooltip
-              content="Copy checksum to clipboard for manual verification"
-              position="top"
-            >
+            <Tooltip content="Copy checksum to clipboard for manual verification" position="top">
               <button
                 onClick={() => handleCopyChecksum(checksum)}
                 className="flex items-center gap-1 text-xs text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
@@ -241,12 +234,10 @@ export function FileItem({
               'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
             status === 'verifying' &&
               'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
-            status === 'error' &&
-              'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+            status === 'error' && 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
             status === 'skipped' &&
               'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
-            status === 'pending' &&
-              'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400'
+            status === 'pending' && 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400'
           )}
         >
           {isCondensed

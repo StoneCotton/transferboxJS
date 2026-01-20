@@ -14,7 +14,14 @@ import type {
   DriveInfo,
   ScannedMedia,
   UpdateCheckResult,
-  TransferErrorInfo
+  TransferErrorInfo,
+  BenchmarkConfig,
+  BenchmarkResult,
+  BenchmarkHistoryEntry,
+  BenchmarkProgressEvent,
+  BenchmarkErrorEvent,
+  SpeedSample,
+  BenchmarkExportFormat
 } from '../shared/types'
 
 interface IpcApi {
@@ -100,6 +107,21 @@ interface IpcApi {
     callback: (data: { fromVersion: string; toVersion: string }) => void
   ) => () => void
   onUpdateAvailable: (callback: (result: UpdateCheckResult) => void) => () => void
+
+  // Benchmark operations
+  startBenchmark: (config: BenchmarkConfig) => Promise<void>
+  cancelBenchmark: () => Promise<void>
+  getBenchmarkHistory: (limit?: number) => Promise<BenchmarkHistoryEntry[]>
+  getBenchmarkResult: (id: string) => Promise<BenchmarkResult | null>
+  deleteBenchmark: (id: string) => Promise<void>
+  exportBenchmarks: (ids: string[], format: BenchmarkExportFormat) => Promise<string>
+  cleanupBenchmarkOrphans: () => Promise<number>
+
+  // Benchmark event listeners
+  onBenchmarkProgress: (callback: (progress: BenchmarkProgressEvent) => void) => () => void
+  onBenchmarkSpeedSample: (callback: (sample: SpeedSample) => void) => () => void
+  onBenchmarkComplete: (callback: (result: BenchmarkResult) => void) => () => void
+  onBenchmarkError: (callback: (error: BenchmarkErrorEvent) => void) => () => void
 }
 
 declare global {

@@ -4,14 +4,7 @@
  */
 
 import { memo } from 'react'
-import {
-  CheckCircle2,
-  Loader2,
-  Clock,
-  XCircle,
-  AlertCircle,
-  type LucideIcon
-} from 'lucide-react'
+import { CheckCircle2, Loader2, Clock, XCircle, AlertCircle, type LucideIcon } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { Tooltip } from './Tooltip'
 
@@ -113,11 +106,7 @@ export const StatusBadge = memo(function StatusBadge({
           )}
         />
         <span
-          className={cn(
-            'font-bold',
-            config.textClass,
-            isCondensed ? 'text-[10px]' : 'text-xs'
-          )}
+          className={cn('font-bold', config.textClass, isCondensed ? 'text-[10px]' : 'text-xs')}
         >
           {count}
         </span>

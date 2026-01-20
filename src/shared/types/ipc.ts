@@ -6,6 +6,15 @@
 import type { AppConfig } from './config'
 import type { TransferProgress, TransferSession, TransferErrorType } from './transfer'
 import type { DriveInfo, ScannedMedia } from './drive'
+import type {
+  BenchmarkConfig,
+  BenchmarkResult,
+  BenchmarkHistoryEntry,
+  BenchmarkProgressEvent,
+  BenchmarkErrorEvent,
+  SpeedSample,
+  BenchmarkExportFormat
+} from './benchmark'
 
 // IPC Channel names
 export const IPC_CHANNELS = {
@@ -76,7 +85,20 @@ export const IPC_CHANNELS = {
   // Update checking
   UPDATE_CHECK: 'update:check', // Invoke to check for updates
   UPDATE_AVAILABLE: 'update:available', // Event from main to renderer
-  UPDATE_OPEN_RELEASES: 'update:open-releases' // Open GitHub releases page
+  UPDATE_OPEN_RELEASES: 'update:open-releases', // Open GitHub releases page
+
+  // Benchmark operations
+  BENCHMARK_START: 'benchmark:start', // Start a benchmark run
+  BENCHMARK_CANCEL: 'benchmark:cancel', // Cancel running benchmark
+  BENCHMARK_GET_HISTORY: 'benchmark:get-history', // Get benchmark history
+  BENCHMARK_GET_RESULT: 'benchmark:get-result', // Get specific benchmark result
+  BENCHMARK_DELETE: 'benchmark:delete', // Delete a benchmark result
+  BENCHMARK_EXPORT: 'benchmark:export', // Export benchmark results
+  BENCHMARK_CLEANUP_ORPHANS: 'benchmark:cleanup-orphans', // Clean up orphaned test files
+  BENCHMARK_PROGRESS: 'benchmark:progress', // Event from main to renderer
+  BENCHMARK_SPEED_SAMPLE: 'benchmark:speed-sample', // Event from main to renderer
+  BENCHMARK_COMPLETE: 'benchmark:complete', // Event from main to renderer
+  BENCHMARK_ERROR: 'benchmark:error' // Event from main to renderer
 } as const
 
 // Request/Response types for each IPC channel
@@ -275,6 +297,18 @@ export interface IpcHandlers {
 
   [IPC_CHANNELS.UPDATE_CHECK]: () => Promise<UpdateCheckResult>
   [IPC_CHANNELS.UPDATE_OPEN_RELEASES]: () => Promise<void>
+
+  // Benchmark handlers
+  [IPC_CHANNELS.BENCHMARK_START]: (config: BenchmarkConfig) => Promise<void>
+  [IPC_CHANNELS.BENCHMARK_CANCEL]: () => Promise<void>
+  [IPC_CHANNELS.BENCHMARK_GET_HISTORY]: (limit?: number) => Promise<BenchmarkHistoryEntry[]>
+  [IPC_CHANNELS.BENCHMARK_GET_RESULT]: (id: string) => Promise<BenchmarkResult | null>
+  [IPC_CHANNELS.BENCHMARK_DELETE]: (id: string) => Promise<void>
+  [IPC_CHANNELS.BENCHMARK_EXPORT]: (args: {
+    ids: string[]
+    format: BenchmarkExportFormat
+  }) => Promise<string>
+  [IPC_CHANNELS.BENCHMARK_CLEANUP_ORPHANS]: () => Promise<number>
 }
 
 // Event listeners (main -> renderer)
@@ -296,4 +330,10 @@ export interface IpcEvents {
   [IPC_CHANNELS.MENU_SELECT_DESTINATION]: () => void
   [IPC_CHANNELS.CONFIG_MIGRATED]: (data: { fromVersion: string; toVersion: string }) => void
   [IPC_CHANNELS.UPDATE_AVAILABLE]: (result: UpdateCheckResult) => void
+
+  // Benchmark events
+  [IPC_CHANNELS.BENCHMARK_PROGRESS]: (progress: BenchmarkProgressEvent) => void
+  [IPC_CHANNELS.BENCHMARK_SPEED_SAMPLE]: (sample: SpeedSample) => void
+  [IPC_CHANNELS.BENCHMARK_COMPLETE]: (result: BenchmarkResult) => void
+  [IPC_CHANNELS.BENCHMARK_ERROR]: (error: BenchmarkErrorEvent) => void
 }

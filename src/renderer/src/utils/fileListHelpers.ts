@@ -3,14 +3,7 @@
  * Utility functions for the FileList component
  */
 
-import {
-  File,
-  FileVideo,
-  FileAudio,
-  FileImage,
-  FileType,
-  type LucideIcon
-} from 'lucide-react'
+import { File, FileVideo, FileAudio, FileImage, FileType, type LucideIcon } from 'lucide-react'
 
 // File extension constants
 const VIDEO_EXTENSIONS = [
@@ -112,10 +105,7 @@ interface TransferProgress {
 /**
  * Get the transfer status for a specific file
  */
-export function getFileTransferStatus(
-  filePath: string,
-  progress: unknown
-): FileTransferStatus {
+export function getFileTransferStatus(filePath: string, progress: unknown): FileTransferStatus {
   if (!progress || typeof progress !== 'object' || progress === null) {
     return 'pending'
   }
@@ -124,9 +114,7 @@ export function getFileTransferStatus(
 
   // Check if file is in completed files first
   if (progressObj.completedFiles) {
-    const completedFile = progressObj.completedFiles.find(
-      (file) => file.sourcePath === filePath
-    )
+    const completedFile = progressObj.completedFiles.find((file) => file.sourcePath === filePath)
     if (completedFile) {
       return completedFile.status as FileTransferStatus
     }
@@ -160,9 +148,7 @@ export function getFileChecksum(filePath: string, progress: unknown): string | n
 
   // Check completed files first (most likely to have checksums)
   if (progressObj.completedFiles) {
-    const completedFile = progressObj.completedFiles.find(
-      (file) => file.sourcePath === filePath
-    )
+    const completedFile = progressObj.completedFiles.find((file) => file.sourcePath === filePath)
     if (completedFile?.checksum) {
       return completedFile.checksum
     }
@@ -213,9 +199,7 @@ export function getFileElapsedTime(filePath: string, progress: unknown): number 
 
   // Check if file is in completed files
   if (progressObj.completedFiles) {
-    const completedFile = progressObj.completedFiles.find(
-      (file) => file.sourcePath === filePath
-    )
+    const completedFile = progressObj.completedFiles.find((file) => file.sourcePath === filePath)
     if (completedFile?.duration) {
       return completedFile.duration
     }

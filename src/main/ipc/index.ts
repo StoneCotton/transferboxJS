@@ -22,6 +22,7 @@ import { setupHistoryHandlers } from './historyHandlers'
 import { setupLogHandlers } from './logHandlers'
 import { setupSystemHandlers } from './systemHandlers'
 import { setupUpdateHandlers } from './updateHandlers'
+import { setupBenchmarkHandlers } from './benchmarkHandlers'
 
 // Import state management
 import {
@@ -46,6 +47,7 @@ export function setupIpcHandlers(): void {
   setupLogHandlers()
   setupSystemHandlers()
   setupUpdateHandlers()
+  setupBenchmarkHandlers()
 }
 
 /**
