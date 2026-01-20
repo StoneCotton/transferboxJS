@@ -20,13 +20,20 @@ export type BenchmarkPhase = 'idle' | 'generating' | 'transferring' | 'verifying
 
 /**
  * Speed sample for graph rendering
+ *
+ * Note: The `phase` field uses a reduced set ('transfer' | 'verify') rather than
+ * the full BenchmarkPhase type because samples are only recorded during these
+ * two phases. The mapping from BenchmarkPhase is:
+ * - 'transferring' -> 'transfer'
+ * - 'verifying' -> 'verify'
+ * Other phases (idle, generating, cleanup) don't produce speed samples.
  */
 export interface SpeedSample {
   /** Timestamp in milliseconds since benchmark start */
   timestampMs: number
   /** Transfer speed in MB/s */
   speedMbps: number
-  /** Current phase when sample was taken */
+  /** Current phase when sample was taken (reduced from BenchmarkPhase) */
   phase: 'transfer' | 'verify'
   /** Name of the file being processed (optional) */
   currentFile?: string
