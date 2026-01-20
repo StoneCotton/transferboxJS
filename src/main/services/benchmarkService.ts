@@ -708,15 +708,64 @@ export class BenchmarkService {
 
   /**
    * Clean up orphaned benchmark files from failed runs
+   * Scans common locations for .tbench directories
    */
   async cleanupOrphans(): Promise<number> {
     const logger = getLogger()
     let cleanedCount = 0
 
-    // This would need to scan known locations for .tbench directories
-    // For now, just log that it was called
-    logger.info('Orphan cleanup requested')
+    // Get paths to scan from common locations
+    const pathsToScan = new Set<string>()
 
+    // Add user home directories
+    const home = os.homedir()
+    pathsToScan.add(home)
+    pathsToScan.add(path.join(home, 'Desktop'))
+    pathsToScan.add(path.join(home, 'Documents'))
+    pathsToScan.add(path.join(home, 'Downloads'))
+
+    // On macOS, also check /Volumes for external drives
+    if (process.platform === 'darwin') {
+      try {
+        const volumes = await readdir('/Volumes')
+        for (const vol of volumes) {
+          pathsToScan.add(path.join('/Volumes', vol))
+        }
+      } catch {
+        // /Volumes might not be accessible
+      }
+    }
+
+    // Scan each path for .tbench directories
+    for (const scanPath of pathsToScan) {
+      try {
+        const entries = await readdir(scanPath)
+        for (const entry of entries) {
+          if (entry === '.tbench') {
+            const tbenchPath = path.join(scanPath, entry)
+            try {
+              const stats = await stat(tbenchPath)
+              // Only clean if older than 1 hour (stale from failed run)
+              const ageMs = Date.now() - stats.mtimeMs
+              if (ageMs > 60 * 60 * 1000) {
+                await this.removeDirectory(tbenchPath)
+                cleanedCount++
+                logger.info('Cleaned orphaned benchmark directory', { path: tbenchPath, ageMs })
+              }
+            } catch (error) {
+              logger.warn('Failed to clean orphan directory', {
+                path: tbenchPath,
+                error: error instanceof Error ? error.message : String(error)
+              })
+            }
+          }
+        }
+      } catch {
+        // Path might not exist or not be accessible
+      }
+    }
+
+    logger.info('Orphan cleanup complete', { cleanedCount })
     return cleanedCount
   }
 
