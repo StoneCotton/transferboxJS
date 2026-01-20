@@ -155,7 +155,10 @@ jest.mock('../../src/renderer/src/store', () => ({
     selectedSize: 0
   }),
   useFlatFileList: () => [],
-  useInitializeFileSelection: () => jest.fn()
+  useInitializeFileSelection: () => jest.fn(),
+  // Tree structure hooks for nested folder display
+  useFolderTree: () => [],
+  useFlatFileListFromTree: () => []
 }))
 
 describe('App Component', () => {

@@ -2,39 +2,44 @@
  * FolderSection Component
  * Renders a collapsible folder section containing files with selection support.
  * Used in FileList for the folder-grouped file view in selective transfer feature.
+ * Now supports recursive rendering for nested folder hierarchies.
  */
 
 import { useMemo } from 'react'
 import { ChevronDown, ChevronRight, Folder, FolderOpen } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { FileItem } from './FileItem'
-import { getFolderSelectionState } from '../utils/fileGrouping'
-import type { FolderGroup } from '../utils/fileGrouping'
+import { getTreeNodeSelectionState } from '../utils/fileGrouping'
+import type { FolderTreeNode } from '../utils/fileGrouping'
 import type { TransferProgress } from '../../../shared/types'
 
 interface FolderSectionProps {
-  /** The folder group containing files */
-  group: FolderGroup
+  /** The folder tree node */
+  node: FolderTreeNode
   /** Whether the folder is expanded */
   isExpanded: boolean
-  /** Whether the folder is selected (all files selected by default) */
-  isFolderSelected: boolean
-  /** Set of deselected file paths within this folder */
+  /** Set of selected folder relative paths */
+  selectedFolders: Set<string>
+  /** Set of deselected file paths within selected folders */
   deselectedFiles: Set<string>
   /** Set of individually selected file paths (when folder not selected) */
   individuallySelectedFiles: Set<string>
+  /** Set of expanded folder paths (for children) */
+  expandedFolders: Set<string>
   /** Current transfer progress */
   progress: TransferProgress | null
   /** Whether to use condensed UI mode */
   isCondensed: boolean
   /** Starting index for files in this folder (for shift-click calculation) */
   startFileIndex: number
+  /** Nesting depth for indentation */
+  depth: number
   /** Callback when folder expand/collapse is toggled */
-  onToggleExpand: () => void
-  /** Callback when folder selection is toggled (with shift key state) */
-  onToggleFolderSelect: (shiftKey: boolean) => void
+  onToggleExpand: (relativePath: string) => void
+  /** Callback when folder selection is toggled (with node for cascade) */
+  onToggleFolderSelect: (relativePath: string, node: FolderTreeNode, shiftKey: boolean) => void
   /** Callback when a file's selection is toggled (with index and shift key state) */
-  onToggleFileSelect: (filePath: string, index: number, shiftKey: boolean) => void
+  onToggleFileSelect: (filePath: string, folderPath: string, index: number, shiftKey: boolean) => void
   /** Whether selection is disabled (e.g., during transfer) */
   selectionDisabled?: boolean
 }
@@ -51,67 +56,92 @@ function formatBytes(bytes: number): string {
 }
 
 export function FolderSection({
-  group,
+  node,
   isExpanded,
-  isFolderSelected,
+  selectedFolders,
   deselectedFiles,
   individuallySelectedFiles,
+  expandedFolders,
   progress,
   isCondensed,
   startFileIndex,
+  depth,
   onToggleExpand,
   onToggleFolderSelect,
   onToggleFileSelect,
   selectionDisabled = false
 }: FolderSectionProps) {
-  // Calculate selection state for this folder
+  // Calculate selection state for this node (includes descendants)
   const selectionState = useMemo(() => {
-    return getFolderSelectionState(
-      group,
-      isFolderSelected,
+    return getTreeNodeSelectionState(
+      node,
+      selectedFolders,
       deselectedFiles,
       individuallySelectedFiles
     )
-  }, [group, isFolderSelected, deselectedFiles, individuallySelectedFiles])
+  }, [node, selectedFolders, deselectedFiles, individuallySelectedFiles])
 
   const { isFullySelected, isPartiallySelected, selectedCount, totalCount } = selectionState
 
-  // Calculate transfer progress for this folder
+  // Check if this folder itself is selected (for file selection logic)
+  const isFolderSelected = selectedFolders.has(node.relativePath)
+
+  // Calculate transfer progress for this folder (direct files only)
   const folderProgress = useMemo(() => {
     if (!progress?.completedFiles) return null
-    const completedInFolder = group.files.filter((f) =>
+    const completedInFolder = node.files.filter((f) =>
       progress.completedFiles?.some((cf) => cf.sourcePath === f.path && cf.status === 'complete')
     ).length
     return {
       completed: completedInFolder,
-      total: group.fileCount
+      total: node.directFileCount
     }
-  }, [group, progress])
+  }, [node, progress])
+
+  // Calculate start indices for children
+  const childStartIndices = useMemo(() => {
+    const indices: number[] = []
+    let currentIndex = startFileIndex + node.files.length
+    for (const child of node.children) {
+      indices.push(currentIndex)
+      // Count all files in child subtree
+      const countFiles = (n: FolderTreeNode): number =>
+        n.files.length + n.children.reduce((sum, c) => sum + countFiles(c), 0)
+      currentIndex += countFiles(child)
+    }
+    return indices
+  }, [node, startFileIndex])
+
+  const hasContent = node.files.length > 0 || node.children.length > 0
 
   return (
-    <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
+    <div className={cn(depth > 0 && 'ml-4')}>
       {/* Folder Header */}
       <div
         className={cn(
-          'flex cursor-pointer items-center gap-2 bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700',
+          'flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700',
           isCondensed ? 'p-2' : 'p-3'
         )}
-        onClick={onToggleExpand}
+        onClick={() => onToggleExpand(node.relativePath)}
       >
         {/* Expand/Collapse Icon */}
-        <button
-          className="flex-shrink-0 p-0.5"
-          onClick={(e) => {
-            e.stopPropagation()
-            onToggleExpand()
-          }}
-        >
-          {isExpanded ? (
-            <ChevronDown className="h-4 w-4 text-gray-500" />
-          ) : (
-            <ChevronRight className="h-4 w-4 text-gray-500" />
-          )}
-        </button>
+        {hasContent ? (
+          <button
+            className="flex-shrink-0 p-0.5"
+            onClick={(e) => {
+              e.stopPropagation()
+              onToggleExpand(node.relativePath)
+            }}
+          >
+            {isExpanded ? (
+              <ChevronDown className="h-4 w-4 text-gray-500" />
+            ) : (
+              <ChevronRight className="h-4 w-4 text-gray-500" />
+            )}
+          </button>
+        ) : (
+          <div className="w-5" />
+        )}
 
         {/* Checkbox with indeterminate state */}
         <input
@@ -123,7 +153,7 @@ export function FolderSection({
           onChange={(e) => {
             e.stopPropagation()
             const shiftKey = (e.nativeEvent as MouseEvent).shiftKey
-            onToggleFolderSelect(shiftKey)
+            onToggleFolderSelect(node.relativePath, node, shiftKey)
           }}
           onClick={(e) => e.stopPropagation()}
           disabled={selectionDisabled}
@@ -148,15 +178,15 @@ export function FolderSection({
             isCondensed ? 'text-xs' : 'text-sm'
           )}
         >
-          {group.displayName}
+          {node.displayName}
         </span>
 
-        {/* File Count & Size */}
+        {/* File Count (shows recursive totals) */}
         <span
           className={cn('flex-shrink-0 text-gray-500', isCondensed ? 'text-[10px]' : 'text-xs')}
         >
           {selectedCount}/{totalCount} files
-          {!isCondensed && ` (${formatBytes(group.totalSize)})`}
+          {!isCondensed && ` (${formatBytes(node.totalSize)})`}
         </span>
 
         {/* Progress indicator */}
@@ -169,36 +199,61 @@ export function FolderSection({
         )}
       </div>
 
-      {/* File List (collapsed/expanded) */}
+      {/* Expanded Content */}
       {isExpanded && (
-        <div
-          className={cn(
-            'divide-y divide-gray-100 dark:divide-gray-700',
-            isCondensed ? 'space-y-1 p-2' : 'space-y-2 p-3'
+        <div className={cn('mt-1', isCondensed ? 'space-y-1' : 'space-y-2')}>
+          {/* Direct files */}
+          {node.files.length > 0 && (
+            <div
+              className={cn(
+                'ml-5 divide-y divide-gray-100 rounded-lg border border-gray-200 dark:divide-gray-700 dark:border-gray-700',
+                isCondensed ? 'p-2' : 'p-3'
+              )}
+            >
+              {node.files.map((file, fileIndex) => {
+                const isFileSelected = isFolderSelected
+                  ? !deselectedFiles.has(file.path)
+                  : individuallySelectedFiles.has(file.path)
+
+                const globalIndex = startFileIndex + fileIndex
+
+                return (
+                  <FileItem
+                    key={file.path}
+                    file={file}
+                    progress={progress}
+                    isSelected={isFileSelected}
+                    isCondensed={isCondensed}
+                    onToggleSelect={(shiftKey) =>
+                      onToggleFileSelect(file.path, node.relativePath, globalIndex, shiftKey)
+                    }
+                    selectionDisabled={selectionDisabled}
+                  />
+                )
+              })}
+            </div>
           )}
-        >
-          {group.files.map((file, fileIndex) => {
-            // File is selected if:
-            // - Folder is selected AND file is not deselected, OR
-            // - Folder is not selected AND file is individually selected
-            const isFileSelected = isFolderSelected
-              ? !deselectedFiles.has(file.path)
-              : individuallySelectedFiles.has(file.path)
 
-            const globalIndex = startFileIndex + fileIndex
-
-            return (
-              <FileItem
-                key={file.path}
-                file={file}
-                progress={progress}
-                isSelected={isFileSelected}
-                isCondensed={isCondensed}
-                onToggleSelect={(shiftKey) => onToggleFileSelect(file.path, globalIndex, shiftKey)}
-                selectionDisabled={selectionDisabled}
-              />
-            )
-          })}
+          {/* Child folders (recursive) */}
+          {node.children.map((child, childIndex) => (
+            <FolderSection
+              key={child.relativePath}
+              node={child}
+              isExpanded={expandedFolders.has(child.relativePath)}
+              selectedFolders={selectedFolders}
+              deselectedFiles={deselectedFiles}
+              individuallySelectedFiles={individuallySelectedFiles}
+              expandedFolders={expandedFolders}
+              progress={progress}
+              isCondensed={isCondensed}
+              startFileIndex={childStartIndices[childIndex]}
+              depth={depth + 1}
+              onToggleExpand={onToggleExpand}
+              onToggleFolderSelect={onToggleFolderSelect}
+              onToggleFileSelect={onToggleFileSelect}
+              selectionDisabled={selectionDisabled}
+            />
+          ))}
         </div>
       )}
     </div>

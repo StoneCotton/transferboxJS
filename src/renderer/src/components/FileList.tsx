@@ -1,29 +1,26 @@
 /**
- * FileList Component - Visual Transfer Queue with Folder-Grouped Selection
- * Displays scanned files grouped by folder with selection support for selective transfers.
- * Files can be selected/deselected individually or by folder.
+ * FileList Component - Visual Transfer Queue with Nested Folder Tree Selection
+ * Displays scanned files in a hierarchical folder tree structure with selection support for selective transfers.
+ * Files can be selected/deselected individually or by folder (including nested subfolders).
  */
 
 import { useMemo } from 'react'
-import { Folder, FileType as FileTypeIcon, CheckSquare, Square } from 'lucide-react'
-import {
-  useDriveStore,
-  useTransferStore,
-  useFileGroups,
-  useSelectionStats,
-  useFlatFileList
-} from '../store'
-import { useUiDensity } from '../hooks/useUiDensity'
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/Card'
-import { StatusBadge } from './ui/StatusBadge'
-import { FolderSection } from './FolderSection'
+import { Loader2 } from 'lucide-react'
 import { cn } from '../lib/utils'
-import { getFileTransferStatus } from '../utils/fileListHelpers'
-import { getAllFolderPaths } from '../utils/fileGrouping'
+import { FolderSection } from './FolderSection'
+import { Card, CardContent, CardHeader, CardTitle } from './ui/Card'
+import { Button } from './ui/Button'
+import { useStore, useFolderTree, useFlatFileListFromTree, useSelectionStats } from '../store'
+import { useShallow } from 'zustand/shallow'
+import type { FolderTreeNode } from '../utils/fileGrouping'
 
 export function FileList() {
+  // Get folder tree instead of flat groups
+  const folderTree = useFolderTree()
+  const flatFileList = useFlatFileListFromTree()
+  const selectionStats = useSelectionStats()
+
   const {
-    scannedFiles,
     scanInProgress,
     fileSelection,
     toggleFolderSelection,
@@ -32,22 +29,75 @@ export function FileList() {
     selectAllFolders,
     deselectAllFolders,
     setLastClickedFile,
-    selectFileRange
-  } = useDriveStore()
-  const { progress, isTransferring } = useTransferStore()
-  const { isCondensed } = useUiDensity()
+    selectFileRange,
+    isTransferring
+  } = useStore(
+    useShallow((state) => ({
+      scanInProgress: state.scanInProgress,
+      fileSelection: state.fileSelection,
+      toggleFolderSelection: state.toggleFolderSelection,
+      toggleFileSelection: state.toggleFileSelection,
+      toggleFolderExpanded: state.toggleFolderExpanded,
+      selectAllFolders: state.selectAllFolders,
+      deselectAllFolders: state.deselectAllFolders,
+      setLastClickedFile: state.setLastClickedFile,
+      selectFileRange: state.selectFileRange,
+      isTransferring: state.isTransferring
+    }))
+  )
 
-  // Get files grouped by folder
-  const folderGroups = useFileGroups()
+  const { progress } = useStore(
+    useShallow((state) => ({
+      progress: state.progress
+    }))
+  )
 
-  // Get flat file list for shift-click range selection
-  const flatFileList = useFlatFileList()
+  const { config } = useStore(
+    useShallow((state) => ({
+      config: state.config
+    }))
+  )
 
-  // Get selection statistics
-  const selectionStats = useSelectionStats()
+  const isCondensed = config?.uiDensity === 'condensed'
 
-  // Handle file toggle with shift-click support
-  const handleFileToggle = (
+  // Get all folder paths for select/deselect all (flatten tree)
+  const allFolderPaths = useMemo(() => {
+    const paths: string[] = []
+    function traverse(node: FolderTreeNode): void {
+      paths.push(node.relativePath)
+      for (const child of node.children) {
+        traverse(child)
+      }
+    }
+    for (const root of folderTree) {
+      traverse(root)
+    }
+    return paths
+  }, [folderTree])
+
+  // Calculate start indices for each root node
+  const rootStartIndices = useMemo(() => {
+    const indices: number[] = []
+    let currentIndex = 0
+    for (const root of folderTree) {
+      indices.push(currentIndex)
+      const countFiles = (n: FolderTreeNode): number =>
+        n.files.length + n.children.reduce((sum, c) => sum + countFiles(c), 0)
+      currentIndex += countFiles(root)
+    }
+    return indices
+  }, [folderTree])
+
+  // Handlers
+  const handleToggleFolderSelect = (
+    relativePath: string,
+    node: FolderTreeNode,
+    _shiftKey: boolean
+  ) => {
+    toggleFolderSelection(relativePath, node)
+  }
+
+  const handleToggleFileSelect = (
     filePath: string,
     folderPath: string,
     index: number,
@@ -61,274 +111,75 @@ export function FileList() {
     }
   }
 
-  // Handle folder toggle with shift-click support
-  const handleFolderToggle = (folderPath: string, shiftKey: boolean) => {
-    if (shiftKey && fileSelection.lastClickedFile) {
-      // Find the range of files in this folder and all folders between
-      const folderIndex = folderGroups.findIndex((g) => g.relativePath === folderPath)
-      if (folderIndex >= 0) {
-        // Find the last file in this folder
-        let endIndex = 0
-        for (let i = 0; i <= folderIndex; i++) {
-          endIndex += folderGroups[i].files.length
-        }
-        endIndex-- // Last file index in or before this folder
-
-        // Select range from last clicked to end of this folder
-        selectFileRange(endIndex, flatFileList)
-      }
-    } else {
-      toggleFolderSelection(folderPath)
-      // Set last clicked to first file in this folder for shift-click continuity
-      const folderIndex = folderGroups.findIndex((g) => g.relativePath === folderPath)
-      if (folderIndex >= 0) {
-        let startIndex = 0
-        for (let i = 0; i < folderIndex; i++) {
-          startIndex += folderGroups[i].files.length
-        }
-        const firstFile = folderGroups[folderIndex].files[0]
-        if (firstFile) {
-          setLastClickedFile(firstFile.path, folderPath, startIndex)
-        }
-      }
-    }
-  }
-
-  // Calculate transfer status statistics
-  const transferStats = useMemo(() => {
-    const stats = {
-      pending: 0,
-      transferring: 0,
-      verifying: 0,
-      complete: 0,
-      error: 0,
-      skipped: 0
-    }
-
-    scannedFiles.forEach((file) => {
-      const status = getFileTransferStatus(file.path, progress)
-      stats[status]++
-    })
-
-    return stats
-  }, [scannedFiles, progress])
-
-  // Handle select all
   const handleSelectAll = () => {
-    const allFolderPaths = getAllFolderPaths(folderGroups)
     selectAllFolders(allFolderPaths)
   }
 
-  // Handle deselect all
   const handleDeselectAll = () => {
     deselectAllFolders()
   }
 
-  // Check if all are selected
-  const allSelected = selectionStats.selected === selectionStats.total && selectionStats.total > 0
-  const noneSelected = selectionStats.selected === 0
-
-  if (scanInProgress) {
-    return (
-      <Card className="border-0 bg-white/70 shadow-xl shadow-purple-500/10 backdrop-blur-sm dark:bg-gray-900/70">
-        <CardContent
-          className={cn(
-            'flex flex-col items-center justify-center',
-            isCondensed ? 'py-8' : 'py-16'
-          )}
-        >
-          <div className="relative">
-            <div
-              className={cn(
-                'absolute inset-0 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600',
-                isCondensed && 'border-2'
-              )}
-            />
-            <div className={isCondensed ? 'h-10 w-10' : 'h-16 w-16'} />
-          </div>
-          <p
-            className={cn(
-              'font-semibold text-gray-900 dark:text-white',
-              isCondensed ? 'mt-4 text-base' : 'mt-6 text-lg'
-            )}
-          >
-            Scanning for Files
-          </p>
-          {!isCondensed && (
-            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-              This may take a moment...
-            </p>
-          )}
-        </CardContent>
-      </Card>
-    )
-  }
-
-  if (scannedFiles.length === 0) {
-    return (
-      <Card className="border-2 border-dashed border-gray-300 bg-white/50 backdrop-blur-sm dark:border-gray-700 dark:bg-gray-900/50">
-        <CardContent
-          className={cn(
-            'flex flex-col items-center justify-center',
-            isCondensed ? 'py-8' : 'py-16'
-          )}
-        >
-          <div className="relative">
-            <div
-              className={cn(
-                'flex items-center justify-center rounded-full bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30',
-                isCondensed ? 'h-14 w-14' : 'h-20 w-20'
-              )}
-            >
-              <Folder
-                className={
-                  isCondensed
-                    ? 'h-7 w-7 text-purple-600 dark:text-purple-400'
-                    : 'h-10 w-10 text-purple-600 dark:text-purple-400'
-                }
-              />
-            </div>
-          </div>
-          <p
-            className={cn(
-              'font-bold text-gray-900 dark:text-white',
-              isCondensed ? 'mt-4 text-base' : 'mt-6 text-xl'
-            )}
-          >
-            No Files Found
-          </p>
-          <p
-            className={cn(
-              'text-center text-gray-600 dark:text-gray-400',
-              isCondensed ? 'mt-1 text-xs' : 'mt-2 text-sm'
-            )}
-          >
-            Select a drive to scan for files
-          </p>
-        </CardContent>
-      </Card>
-    )
-  }
-
   return (
-    <Card className="border-0 bg-white/70 shadow-xl shadow-purple-500/10 backdrop-blur-sm dark:bg-gray-900/70">
-      <CardHeader className={isCondensed ? 'p-3' : undefined}>
+    <Card>
+      <CardHeader>
         <div className="flex items-center justify-between">
+          <CardTitle>Files to Transfer</CardTitle>
           <div className="flex items-center gap-2">
-            <div
-              className={cn(
-                'flex items-center justify-center rounded-lg bg-gradient-to-br from-purple-500 to-pink-600 text-white shadow-lg shadow-purple-500/30',
-                isCondensed ? 'h-6 w-6' : 'h-8 w-8'
-              )}
-            >
-              <FileTypeIcon className={isCondensed ? 'h-3 w-3' : 'h-4 w-4'} />
-            </div>
-            <div>
-              <CardTitle className={isCondensed ? 'text-sm' : 'text-lg'}>Transfer Queue</CardTitle>
-              <CardDescription className="text-xs">
-                {selectionStats.selected} of {selectionStats.total} file
-                {selectionStats.total !== 1 ? 's' : ''} selected
-              </CardDescription>
-            </div>
-          </div>
-
-          {/* Transfer Status Statistics */}
-          <div className={cn('flex', isCondensed ? 'gap-1' : 'gap-2')}>
-            <StatusBadge
-              status="complete"
-              count={transferStats.complete}
-              isCondensed={isCondensed}
-            />
-            <StatusBadge
-              status="transferring"
-              count={transferStats.transferring}
-              isCondensed={isCondensed}
-            />
-            <StatusBadge
-              status="verifying"
-              count={transferStats.verifying}
-              isCondensed={isCondensed}
-            />
-            <StatusBadge status="error" count={transferStats.error} isCondensed={isCondensed} />
-            <StatusBadge status="pending" count={transferStats.pending} isCondensed={isCondensed} />
-          </div>
-        </div>
-
-        {/* Selection Controls */}
-        <div
-          className={cn('mt-3 flex items-center justify-between', isCondensed ? 'gap-2' : 'gap-3')}
-        >
-          <div className={cn('flex', isCondensed ? 'gap-1' : 'gap-2')}>
-            <button
+            <span className="text-sm text-gray-500">
+              {selectionStats.selected} of {selectionStats.total} files selected
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={handleSelectAll}
-              disabled={allSelected || isTransferring}
-              className={cn(
-                'flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition-colors',
-                'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700',
-                'disabled:cursor-not-allowed disabled:opacity-50'
-              )}
+              disabled={isTransferring}
             >
-              <CheckSquare className="h-3 w-3" />
-              {isCondensed ? 'All' : 'Select All'}
-            </button>
-            <button
+              Select All
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={handleDeselectAll}
-              disabled={noneSelected || isTransferring}
-              className={cn(
-                'flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition-colors',
-                'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700',
-                'disabled:cursor-not-allowed disabled:opacity-50'
-              )}
+              disabled={isTransferring}
             >
-              <Square className="h-3 w-3" />
-              {isCondensed ? 'None' : 'Deselect All'}
-            </button>
+              Deselect All
+            </Button>
           </div>
-
-          {/* Folder count */}
-          <span className="text-xs text-gray-500 dark:text-gray-400">
-            {folderGroups.length} folder{folderGroups.length !== 1 ? 's' : ''}
-          </span>
         </div>
       </CardHeader>
-
-      <CardContent className={isCondensed ? 'p-3 pt-0' : undefined}>
-        <div
-          className={cn(
-            'overflow-y-auto rounded-lg bg-gradient-to-br from-gray-50 to-white dark:from-gray-800/50 dark:to-gray-900/50',
-            isCondensed ? 'max-h-[300px] space-y-2 p-2' : 'max-h-[500px] space-y-3 p-3'
-          )}
-        >
-          {folderGroups.map((group, groupIndex) => {
-            // Calculate starting index for files in this group
-            let startFileIndex = 0
-            for (let i = 0; i < groupIndex; i++) {
-              startFileIndex += folderGroups[i].files.length
-            }
-
-            return (
+      <CardContent>
+        {scanInProgress ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+            <span className="ml-2 text-gray-500">Scanning drive...</span>
+          </div>
+        ) : folderTree.length === 0 ? (
+          <div className="py-8 text-center text-gray-500">
+            No files found. Select a drive to scan.
+          </div>
+        ) : (
+          <div className={cn('max-h-[500px] overflow-y-auto', isCondensed ? 'space-y-1' : 'space-y-2')}>
+            {folderTree.map((rootNode, index) => (
               <FolderSection
-                key={group.relativePath}
-                group={group}
-                isExpanded={fileSelection.expandedFolders.has(group.relativePath)}
-                isFolderSelected={fileSelection.selectedFolders.has(group.relativePath)}
+                key={rootNode.relativePath}
+                node={rootNode}
+                isExpanded={fileSelection.expandedFolders.has(rootNode.relativePath)}
+                selectedFolders={fileSelection.selectedFolders}
                 deselectedFiles={fileSelection.deselectedFiles}
                 individuallySelectedFiles={fileSelection.individuallySelectedFiles}
+                expandedFolders={fileSelection.expandedFolders}
                 progress={progress}
                 isCondensed={isCondensed}
-                startFileIndex={startFileIndex}
-                onToggleExpand={() => toggleFolderExpanded(group.relativePath)}
-                onToggleFolderSelect={(shiftKey) =>
-                  handleFolderToggle(group.relativePath, shiftKey)
-                }
-                onToggleFileSelect={(filePath, index, shiftKey) =>
-                  handleFileToggle(filePath, group.relativePath, index, shiftKey)
-                }
+                startFileIndex={rootStartIndices[index]}
+                depth={0}
+                onToggleExpand={toggleFolderExpanded}
+                onToggleFolderSelect={handleToggleFolderSelect}
+                onToggleFileSelect={handleToggleFileSelect}
                 selectionDisabled={isTransferring}
               />
-            )
-          })}
-        </div>
+            ))}
+          </div>
+        )}
       </CardContent>
     </Card>
   )
