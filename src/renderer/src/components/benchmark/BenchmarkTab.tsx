@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import {
   Zap,
   Play,
@@ -407,120 +408,124 @@ export function BenchmarkTab() {
         )}
       </div>
 
-      {/* Progress Modal */}
-      <Modal
-        isOpen={showProgressModal}
-        onClose={() => {}}
-        size="xl"
-        hideHeader
-      >
-        <div className="p-6">
-          <div className="mb-6 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-brand-400 to-brand-600 shadow-lg shadow-brand-500/20">
-                <Zap className="h-5 w-5 text-white" />
+      {/* Progress Modal - Portal to body to escape SettingsModal stacking context */}
+      {createPortal(
+        <Modal
+          isOpen={showProgressModal}
+          onClose={() => {}}
+          size="xl"
+          hideHeader
+        >
+          <div className="p-6">
+            <div className="mb-6 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-brand-400 to-brand-600 shadow-lg shadow-brand-500/20">
+                  <Zap className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                    Running Benchmark
+                  </h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {getPhaseDisplayName(currentPhase)}
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white">
-                  Running Benchmark
-                </h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {getPhaseDisplayName(currentPhase)}
+              <div className="text-right text-sm text-gray-500 dark:text-gray-400">
+                {currentFileIndex > 0 && `File ${currentFileIndex} of ${totalFiles}`}
+              </div>
+            </div>
+
+            {/* Progress Bar */}
+            <div className="mb-6">
+              <Progress value={progress} className="h-3" />
+              <div className="mt-2 flex justify-between text-xs text-gray-500 dark:text-gray-400">
+                <span>{progress}%</span>
+                <span>
+                  {formatBytes(bytesProcessed)} / {formatBytes(totalBytes)}
+                </span>
+              </div>
+            </div>
+
+            {/* Speed Graph */}
+            <div className="mb-6 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
+              <SpeedGraph
+                samples={speedSamples}
+                height={180}
+                isLive={true}
+                showLegend={true}
+                showFileMarkers={true}
+              />
+            </div>
+
+            {/* Stats Grid */}
+            <div className="mb-6 grid grid-cols-5 gap-3">
+              <div className="rounded-xl bg-gradient-to-br from-blue-100 to-blue-50 p-3 dark:from-blue-950/50 dark:to-blue-900/30">
+                <p className="text-xs text-blue-600 dark:text-blue-400">Current</p>
+                <p className="text-lg font-bold text-blue-900 dark:text-blue-100">
+                  {currentSpeedMbps.toFixed(0)} MB/s
+                </p>
+              </div>
+              <div className="rounded-xl bg-gradient-to-br from-brand-100 to-brand-50 p-3 dark:from-brand-950/50 dark:to-brand-900/30">
+                <p className="text-xs text-brand-600 dark:text-brand-400">Average</p>
+                <p className="text-lg font-bold text-brand-900 dark:text-brand-100">
+                  {speedSamples.length > 0
+                    ? (speedSamples.reduce((a, b) => a + b.speedMbps, 0) / speedSamples.length).toFixed(0)
+                    : '0'} MB/s
+                </p>
+              </div>
+              <div className="rounded-xl bg-gradient-to-br from-green-100 to-green-50 p-3 dark:from-green-950/50 dark:to-green-900/30">
+                <p className="text-xs text-green-600 dark:text-green-400">Peak</p>
+                <p className="text-lg font-bold text-green-900 dark:text-green-100">
+                  {speedSamples.length > 0
+                    ? Math.max(...speedSamples.map((s) => s.speedMbps)).toFixed(0)
+                    : '0'} MB/s
+                </p>
+              </div>
+              <div className="rounded-xl bg-gradient-to-br from-slate-100 to-slate-50 p-3 dark:from-slate-800/50 dark:to-slate-700/30">
+                <p className="text-xs text-slate-600 dark:text-slate-400">Elapsed</p>
+                <p className="text-lg font-bold text-slate-900 dark:text-slate-100">
+                  {formatDuration(elapsedMs)}
+                </p>
+              </div>
+              <div className="rounded-xl bg-gradient-to-br from-slate-100 to-slate-50 p-3 dark:from-slate-800/50 dark:to-slate-700/30">
+                <p className="text-xs text-slate-600 dark:text-slate-400">Remaining</p>
+                <p className="text-lg font-bold text-slate-900 dark:text-slate-100">
+                  {estimatedRemainingMs ? `~${formatDuration(estimatedRemainingMs)}` : '--'}
                 </p>
               </div>
             </div>
-            <div className="text-right text-sm text-gray-500 dark:text-gray-400">
-              {currentFileIndex > 0 && `File ${currentFileIndex} of ${totalFiles}`}
+
+            {/* Current File */}
+            {currentFile && (
+              <p className="mb-6 truncate text-sm text-gray-500 dark:text-gray-400">
+                Current file: {currentFile}
+              </p>
+            )}
+
+            {/* Cancel Button */}
+            <div className="flex justify-center">
+              <Button
+                onClick={handleCancelBenchmark}
+                variant="outline"
+                className="border-red-300 text-red-600 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-950/30"
+              >
+                Cancel Benchmark
+              </Button>
             </div>
           </div>
+        </Modal>,
+        document.body
+      )}
 
-          {/* Progress Bar */}
-          <div className="mb-6">
-            <Progress value={progress} className="h-3" />
-            <div className="mt-2 flex justify-between text-xs text-gray-500 dark:text-gray-400">
-              <span>{progress}%</span>
-              <span>
-                {formatBytes(bytesProcessed)} / {formatBytes(totalBytes)}
-              </span>
-            </div>
-          </div>
-
-          {/* Speed Graph */}
-          <div className="mb-6 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
-            <SpeedGraph
-              samples={speedSamples}
-              height={180}
-              isLive={true}
-              showLegend={true}
-              showFileMarkers={true}
-            />
-          </div>
-
-          {/* Stats Grid */}
-          <div className="mb-6 grid grid-cols-5 gap-3">
-            <div className="rounded-xl bg-gradient-to-br from-blue-100 to-blue-50 p-3 dark:from-blue-950/50 dark:to-blue-900/30">
-              <p className="text-xs text-blue-600 dark:text-blue-400">Current</p>
-              <p className="text-lg font-bold text-blue-900 dark:text-blue-100">
-                {currentSpeedMbps.toFixed(0)} MB/s
-              </p>
-            </div>
-            <div className="rounded-xl bg-gradient-to-br from-brand-100 to-brand-50 p-3 dark:from-brand-950/50 dark:to-brand-900/30">
-              <p className="text-xs text-brand-600 dark:text-brand-400">Average</p>
-              <p className="text-lg font-bold text-brand-900 dark:text-brand-100">
-                {speedSamples.length > 0
-                  ? (speedSamples.reduce((a, b) => a + b.speedMbps, 0) / speedSamples.length).toFixed(0)
-                  : '0'} MB/s
-              </p>
-            </div>
-            <div className="rounded-xl bg-gradient-to-br from-green-100 to-green-50 p-3 dark:from-green-950/50 dark:to-green-900/30">
-              <p className="text-xs text-green-600 dark:text-green-400">Peak</p>
-              <p className="text-lg font-bold text-green-900 dark:text-green-100">
-                {speedSamples.length > 0
-                  ? Math.max(...speedSamples.map((s) => s.speedMbps)).toFixed(0)
-                  : '0'} MB/s
-              </p>
-            </div>
-            <div className="rounded-xl bg-gradient-to-br from-slate-100 to-slate-50 p-3 dark:from-slate-800/50 dark:to-slate-700/30">
-              <p className="text-xs text-slate-600 dark:text-slate-400">Elapsed</p>
-              <p className="text-lg font-bold text-slate-900 dark:text-slate-100">
-                {formatDuration(elapsedMs)}
-              </p>
-            </div>
-            <div className="rounded-xl bg-gradient-to-br from-slate-100 to-slate-50 p-3 dark:from-slate-800/50 dark:to-slate-700/30">
-              <p className="text-xs text-slate-600 dark:text-slate-400">Remaining</p>
-              <p className="text-lg font-bold text-slate-900 dark:text-slate-100">
-                {estimatedRemainingMs ? `~${formatDuration(estimatedRemainingMs)}` : '--'}
-              </p>
-            </div>
-          </div>
-
-          {/* Current File */}
-          {currentFile && (
-            <p className="mb-6 truncate text-sm text-gray-500 dark:text-gray-400">
-              Current file: {currentFile}
-            </p>
-          )}
-
-          {/* Cancel Button */}
-          <div className="flex justify-center">
-            <Button
-              onClick={handleCancelBenchmark}
-              variant="outline"
-              className="border-red-300 text-red-600 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-950/30"
-            >
-              Cancel Benchmark
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Results Modal */}
-      <Modal
-        isOpen={showResultsModal}
-        onClose={() => setShowResultsModal(false)}
-        size="xl"
-        title="Benchmark Complete"
-      >
+      {/* Results Modal - Portal to body to escape SettingsModal stacking context */}
+      {createPortal(
+        <Modal
+          isOpen={showResultsModal}
+          onClose={() => setShowResultsModal(false)}
+          size="xl"
+          title="Benchmark Complete"
+        >
         {currentResult && (
           <div className="p-6">
             {/* Speed Graph */}
@@ -660,7 +665,9 @@ export function BenchmarkTab() {
             </div>
           </div>
         )}
-      </Modal>
+        </Modal>,
+        document.body
+      )}
     </div>
   )
 }
