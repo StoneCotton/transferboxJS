@@ -24,7 +24,9 @@
       "Bash(git commit:*)",
       "Bash(gh pr create:*)",
       "Skill(superpowers:writing-plans)",
-      "Skill(superpowers:subagent-driven-development)"
+      "Skill(superpowers:subagent-driven-development)",
+      "Bash(npm run test:renderer:*)",
+      "Bash(npx tsc:*)"
     ]
   }
 }
