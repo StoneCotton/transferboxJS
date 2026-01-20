@@ -7,7 +7,14 @@
 import type { StateCreator } from 'zustand'
 import type { DriveState, FileSelectionState } from '../types'
 import type { DriveInfo, ScannedFile } from '../../../../shared/types'
-import { groupFilesByFolder, getAllFolderPaths } from '../../utils/fileGrouping'
+import {
+  groupFilesByFolder,
+  buildFolderTree,
+  getAllFolderPaths,
+  getDescendantFolderPaths,
+  getAllFilesInSubtree
+} from '../../utils/fileGrouping'
+import type { FolderTreeNode } from '../../utils/fileGrouping'
 
 // Minimal interface for cross-slice state access
 interface CrossSliceState {
@@ -34,8 +41,8 @@ export interface DriveSlice extends DriveState {
   isDriveUnmounted: (device: string) => boolean
 
   // File selection actions for selective transfer feature
-  /** Toggle selection state for a folder (by relative path) */
-  toggleFolderSelection: (relativePath: string) => void
+  /** Toggle selection state for a folder (with optional tree node for cascade) */
+  toggleFolderSelection: (relativePath: string, treeNode?: FolderTreeNode) => void
   /** Toggle selection state for a single file (by absolute path) */
   toggleFileSelection: (filePath: string, folderRelativePath: string) => void
   /** Toggle expanded/collapsed state for a folder */
@@ -117,13 +124,17 @@ export const createDriveSlice: StateCreator<DriveSlice> = (set, get) => ({
       const groups = groupFilesByFolder(files, driveRoot)
       const allFolderPaths = getAllFolderPaths(groups)
 
+      // Build tree to get top-level folder paths for default expansion
+      const tree = buildFolderTree(files, driveRoot)
+      const topLevelPaths = tree.map((node) => node.relativePath)
+
       return {
         scannedFiles: files,
         fileSelection: {
           selectedFolders: new Set(allFolderPaths),
           deselectedFiles: new Set(),
           individuallySelectedFiles: new Set(),
-          expandedFolders: new Set(), // Start with all collapsed for cleaner UI
+          expandedFolders: new Set(topLevelPaths), // Expand only top-level
           lastClickedFile: null
         }
       }
@@ -170,50 +181,74 @@ export const createDriveSlice: StateCreator<DriveSlice> = (set, get) => ({
   isDriveUnmounted: (device) => get().unmountedDrives.includes(device),
 
   // File selection actions for selective transfer feature
-  toggleFolderSelection: (relativePath) =>
+  toggleFolderSelection: (relativePath, treeNode) =>
     set((state) => {
       const newSelectedFolders = new Set(state.fileSelection.selectedFolders)
       const newDeselectedFiles = new Set(state.fileSelection.deselectedFiles)
       const newIndividuallySelectedFiles = new Set(state.fileSelection.individuallySelectedFiles)
 
-      if (newSelectedFolders.has(relativePath)) {
-        // Deselect folder
-        newSelectedFolders.delete(relativePath)
+      const isCurrentlySelected = newSelectedFolders.has(relativePath)
+
+      if (treeNode) {
+        // Cascade mode: affect this folder and all descendants
+        const descendantPaths = getDescendantFolderPaths(treeNode)
+        const subtreeFiles = getAllFilesInSubtree(treeNode)
+
+        if (isCurrentlySelected) {
+          // Deselect folder and all descendants
+          for (const path of descendantPaths) {
+            newSelectedFolders.delete(path)
+          }
+          // Clear any file-level overrides in subtree
+          for (const filePath of subtreeFiles) {
+            newDeselectedFiles.delete(filePath)
+            newIndividuallySelectedFiles.delete(filePath)
+          }
+        } else {
+          // Select folder and all descendants
+          for (const path of descendantPaths) {
+            newSelectedFolders.add(path)
+          }
+          // Clear any file-level overrides in subtree
+          for (const filePath of subtreeFiles) {
+            newDeselectedFiles.delete(filePath)
+            newIndividuallySelectedFiles.delete(filePath)
+          }
+        }
       } else {
-        // Select folder and clear any individually deselected/selected files in it
-        newSelectedFolders.add(relativePath)
+        // Non-cascade mode (backward compatibility)
+        if (isCurrentlySelected) {
+          newSelectedFolders.delete(relativePath)
+        } else {
+          newSelectedFolders.add(relativePath)
 
-        // Clear deselected and individually selected files that belong to this folder
-        // We need to find files in this folder by grouping scanned files
-        if (state.selectedDrive && state.scannedFiles.length > 0) {
-          const driveRoot = state.selectedDrive.mountpoints[0] || ''
-          const normalizedRoot = driveRoot.replace(/[/\\]+$/, '')
+          // Clear file overrides for this folder only
+          if (state.selectedDrive && state.scannedFiles.length > 0) {
+            const driveRoot = state.selectedDrive.mountpoints[0] || ''
+            const normalizedRoot = driveRoot.replace(/[/\\]+$/, '')
 
-          // Helper to get file's folder relative path
-          const getFileRelativePath = (filePath: string): string => {
-            const lastSeparator = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'))
-            const absoluteFolderPath =
-              lastSeparator > 0 ? filePath.substring(0, lastSeparator) : normalizedRoot
-            let fileRelativePath = absoluteFolderPath
-            if (absoluteFolderPath.startsWith(normalizedRoot)) {
-              fileRelativePath = absoluteFolderPath.substring(normalizedRoot.length)
-              fileRelativePath = fileRelativePath.replace(/^[/\\]+/, '')
+            const getFileRelativePath = (filePath: string): string => {
+              const lastSeparator = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'))
+              const absoluteFolderPath =
+                lastSeparator > 0 ? filePath.substring(0, lastSeparator) : normalizedRoot
+              let fileRelativePath = absoluteFolderPath
+              if (absoluteFolderPath.startsWith(normalizedRoot)) {
+                fileRelativePath = absoluteFolderPath.substring(normalizedRoot.length)
+                fileRelativePath = fileRelativePath.replace(/^[/\\]+/, '')
+              }
+              return fileRelativePath || '/'
             }
-            return fileRelativePath || '/'
-          }
 
-          // Clear deselected files belonging to this folder
-          for (const filePath of newDeselectedFiles) {
-            if (getFileRelativePath(filePath) === relativePath) {
-              newDeselectedFiles.delete(filePath)
+            for (const filePath of newDeselectedFiles) {
+              if (getFileRelativePath(filePath) === relativePath) {
+                newDeselectedFiles.delete(filePath)
+              }
             }
-          }
 
-          // Clear individually selected files belonging to this folder
-          // (they're now included via folder selection)
-          for (const filePath of newIndividuallySelectedFiles) {
-            if (getFileRelativePath(filePath) === relativePath) {
-              newIndividuallySelectedFiles.delete(filePath)
+            for (const filePath of newIndividuallySelectedFiles) {
+              if (getFileRelativePath(filePath) === relativePath) {
+                newIndividuallySelectedFiles.delete(filePath)
+              }
             }
           }
         }
