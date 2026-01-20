@@ -52,6 +52,21 @@ export interface FolderTreeNode {
 }
 
 /**
+ * Selection state for a tree node including cascade information.
+ * Used for tri-state checkbox rendering.
+ */
+export interface TreeNodeSelectionState {
+  /** All files in this node and descendants are selected */
+  isFullySelected: boolean
+  /** Some but not all files are selected */
+  isPartiallySelected: boolean
+  /** Count of selected files (this node + descendants) */
+  selectedCount: number
+  /** Total file count (this node + descendants) */
+  totalCount: number
+}
+
+/**
  * Groups scanned files by their parent folder
  *
  * @param files - Array of scanned files with absolute paths
@@ -389,4 +404,88 @@ export function buildFolderTree(files: ScannedFile[], driveRoot: string): Folder
   })
 
   return rootNodes
+}
+
+/**
+ * Computes the selection state for a tree node considering cascade behavior.
+ * Recursively checks all descendants to determine tri-state checkbox state.
+ *
+ * @param node - The folder tree node
+ * @param selectedFolders - Set of selected folder relative paths
+ * @param deselectedFiles - Set of deselected file absolute paths
+ * @param individuallySelectedFiles - Set of individually selected file paths
+ * @returns TreeNodeSelectionState for checkbox rendering
+ */
+export function getTreeNodeSelectionState(
+  node: FolderTreeNode,
+  selectedFolders: Set<string>,
+  deselectedFiles: Set<string>,
+  individuallySelectedFiles: Set<string>
+): TreeNodeSelectionState {
+  let selectedCount = 0
+  let totalCount = 0
+
+  // Count files in this node
+  const folderIsSelected = selectedFolders.has(node.relativePath)
+  for (const file of node.files) {
+    totalCount++
+    const isSelected = folderIsSelected
+      ? !deselectedFiles.has(file.path)
+      : individuallySelectedFiles.has(file.path)
+    if (isSelected) {
+      selectedCount++
+    }
+  }
+
+  // Recursively count children
+  for (const child of node.children) {
+    const childState = getTreeNodeSelectionState(
+      child,
+      selectedFolders,
+      deselectedFiles,
+      individuallySelectedFiles
+    )
+    selectedCount += childState.selectedCount
+    totalCount += childState.totalCount
+  }
+
+  return {
+    isFullySelected: totalCount > 0 && selectedCount === totalCount,
+    isPartiallySelected: selectedCount > 0 && selectedCount < totalCount,
+    selectedCount,
+    totalCount
+  }
+}
+
+/**
+ * Gets all descendant folder paths for cascade selection.
+ * Includes the node itself.
+ *
+ * @param node - The starting folder node
+ * @returns Array of all descendant relative paths (including the node itself)
+ */
+export function getDescendantFolderPaths(node: FolderTreeNode): string[] {
+  const paths: string[] = [node.relativePath]
+
+  for (const child of node.children) {
+    paths.push(...getDescendantFolderPaths(child))
+  }
+
+  return paths
+}
+
+/**
+ * Gets all file paths within a node and all its descendants.
+ *
+ * @param node - The folder tree node
+ * @returns Array of absolute file paths
+ */
+export function getAllFilesInSubtree(node: FolderTreeNode): string[] {
+  const paths: string[] = node.files.map((f) => f.path)
+
+  for (const child of node.children) {
+    paths.push(...getAllFilesInSubtree(child))
+  }
+
+  return paths
 }

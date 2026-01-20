@@ -1,7 +1,12 @@
 /**
  * Tests for folder tree building functionality
  */
-import { buildFolderTree } from '../../../src/renderer/src/utils/fileGrouping'
+import {
+  buildFolderTree,
+  getTreeNodeSelectionState,
+  getDescendantFolderPaths,
+  getAllFilesInSubtree
+} from '../../../src/renderer/src/utils/fileGrouping'
 import type { ScannedFile } from '../../../src/shared/types'
 
 // Helper to create mock ScannedFile
@@ -149,5 +154,170 @@ describe('buildFolderTree', () => {
     expect(tree[0].relativePath).toBe('/')
     expect(tree[1].displayName).toBe('AFolder')
     expect(tree[2].displayName).toBe('ZFolder')
+  })
+})
+
+describe('getTreeNodeSelectionState', () => {
+  const driveRoot = '/Volumes/SD_CARD'
+
+  it('should return fully selected when folder and all descendants selected', () => {
+    const files: ScannedFile[] = [
+      createFile('/Volumes/SD_CARD/DCIM/100CANON/IMG_001.jpg'),
+      createFile('/Volumes/SD_CARD/DCIM/100CANON/IMG_002.jpg')
+    ]
+    const tree = buildFolderTree(files, driveRoot)
+    const selectedFolders = new Set(['DCIM', 'DCIM/100CANON'])
+    const deselectedFiles = new Set<string>()
+    const individuallySelectedFiles = new Set<string>()
+
+    const state = getTreeNodeSelectionState(
+      tree[0], // DCIM
+      selectedFolders,
+      deselectedFiles,
+      individuallySelectedFiles
+    )
+
+    expect(state.isFullySelected).toBe(true)
+    expect(state.isPartiallySelected).toBe(false)
+    expect(state.selectedCount).toBe(2)
+    expect(state.totalCount).toBe(2)
+  })
+
+  it('should return partial when some descendants deselected', () => {
+    const files: ScannedFile[] = [
+      createFile('/Volumes/SD_CARD/DCIM/100CANON/IMG_001.jpg'),
+      createFile('/Volumes/SD_CARD/DCIM/100CANON/IMG_002.jpg')
+    ]
+    const tree = buildFolderTree(files, driveRoot)
+    const selectedFolders = new Set(['DCIM', 'DCIM/100CANON'])
+    const deselectedFiles = new Set(['/Volumes/SD_CARD/DCIM/100CANON/IMG_001.jpg'])
+    const individuallySelectedFiles = new Set<string>()
+
+    const state = getTreeNodeSelectionState(
+      tree[0], // DCIM
+      selectedFolders,
+      deselectedFiles,
+      individuallySelectedFiles
+    )
+
+    expect(state.isFullySelected).toBe(false)
+    expect(state.isPartiallySelected).toBe(true)
+    expect(state.selectedCount).toBe(1)
+    expect(state.totalCount).toBe(2)
+  })
+
+  it('should return partial when child folder not selected', () => {
+    const files: ScannedFile[] = [
+      createFile('/Volumes/SD_CARD/DCIM/100CANON/IMG_001.jpg'),
+      createFile('/Volumes/SD_CARD/DCIM/200CANON/IMG_002.jpg')
+    ]
+    const tree = buildFolderTree(files, driveRoot)
+    const selectedFolders = new Set(['DCIM', 'DCIM/100CANON']) // 200CANON not selected
+    const deselectedFiles = new Set<string>()
+    const individuallySelectedFiles = new Set<string>()
+
+    const state = getTreeNodeSelectionState(
+      tree[0], // DCIM
+      selectedFolders,
+      deselectedFiles,
+      individuallySelectedFiles
+    )
+
+    expect(state.isFullySelected).toBe(false)
+    expect(state.isPartiallySelected).toBe(true)
+    expect(state.selectedCount).toBe(1)
+    expect(state.totalCount).toBe(2)
+  })
+
+  it('should return unselected when folder not selected and no individual files', () => {
+    const files: ScannedFile[] = [createFile('/Volumes/SD_CARD/DCIM/IMG_001.jpg')]
+    const tree = buildFolderTree(files, driveRoot)
+    const selectedFolders = new Set<string>()
+    const deselectedFiles = new Set<string>()
+    const individuallySelectedFiles = new Set<string>()
+
+    const state = getTreeNodeSelectionState(
+      tree[0],
+      selectedFolders,
+      deselectedFiles,
+      individuallySelectedFiles
+    )
+
+    expect(state.isFullySelected).toBe(false)
+    expect(state.isPartiallySelected).toBe(false)
+    expect(state.selectedCount).toBe(0)
+    expect(state.totalCount).toBe(1)
+  })
+
+  it('should handle individually selected files in unselected folder', () => {
+    const files: ScannedFile[] = [
+      createFile('/Volumes/SD_CARD/DCIM/IMG_001.jpg'),
+      createFile('/Volumes/SD_CARD/DCIM/IMG_002.jpg')
+    ]
+    const tree = buildFolderTree(files, driveRoot)
+    const selectedFolders = new Set<string>()
+    const deselectedFiles = new Set<string>()
+    const individuallySelectedFiles = new Set(['/Volumes/SD_CARD/DCIM/IMG_001.jpg'])
+
+    const state = getTreeNodeSelectionState(
+      tree[0],
+      selectedFolders,
+      deselectedFiles,
+      individuallySelectedFiles
+    )
+
+    expect(state.isFullySelected).toBe(false)
+    expect(state.isPartiallySelected).toBe(true)
+    expect(state.selectedCount).toBe(1)
+    expect(state.totalCount).toBe(2)
+  })
+})
+
+describe('getDescendantFolderPaths', () => {
+  const driveRoot = '/Volumes/SD_CARD'
+
+  it('should return all nested folder paths including self', () => {
+    const files: ScannedFile[] = [
+      createFile('/Volumes/SD_CARD/DCIM/100CANON/RAW/file.jpg'),
+      createFile('/Volumes/SD_CARD/DCIM/200CANON/file.jpg')
+    ]
+    const tree = buildFolderTree(files, driveRoot)
+
+    const paths = getDescendantFolderPaths(tree[0]) // DCIM
+
+    expect(paths).toContain('DCIM')
+    expect(paths).toContain('DCIM/100CANON')
+    expect(paths).toContain('DCIM/100CANON/RAW')
+    expect(paths).toContain('DCIM/200CANON')
+    expect(paths).toHaveLength(4)
+  })
+
+  it('should return only self for leaf folder', () => {
+    const files: ScannedFile[] = [createFile('/Volumes/SD_CARD/DCIM/file.jpg')]
+    const tree = buildFolderTree(files, driveRoot)
+
+    const paths = getDescendantFolderPaths(tree[0])
+
+    expect(paths).toEqual(['DCIM'])
+  })
+})
+
+describe('getAllFilesInSubtree', () => {
+  const driveRoot = '/Volumes/SD_CARD'
+
+  it('should return all files in node and descendants', () => {
+    const files: ScannedFile[] = [
+      createFile('/Volumes/SD_CARD/DCIM/root.jpg'),
+      createFile('/Volumes/SD_CARD/DCIM/100CANON/IMG_001.jpg'),
+      createFile('/Volumes/SD_CARD/DCIM/100CANON/IMG_002.jpg')
+    ]
+    const tree = buildFolderTree(files, driveRoot)
+
+    const filePaths = getAllFilesInSubtree(tree[0]) // DCIM
+
+    expect(filePaths).toHaveLength(3)
+    expect(filePaths).toContain('/Volumes/SD_CARD/DCIM/root.jpg')
+    expect(filePaths).toContain('/Volumes/SD_CARD/DCIM/100CANON/IMG_001.jpg')
+    expect(filePaths).toContain('/Volumes/SD_CARD/DCIM/100CANON/IMG_002.jpg')
   })
 })
