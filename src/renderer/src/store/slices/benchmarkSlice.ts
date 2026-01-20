@@ -134,27 +134,33 @@ export const createBenchmarkSlice: StateCreator<BenchmarkSlice> = (set) => ({
     })),
 
   completeBenchmark: (result: BenchmarkResult) =>
-    set((state) => ({
-      benchmarkIsRunning: false,
-      benchmarkPhase: 'idle',
-      benchmarkResult: result,
-      benchmarkSamples: result.samples,
-      // Add to history
-      benchmarkHistory: [
-        {
-          id: result.id,
-          timestamp: result.timestamp,
-          appVersion: result.appVersion,
-          sourceDriveName: result.sourceDrive.name,
-          sourceDriveType: result.sourceDrive.type,
-          destinationPath: result.destination.path,
-          avgSpeedMbps: result.metrics.avgSpeedMbps,
-          totalBytes: result.metrics.totalBytes,
-          totalDurationMs: result.metrics.totalDurationMs
-        },
-        ...state.benchmarkHistory
-      ]
-    })),
+    set((state) => {
+      // Check for duplicate - don't add if already in history
+      const alreadyExists = state.benchmarkHistory.some((h) => h.id === result.id)
+
+      const newHistoryEntry: BenchmarkHistoryEntry = {
+        id: result.id,
+        timestamp: result.timestamp,
+        appVersion: result.appVersion,
+        sourceDriveName: result.sourceDrive.name,
+        sourceDriveType: result.sourceDrive.type,
+        destinationPath: result.destination.path,
+        avgSpeedMbps: result.metrics.avgSpeedMbps,
+        totalBytes: result.metrics.totalBytes,
+        totalDurationMs: result.metrics.totalDurationMs
+      }
+
+      return {
+        benchmarkIsRunning: false,
+        benchmarkPhase: 'idle',
+        benchmarkResult: result,
+        benchmarkSamples: result.samples,
+        // Only add to history if not already present
+        benchmarkHistory: alreadyExists
+          ? state.benchmarkHistory
+          : [newHistoryEntry, ...state.benchmarkHistory]
+      }
+    }),
 
   failBenchmark: (error: string) =>
     set({
@@ -177,9 +183,15 @@ export const createBenchmarkSlice: StateCreator<BenchmarkSlice> = (set) => ({
   setBenchmarkHistory: (history: BenchmarkHistoryEntry[]) => set({ benchmarkHistory: history }),
 
   addToBenchmarkHistory: (entry: BenchmarkHistoryEntry) =>
-    set((state) => ({
-      benchmarkHistory: [entry, ...state.benchmarkHistory]
-    })),
+    set((state) => {
+      // Check for duplicate
+      if (state.benchmarkHistory.some((h) => h.id === entry.id)) {
+        return state // No change if duplicate
+      }
+      return {
+        benchmarkHistory: [entry, ...state.benchmarkHistory]
+      }
+    }),
 
   removeFromBenchmarkHistory: (id: string) =>
     set((state) => ({
