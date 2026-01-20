@@ -25,6 +25,33 @@ export interface FolderGroup {
 }
 
 /**
+ * Represents a node in the folder tree structure.
+ * Can contain both direct files and nested subfolders.
+ */
+export interface FolderTreeNode {
+  /** Relative folder path from drive root (e.g., "DCIM/100CANON") */
+  relativePath: string
+  /** Display name (last path segment, e.g., "100CANON") */
+  displayName: string
+  /** Full absolute path to the folder */
+  absolutePath: string
+  /** Files directly in this folder (not in subfolders) */
+  files: ScannedFile[]
+  /** Nested subfolders */
+  children: FolderTreeNode[]
+  /** Nesting depth (0 = root level) */
+  depth: number
+  /** Number of files directly in this folder */
+  directFileCount: number
+  /** Total files including all descendants */
+  totalFileCount: number
+  /** Size of files directly in this folder */
+  directSize: number
+  /** Total size including all descendants */
+  totalSize: number
+}
+
+/**
  * Groups scanned files by their parent folder
  *
  * @param files - Array of scanned files with absolute paths
