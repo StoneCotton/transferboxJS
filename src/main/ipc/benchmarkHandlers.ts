@@ -5,10 +5,15 @@
 
 import { ipcMain } from 'electron'
 import { IPC_CHANNELS } from '../../shared/types'
-import type { BenchmarkConfig, BenchmarkExportFormat } from '../../shared/types'
 import { getBenchmarkService } from '../services/benchmarkService'
 import { getLogger } from '../logger'
 import { getMainWindow } from './state'
+import {
+  validateBenchmarkConfig,
+  validateBenchmarkId,
+  validateBenchmarkExportRequest,
+  validateLimit
+} from '../utils/ipcValidator'
 
 /**
  * Setup benchmark IPC handlers
@@ -19,8 +24,10 @@ export function setupBenchmarkHandlers(): void {
   // Start benchmark
   ipcMain.handle(
     IPC_CHANNELS.BENCHMARK_START,
-    async (_, config: BenchmarkConfig): Promise<void> => {
-      logger.info('IPC: benchmark:start', { config })
+    async (_, config: unknown): Promise<void> => {
+      // Validate input
+      const validatedConfig = validateBenchmarkConfig(config)
+      logger.info('IPC: benchmark:start', { config: validatedConfig })
 
       const service = getBenchmarkService()
 
@@ -31,7 +38,7 @@ export function setupBenchmarkHandlers(): void {
       }
 
       // Start benchmark (async, will emit events)
-      service.start(config).catch((error) => {
+      service.start(validatedConfig).catch((error) => {
         logger.error('Benchmark start failed', {
           error: error instanceof Error ? error.message : String(error)
         })
@@ -48,37 +55,41 @@ export function setupBenchmarkHandlers(): void {
   })
 
   // Get benchmark history
-  ipcMain.handle(IPC_CHANNELS.BENCHMARK_GET_HISTORY, async (_, limit?: number) => {
-    logger.debug('IPC: benchmark:get-history', { limit })
+  ipcMain.handle(IPC_CHANNELS.BENCHMARK_GET_HISTORY, async (_, limit?: unknown) => {
+    const validatedLimit = limit !== undefined ? validateLimit(limit, 100) : undefined
+    logger.debug('IPC: benchmark:get-history', { limit: validatedLimit })
 
     const service = getBenchmarkService()
-    return service.getBenchmarkHistory(limit)
+    return service.getBenchmarkHistory(validatedLimit)
   })
 
   // Get specific benchmark result
-  ipcMain.handle(IPC_CHANNELS.BENCHMARK_GET_RESULT, async (_, id: string) => {
-    logger.debug('IPC: benchmark:get-result', { id })
+  ipcMain.handle(IPC_CHANNELS.BENCHMARK_GET_RESULT, async (_, id: unknown) => {
+    const validatedId = validateBenchmarkId(id)
+    logger.debug('IPC: benchmark:get-result', { id: validatedId })
 
     const service = getBenchmarkService()
-    return service.getBenchmarkResult(id)
+    return service.getBenchmarkResult(validatedId)
   })
 
   // Delete benchmark
-  ipcMain.handle(IPC_CHANNELS.BENCHMARK_DELETE, async (_, id: string): Promise<void> => {
-    logger.info('IPC: benchmark:delete', { id })
+  ipcMain.handle(IPC_CHANNELS.BENCHMARK_DELETE, async (_, id: unknown): Promise<void> => {
+    const validatedId = validateBenchmarkId(id)
+    logger.info('IPC: benchmark:delete', { id: validatedId })
 
     const service = getBenchmarkService()
-    service.deleteBenchmark(id)
+    service.deleteBenchmark(validatedId)
   })
 
   // Export benchmarks
   ipcMain.handle(
     IPC_CHANNELS.BENCHMARK_EXPORT,
-    async (_, args: { ids: string[]; format: BenchmarkExportFormat }): Promise<string> => {
-      logger.info('IPC: benchmark:export', { ids: args.ids, format: args.format })
+    async (_, args: unknown): Promise<string> => {
+      const { ids, format } = validateBenchmarkExportRequest(args)
+      logger.info('IPC: benchmark:export', { ids, format })
 
       const service = getBenchmarkService()
-      return service.exportBenchmarks(args.ids, args.format)
+      return service.exportBenchmarks(ids, format)
     }
   )
 
