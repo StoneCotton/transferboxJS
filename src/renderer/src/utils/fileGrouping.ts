@@ -253,3 +253,140 @@ export function getFolderSelectionState(
 export function getAllFolderPaths(groups: FolderGroup[]): string[] {
   return groups.map((g) => g.relativePath)
 }
+
+/**
+ * Builds a hierarchical folder tree from a flat list of scanned files.
+ * Creates intermediate empty folders that exist only as containers.
+ *
+ * @param files - Array of scanned files with absolute paths
+ * @param driveRoot - The mount point of the drive (e.g., "/Volumes/SD_CARD")
+ * @returns Array of root-level FolderTreeNode (top-level folders)
+ */
+export function buildFolderTree(files: ScannedFile[], driveRoot: string): FolderTreeNode[] {
+  const normalizedRoot = driveRoot.replace(/[/\\]+$/, '')
+  const nodeMap = new Map<string, FolderTreeNode>()
+
+  // Helper to get or create a node
+  function getOrCreateNode(relativePath: string, absolutePath: string): FolderTreeNode {
+    let node = nodeMap.get(relativePath)
+    if (!node) {
+      const displayName = relativePath === '/' ? 'Root' : relativePath.split(/[/\\]/).pop() || relativePath
+      node = {
+        relativePath,
+        displayName,
+        absolutePath,
+        files: [],
+        children: [],
+        depth: relativePath === '/' ? 0 : relativePath.split(/[/\\]/).length - 1,
+        directFileCount: 0,
+        totalFileCount: 0,
+        directSize: 0,
+        totalSize: 0
+      }
+      nodeMap.set(relativePath, node)
+    }
+    return node
+  }
+
+  // Helper to ensure all ancestor folders exist
+  function ensureAncestors(relativePath: string): void {
+    if (relativePath === '/' || relativePath === '') return
+
+    const segments = relativePath.split(/[/\\]/)
+    let currentPath = ''
+    let currentAbsPath = normalizedRoot
+
+    for (let i = 0; i < segments.length - 1; i++) {
+      currentPath = currentPath ? `${currentPath}/${segments[i]}` : segments[i]
+      currentAbsPath = `${currentAbsPath}/${segments[i]}`
+
+      const node = getOrCreateNode(currentPath, currentAbsPath)
+      // Adjust depth for intermediate nodes
+      node.depth = i
+    }
+  }
+
+  // Process each file
+  for (const file of files) {
+    const lastSeparator = Math.max(file.path.lastIndexOf('/'), file.path.lastIndexOf('\\'))
+    const absoluteFolderPath = lastSeparator > 0 ? file.path.substring(0, lastSeparator) : normalizedRoot
+
+    let relativePath = absoluteFolderPath
+    if (absoluteFolderPath.startsWith(normalizedRoot)) {
+      relativePath = absoluteFolderPath.substring(normalizedRoot.length)
+      relativePath = relativePath.replace(/^[/\\]+/, '')
+    }
+    if (!relativePath) {
+      relativePath = '/'
+    }
+
+    // Ensure all ancestor folders exist
+    ensureAncestors(relativePath)
+
+    // Add file to its folder
+    const node = getOrCreateNode(relativePath, absoluteFolderPath)
+    node.files.push(file)
+    node.directFileCount++
+    node.directSize += file.size
+  }
+
+  // Build parent-child relationships
+  for (const node of nodeMap.values()) {
+    if (node.relativePath === '/' || node.relativePath === '') continue
+
+    const lastSlash = node.relativePath.lastIndexOf('/')
+    const parentPath = lastSlash > 0 ? node.relativePath.substring(0, lastSlash) : ''
+
+    if (parentPath && nodeMap.has(parentPath)) {
+      nodeMap.get(parentPath)!.children.push(node)
+    }
+  }
+
+  // Sort children alphabetically at each level
+  for (const node of nodeMap.values()) {
+    node.children.sort((a, b) => a.displayName.localeCompare(b.displayName))
+  }
+
+  // Calculate recursive totals (post-order traversal)
+  function calculateTotals(node: FolderTreeNode): { fileCount: number; size: number } {
+    let totalFileCount = node.directFileCount
+    let totalSize = node.directSize
+
+    for (const child of node.children) {
+      const childTotals = calculateTotals(child)
+      totalFileCount += childTotals.fileCount
+      totalSize += childTotals.size
+    }
+
+    node.totalFileCount = totalFileCount
+    node.totalSize = totalSize
+
+    return { fileCount: totalFileCount, size: totalSize }
+  }
+
+  // Get root-level nodes (no parent or parent is empty string)
+  const rootNodes: FolderTreeNode[] = []
+  for (const node of nodeMap.values()) {
+    const lastSlash = node.relativePath.lastIndexOf('/')
+    const parentPath = lastSlash > 0 ? node.relativePath.substring(0, lastSlash) : ''
+
+    // Root level if: is "/" OR has no parent in the map
+    if (node.relativePath === '/' || (!parentPath && node.relativePath !== '/')) {
+      rootNodes.push(node)
+    }
+  }
+
+  // Calculate totals for all root nodes
+  for (const root of rootNodes) {
+    calculateTotals(root)
+  }
+
+  // Sort root nodes: "/" first, then alphabetically
+  rootNodes.sort((a, b) => {
+    if (a.relativePath === '/') return -1
+    if (b.relativePath === '/') return 1
+    return a.displayName.localeCompare(b.displayName)
+  })
+
+  return rootNodes
+}

@@ -22,7 +22,9 @@
       "Bash(git worktree:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(gh pr create:*)"
+      "Bash(gh pr create:*)",
+      "Skill(superpowers:writing-plans)",
+      "Skill(superpowers:subagent-driven-development)"
     ]
   }
 }
