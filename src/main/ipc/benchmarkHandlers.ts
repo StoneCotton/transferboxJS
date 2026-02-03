@@ -22,29 +22,26 @@ export function setupBenchmarkHandlers(): void {
   const logger = getLogger()
 
   // Start benchmark
-  ipcMain.handle(
-    IPC_CHANNELS.BENCHMARK_START,
-    async (_, config: unknown): Promise<void> => {
-      // Validate input
-      const validatedConfig = validateBenchmarkConfig(config)
-      logger.info('IPC: benchmark:start', { config: validatedConfig })
+  ipcMain.handle(IPC_CHANNELS.BENCHMARK_START, async (_, config: unknown): Promise<void> => {
+    // Validate input
+    const validatedConfig = validateBenchmarkConfig(config)
+    logger.info('IPC: benchmark:start', { config: validatedConfig })
 
-      const service = getBenchmarkService()
+    const service = getBenchmarkService()
 
-      // Set main window for IPC events
-      const mainWindow = getMainWindow()
-      if (mainWindow) {
-        service.setMainWindow(mainWindow)
-      }
-
-      // Start benchmark (async, will emit events)
-      service.start(validatedConfig).catch((error) => {
-        logger.error('Benchmark start failed', {
-          error: error instanceof Error ? error.message : String(error)
-        })
-      })
+    // Set main window for IPC events
+    const mainWindow = getMainWindow()
+    if (mainWindow) {
+      service.setMainWindow(mainWindow)
     }
-  )
+
+    // Start benchmark (async, will emit events)
+    service.start(validatedConfig).catch((error) => {
+      logger.error('Benchmark start failed', {
+        error: error instanceof Error ? error.message : String(error)
+      })
+    })
+  })
 
   // Cancel benchmark
   ipcMain.handle(IPC_CHANNELS.BENCHMARK_CANCEL, async (): Promise<void> => {
@@ -82,16 +79,13 @@ export function setupBenchmarkHandlers(): void {
   })
 
   // Export benchmarks
-  ipcMain.handle(
-    IPC_CHANNELS.BENCHMARK_EXPORT,
-    async (_, args: unknown): Promise<string> => {
-      const { ids, format } = validateBenchmarkExportRequest(args)
-      logger.info('IPC: benchmark:export', { ids, format })
+  ipcMain.handle(IPC_CHANNELS.BENCHMARK_EXPORT, async (_, args: unknown): Promise<string> => {
+    const { ids, format } = validateBenchmarkExportRequest(args)
+    logger.info('IPC: benchmark:export', { ids, format })
 
-      const service = getBenchmarkService()
-      return service.exportBenchmarks(ids, format)
-    }
-  )
+    const service = getBenchmarkService()
+    return service.exportBenchmarks(ids, format)
+  })
 
   // Cleanup orphaned benchmark files
   ipcMain.handle(IPC_CHANNELS.BENCHMARK_CLEANUP_ORPHANS, async (): Promise<number> => {

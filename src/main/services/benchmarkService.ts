@@ -75,7 +75,9 @@ export class BenchmarkService {
   private lastCpuUsage: NodeJS.CpuUsage | null = null
   private lastCpuTime = 0
 
-  private constructor() {}
+  private constructor() {
+    // Private constructor enforces singleton pattern via getInstance()
+  }
 
   static getInstance(): BenchmarkService {
     if (!BenchmarkService.instance) {
@@ -318,10 +320,7 @@ export class BenchmarkService {
         })
       }
 
-      this.sendError(
-        error instanceof Error ? error.message : 'Benchmark failed',
-        cleanupSuccessful
-      )
+      this.sendError(error instanceof Error ? error.message : 'Benchmark failed', cleanupSuccessful)
     } finally {
       this.isRunning = false
       this.currentPhase = 'idle'
@@ -384,10 +383,7 @@ export class BenchmarkService {
   /**
    * Run the file transfer
    */
-  private async runTransfer(
-    sourceDir: string,
-    destDir: string
-  ): Promise<TransferResult[]> {
+  private async runTransfer(sourceDir: string, destDir: string): Promise<TransferResult[]> {
     const config = getConfig()
 
     await mkdir(destDir, { recursive: true })
@@ -402,7 +398,6 @@ export class BenchmarkService {
 
     const totalBytes = getBenchmarkTotalSize()
     const totalFiles = files.length
-    let completedFiles = 0
     let transferredBytes = 0
     const results: TransferResult[] = []
 
@@ -449,7 +444,6 @@ export class BenchmarkService {
 
         results.push(result)
         transferredBytes += result.bytesTransferred
-        completedFiles++
       } catch (error) {
         results.push({
           success: false,
@@ -553,7 +547,8 @@ export class BenchmarkService {
 
     // Calculate speeds based on TRANSFER duration only (excludes file generation)
     const transferDurationSec = transferDurationMs / 1000
-    const avgSpeedMbps = transferDurationSec > 0 ? (totalBytes / transferDurationSec) / (1024 * 1024) : 0
+    const avgSpeedMbps =
+      transferDurationSec > 0 ? totalBytes / transferDurationSec / (1024 * 1024) : 0
 
     // Calculate peak from samples (99th percentile to avoid outliers)
     const sortedSpeeds = [...this.samples.map((s) => s.speedMbps)].sort((a, b) => b - a)
@@ -566,21 +561,21 @@ export class BenchmarkService {
     const checksumSpeedMbps = avgSpeedMbps * 5 // XXHash is much faster than I/O
 
     // Calculate CPU/Memory metrics from samples
-    const cpuSamples = this.samples.filter((s) => s.cpuPercent !== undefined).map((s) => s.cpuPercent!)
-    const memorySamples = this.samples.filter((s) => s.memoryUsedMB !== undefined).map((s) => s.memoryUsedMB!)
+    const cpuSamples = this.samples
+      .filter((s) => s.cpuPercent !== undefined)
+      .map((s) => s.cpuPercent!)
+    const memorySamples = this.samples
+      .filter((s) => s.memoryUsedMB !== undefined)
+      .map((s) => s.memoryUsedMB!)
 
-    const avgCpuPercent = cpuSamples.length > 0
-      ? cpuSamples.reduce((a, b) => a + b, 0) / cpuSamples.length
-      : undefined
-    const peakCpuPercent = cpuSamples.length > 0
-      ? Math.max(...cpuSamples)
-      : undefined
-    const avgMemoryMB = memorySamples.length > 0
-      ? memorySamples.reduce((a, b) => a + b, 0) / memorySamples.length
-      : undefined
-    const peakMemoryMB = memorySamples.length > 0
-      ? Math.max(...memorySamples)
-      : undefined
+    const avgCpuPercent =
+      cpuSamples.length > 0 ? cpuSamples.reduce((a, b) => a + b, 0) / cpuSamples.length : undefined
+    const peakCpuPercent = cpuSamples.length > 0 ? Math.max(...cpuSamples) : undefined
+    const avgMemoryMB =
+      memorySamples.length > 0
+        ? memorySamples.reduce((a, b) => a + b, 0) / memorySamples.length
+        : undefined
+    const peakMemoryMB = memorySamples.length > 0 ? Math.max(...memorySamples) : undefined
 
     return {
       id: `benchmark_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,

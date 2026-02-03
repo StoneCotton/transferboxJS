@@ -285,7 +285,8 @@ export function buildFolderTree(files: ScannedFile[], driveRoot: string): Folder
   function getOrCreateNode(relativePath: string, absolutePath: string): FolderTreeNode {
     let node = nodeMap.get(relativePath)
     if (!node) {
-      const displayName = relativePath === '/' ? 'Root' : relativePath.split(/[/\\]/).pop() || relativePath
+      const displayName =
+        relativePath === '/' ? 'Root' : relativePath.split(/[/\\]/).pop() || relativePath
       node = {
         relativePath,
         displayName,
@@ -324,7 +325,8 @@ export function buildFolderTree(files: ScannedFile[], driveRoot: string): Folder
   // Process each file
   for (const file of files) {
     const lastSeparator = Math.max(file.path.lastIndexOf('/'), file.path.lastIndexOf('\\'))
-    const absoluteFolderPath = lastSeparator > 0 ? file.path.substring(0, lastSeparator) : normalizedRoot
+    const absoluteFolderPath =
+      lastSeparator > 0 ? file.path.substring(0, lastSeparator) : normalizedRoot
 
     let relativePath = absoluteFolderPath
     if (absoluteFolderPath.startsWith(normalizedRoot)) {

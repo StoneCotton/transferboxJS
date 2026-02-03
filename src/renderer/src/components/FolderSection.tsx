@@ -39,7 +39,12 @@ interface FolderSectionProps {
   /** Callback when folder selection is toggled (with node for cascade) */
   onToggleFolderSelect: (relativePath: string, node: FolderTreeNode, shiftKey: boolean) => void
   /** Callback when a file's selection is toggled (with index and shift key state) */
-  onToggleFileSelect: (filePath: string, folderPath: string, index: number, shiftKey: boolean) => void
+  onToggleFileSelect: (
+    filePath: string,
+    folderPath: string,
+    index: number,
+    shiftKey: boolean
+  ) => void
   /** Whether selection is disabled (e.g., during transfer) */
   selectionDisabled?: boolean
 }
