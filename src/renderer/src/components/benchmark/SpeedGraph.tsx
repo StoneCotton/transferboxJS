@@ -570,18 +570,24 @@ export function SpeedGraph({
         <div className="font-semibold text-gray-300">{tooltip.timestamp}</div>
         <div className="flex items-center gap-2">
           <div className="h-2 w-2 rounded-full" style={{ backgroundColor: PRIMARY_COLOR }} />
-          <span>Speed: <strong>{tooltip.sample.speedMbps.toFixed(1)} MB/s</strong></span>
+          <span>
+            Speed: <strong>{tooltip.sample.speedMbps.toFixed(1)} MB/s</strong>
+          </span>
         </div>
         {tooltip.sample.cpuPercent !== undefined && (
           <div className="flex items-center gap-2">
             <div className="h-2 w-2 rounded-full" style={{ backgroundColor: CPU_COLOR }} />
-            <span>CPU: <strong>{tooltip.sample.cpuPercent.toFixed(1)}%</strong></span>
+            <span>
+              CPU: <strong>{tooltip.sample.cpuPercent.toFixed(1)}%</strong>
+            </span>
           </div>
         )}
         {tooltip.sample.memoryUsedMB !== undefined && (
           <div className="flex items-center gap-2">
             <div className="h-2 w-2 rounded-full" style={{ backgroundColor: MEMORY_COLOR }} />
-            <span>Memory: <strong>{tooltip.sample.memoryUsedMB.toFixed(0)} MB</strong></span>
+            <span>
+              Memory: <strong>{tooltip.sample.memoryUsedMB.toFixed(0)} MB</strong>
+            </span>
           </div>
         )}
         {tooltip.sample.currentFile && (
@@ -613,18 +619,27 @@ export function SpeedGraph({
         <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs">
           <div className="flex items-center gap-2">
             <div className="h-1 w-5 rounded-full" style={{ backgroundColor: PRIMARY_COLOR }} />
-            <span className="font-medium" style={{ color: PRIMARY_COLOR }}>Transfer Speed (MB/s)</span>
+            <span className="font-medium" style={{ color: PRIMARY_COLOR }}>
+              Transfer Speed (MB/s)
+            </span>
           </div>
           {showCpu && hasCpuData && (
             <div className="flex items-center gap-2">
               <div className="h-1 w-5 rounded-full" style={{ backgroundColor: CPU_COLOR }} />
-              <span className="font-medium" style={{ color: CPU_COLOR }}>CPU % (App)</span>
+              <span className="font-medium" style={{ color: CPU_COLOR }}>
+                CPU % (App)
+              </span>
             </div>
           )}
           {showMemory && hasMemoryData && (
             <div className="flex items-center gap-2">
-              <div className="h-1 w-5 rounded-full border-t-2 border-dashed" style={{ borderColor: MEMORY_COLOR }} />
-              <span className="font-medium" style={{ color: MEMORY_COLOR }}>Memory (App)</span>
+              <div
+                className="h-1 w-5 rounded-full border-t-2 border-dashed"
+                style={{ borderColor: MEMORY_COLOR }}
+              />
+              <span className="font-medium" style={{ color: MEMORY_COLOR }}>
+                Memory (App)
+              </span>
             </div>
           )}
           {samples.some((s) => s.phase === 'verify') && (

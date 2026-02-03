@@ -128,12 +128,7 @@ export function FileList() {
             <span className="text-sm text-gray-500">
               {selectionStats.selected} of {selectionStats.total} files selected
             </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleSelectAll}
-              disabled={isTransferring}
-            >
+            <Button variant="outline" size="sm" onClick={handleSelectAll} disabled={isTransferring}>
               Select All
             </Button>
             <Button
@@ -158,7 +153,9 @@ export function FileList() {
             No files found. Select a drive to scan.
           </div>
         ) : (
-          <div className={cn('max-h-[500px] overflow-y-auto', isCondensed ? 'space-y-1' : 'space-y-2')}>
+          <div
+            className={cn('max-h-[500px] overflow-y-auto', isCondensed ? 'space-y-1' : 'space-y-2')}
+          >
             {folderTree.map((rootNode, index) => (
               <FolderSection
                 key={rootNode.relativePath}

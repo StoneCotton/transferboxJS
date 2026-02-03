@@ -28,7 +28,8 @@
       "Bash(npm run test:renderer:*)",
       "Bash(npx tsc:*)",
       "Bash(gh pr view:*)",
-      "Bash(gh api:*)"
+      "Bash(gh api:*)",
+      "Bash(npm run clean:build:*)"
     ]
   }
 }

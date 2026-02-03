@@ -1,6 +1,6 @@
 {
   "name": "TransferBox",
-  "version": "2.0.1-beta.21",
+  "version": "2.0.1-beta.22",
   "description": "Media ingest utility.",
   "main": "./out/main/index.js",
   "author": "Tyler Saari",
@@ -32,7 +32,8 @@
     "clean": "rm -rf out/ dist/",
     "clean:build": "npm run clean && npm run build",
     "clean:build:mac": "npm run clean && npm run build:mac",
-    "clean:build:all": "npm run clean && npm run build:all"
+    "clean:build:all": "npm run clean && npm run build:all",
+    "check": "npm run lint && npm run typecheck"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",

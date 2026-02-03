@@ -304,9 +304,9 @@ export class DatabaseManager {
    */
   private migrateBenchmarkTables(): void {
     // Check if benchmark_runs table has the new columns
-    const runColumns = this.db
-      .prepare(`PRAGMA table_info(benchmark_runs)`)
-      .all() as Array<{ name: string }>
+    const runColumns = this.db.prepare(`PRAGMA table_info(benchmark_runs)`).all() as Array<{
+      name: string
+    }>
 
     const hasTransferDuration = runColumns.some((col) => col.name === 'transfer_duration_ms')
 
@@ -325,9 +325,9 @@ export class DatabaseManager {
     }
 
     // Check if benchmark_samples table has the new columns
-    const sampleColumns = this.db
-      .prepare(`PRAGMA table_info(benchmark_samples)`)
-      .all() as Array<{ name: string }>
+    const sampleColumns = this.db.prepare(`PRAGMA table_info(benchmark_samples)`).all() as Array<{
+      name: string
+    }>
 
     const hasCpuPercent = sampleColumns.some((col) => col.name === 'cpu_percent')
 
@@ -1172,9 +1172,7 @@ export class DatabaseManager {
 
       // Delete old runs (CASCADE will handle samples)
       const placeholders = idsToDelete.map(() => '?').join(',')
-      const deleteStmt = this.db.prepare(
-        `DELETE FROM benchmark_runs WHERE id IN (${placeholders})`
-      )
+      const deleteStmt = this.db.prepare(`DELETE FROM benchmark_runs WHERE id IN (${placeholders})`)
       const result = deleteStmt.run(...idsToDelete.map((r) => r.id))
 
       this.db.exec('COMMIT')
@@ -1189,9 +1187,7 @@ export class DatabaseManager {
    * Get benchmark run count
    */
   getBenchmarkRunCount(): number {
-    const result = this.db
-      .prepare('SELECT COUNT(*) as count FROM benchmark_runs')
-      .get() as CountRow
+    const result = this.db.prepare('SELECT COUNT(*) as count FROM benchmark_runs').get() as CountRow
     return result?.count || 0
   }
 

@@ -74,9 +74,7 @@ describe('buildFolderTree', () => {
   })
 
   it('should create intermediate empty folders', () => {
-    const files: ScannedFile[] = [
-      createFile('/Volumes/SD_CARD/A/B/C/file.jpg', 1000)
-    ]
+    const files: ScannedFile[] = [createFile('/Volumes/SD_CARD/A/B/C/file.jpg', 1000)]
 
     const tree = buildFolderTree(files, driveRoot)
 
@@ -97,9 +95,7 @@ describe('buildFolderTree', () => {
   })
 
   it('should handle files in root folder', () => {
-    const files: ScannedFile[] = [
-      createFile('/Volumes/SD_CARD/readme.txt', 500)
-    ]
+    const files: ScannedFile[] = [createFile('/Volumes/SD_CARD/readme.txt', 500)]
 
     const tree = buildFolderTree(files, driveRoot)
 
